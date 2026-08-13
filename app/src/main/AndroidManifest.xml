@@ -20,7 +20,7 @@
     <!-- Permissions                             -->
     <!-- ======================================= -->
     <permission android:name="${applicationId}.ACCESS_SECRETS" android:label="Access to TextSecure Secrets" android:protectionLevel="signature" />
-    <uses-permission android:name="org.thoughtcrime.securesms.ACCESS_SECRETS" />
+    <uses-permission android:name="${applicationId}.ACCESS_SECRETS" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
