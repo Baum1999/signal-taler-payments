@@ -5,6 +5,7 @@ import org.signal.core.util.insertInto
 import org.signal.core.util.logging.Log
 import org.signal.core.util.readToList
 import org.signal.core.util.readToSingleObject
+import org.signal.core.util.requireInt
 import org.signal.core.util.requireLong
 import org.signal.core.util.requireLongOrNull
 import org.signal.core.util.requireNonNullString
@@ -24,6 +25,18 @@ data class TalerPaymentRecord(
   val summary: String?,
   val createdAt: Long,
   val lastCheckedAt: Long?,
+  val consecutiveFailures: Int,
+)
+
+/**
+ * Kandidat fuers Polling (REVIEW.md B2) - schlanker als [TalerPaymentRecord],
+ * enthaelt nur, was [org.thoughtcrime.securesms.taler.TalerPollingCoordinator]
+ * fuer die Backoff-Entscheidung braucht.
+ */
+data class TalerPaymentPollCandidate(
+  val uri: String,
+  val lastCheckedAt: Long?,
+  val consecutiveFailures: Int,
 )
 
 /**
@@ -49,6 +62,12 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     const val SUMMARY = "summary"
     const val CREATED_AT = "created_at"
     const val LAST_CHECKED_AT = "last_checked_at"
+
+    /**
+     * Erst mit V323_AddTalerPaymentPollingColumns hinzugekommen - bewusst
+     * nicht Teil von [CREATE_TABLE] (siehe Kommentar dort in der Migration).
+     */
+    const val CONSECUTIVE_FAILURES = "consecutive_failures"
 
     const val CREATE_TABLE = """
       CREATE TABLE $TABLE_NAME (
@@ -79,6 +98,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       summary = cursor.requireString(SUMMARY),
       createdAt = cursor.requireLong(CREATED_AT),
       lastCheckedAt = cursor.requireLongOrNull(LAST_CHECKED_AT),
+      consecutiveFailures = cursor.requireInt(CONSECUTIVE_FAILURES),
     )
   }
 
@@ -119,6 +139,8 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
         EXCHANGE_BASE_URL to exchangeBaseUrl,
         SUMMARY to summary,
         LAST_CHECKED_AT to System.currentTimeMillis(),
+        // B2 (REVIEW.md): erfolgreicher Abruf setzt den Backoff zurueck.
+        CONSECUTIVE_FAILURES to 0,
       )
       .where("$URI = ?", uri)
       .run()
@@ -127,9 +149,28 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
   fun updateStatus(uri: String, status: TalerPaymentStatus) {
     writableDatabase
       .update(TABLE_NAME)
-      .values(STATUS to status.name, LAST_CHECKED_AT to System.currentTimeMillis())
+      .values(
+        STATUS to status.name,
+        LAST_CHECKED_AT to System.currentTimeMillis(),
+        CONSECUTIVE_FAILURES to 0,
+      )
       .where("$URI = ?", uri)
       .run()
+  }
+
+  /**
+   * Binder-/Transport-Fehler beim Abfragen von [uri] (REVIEW.md B2) -
+   * zaehlt hoch fuer den exponentiellen Backoff in
+   * [org.thoughtcrime.securesms.taler.TalerPollingCoordinator]. Anders als
+   * [updateStatus]/[updateFromPreview] bewusst kein Status-Wechsel - ein
+   * transienter Binder-Fehler ist kein neuer bekannter Zustand des Vorgangs.
+   */
+  fun recordFailure(uri: String) {
+    writableDatabase
+      .execSQL(
+        "UPDATE $TABLE_NAME SET $LAST_CHECKED_AT = ?, $CONSECUTIVE_FAILURES = $CONSECUTIVE_FAILURES + 1 WHERE $URI = ?",
+        arrayOf(System.currentTimeMillis(), uri)
+      )
   }
 
   fun getByUri(uri: String): TalerPaymentRecord? =
@@ -150,23 +191,53 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       .readToList { readRecord(it) }
 
   /**
-   * URIs in einem nicht-terminalen Zustand - Kandidaten fuers Polling
-   * (Schritt 4g/docs/API.md: "Source of Truth ist Taler"). ANGENOMMEN,
-   * ABGELAUFEN, UNGUELTIG und LOKAL_ABGELEHNT sind Endzustaende, die sich
-   * nicht mehr von selbst aendern.
+   * Kandidaten fuers Polling (Schritt 4g/docs/API.md: "Source of Truth ist
+   * Taler"; Backoff/Cap: REVIEW.md B2). ANGENOMMEN, ABGELAUFEN, UNGUELTIG und
+   * LOKAL_ABGELEHNT sind Endzustaende, die sich nicht mehr von selbst
+   * aendern - fuer die ist auch kein TTL noetig, sie werden hier gar nicht
+   * erst betrachtet.
+   *
+   * TTL nur fuer UNBEKANNT_OFFLINE/TALER_NICHT_VERBUNDEN: das sind die
+   * unsicheren Zustaende ("App fehlt/nicht vertrauenswuerdig/kein Consent"
+   * bzw. ein fehlgeschlagener Abruf), die ohne Nutzerinteraktion ewig so
+   * bleiben koennen. OFFEN ist ein von Taler bestaetigter, echter
+   * Wartezustand (ein offener Dialog/eine offene Purse) - der bleibt ohne
+   * TTL im Polling, sonst wuerde eine tagelang liegen gelassene, aber
+   * weiterhin gueltige Zahlungsanfrage irgendwann nicht mehr aktualisiert.
+   *
+   * [limit] plus Sortierung nach am laengsten nicht geprueft zuerst sorgt
+   * dafuer, dass bei mehr offenen Vorgaengen als das Limit alle Vorgaenge
+   * reihum drankommen, statt dass die ersten N fuer immer bevorzugt werden.
+   * Der Backoff selbst (aus [TalerPaymentPollCandidate.consecutiveFailures])
+   * wird von [org.thoughtcrime.securesms.taler.TalerPollingCoordinator]
+   * angewandt, nicht hier in SQL.
    */
-  fun getNonTerminalUris(): List<String> {
-    val nonTerminal = listOf(
-      TalerPaymentStatus.OFFEN,
-      TalerPaymentStatus.UNBEKANNT_OFFLINE,
-      TalerPaymentStatus.TALER_NICHT_VERBUNDEN,
-    )
-    val placeholders = nonTerminal.joinToString(",") { "?" }
+  fun getPollCandidates(limit: Int, ttlCutoffMillis: Long): List<TalerPaymentPollCandidate> {
+    val ttlExempt = listOf(TalerPaymentStatus.OFFEN)
+    val ttlSubject = listOf(TalerPaymentStatus.UNBEKANNT_OFFLINE, TalerPaymentStatus.TALER_NICHT_VERBUNDEN)
+    val exemptPlaceholders = ttlExempt.joinToString(",") { "?" }
+    val subjectPlaceholders = ttlSubject.joinToString(",") { "?" }
     return readableDatabase
-      .select(URI)
+      .select(URI, LAST_CHECKED_AT, CONSECUTIVE_FAILURES)
       .from(TABLE_NAME)
-      .where("$STATUS IN ($placeholders)", *nonTerminal.map { it.name }.toTypedArray())
+      .where(
+        """
+        ($STATUS IN ($exemptPlaceholders))
+        OR ($STATUS IN ($subjectPlaceholders) AND COALESCE($LAST_CHECKED_AT, $CREATED_AT) >= ?)
+        """,
+        *ttlExempt.map { it.name }.toTypedArray(),
+        *ttlSubject.map { it.name }.toTypedArray(),
+        ttlCutoffMillis,
+      )
+      .orderBy("COALESCE($LAST_CHECKED_AT, 0) ASC")
+      .limit(limit)
       .run()
-      .readToList { it.requireNonNullString(URI) }
+      .readToList {
+        TalerPaymentPollCandidate(
+          uri = it.requireNonNullString(URI),
+          lastCheckedAt = it.requireLongOrNull(LAST_CHECKED_AT),
+          consecutiveFailures = it.requireInt(CONSECUTIVE_FAILURES),
+        )
+      }
   }
 }

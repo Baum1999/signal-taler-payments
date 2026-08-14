@@ -7,6 +7,7 @@ import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobmanager.Job
 import org.thoughtcrime.securesms.jobmanager.JsonJobData
+import org.thoughtcrime.securesms.taler.TalerCorrelation
 import org.thoughtcrime.securesms.taler.TalerLinkClient
 import org.thoughtcrime.securesms.taler.TalerLinkResult
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
@@ -36,8 +37,13 @@ class TalerUriRefreshJob private constructor(
   }
 
   constructor(uri: String) : this(
+    // B1b (REVIEW.md): der Queue-Name landet persistent in Signals eigener
+    // Job-Datenbank (JobDatabase.QUEUE_KEY) und wird vom JobManager bei
+    // jedem Lauf mehrfach geloggt - deshalb Hash statt Klartext-URI. Die
+    // Dedup-Eigenschaft (ein Vorgang pro URI, nicht pro Nachricht) bleibt
+    // erhalten, solange der Hash kollisionsfrei ist.
     Parameters.Builder()
-      .setQueue("TalerUriRefreshJob::$uri")
+      .setQueue("TalerUriRefreshJob::${TalerCorrelation.shortHash(uri)}")
       .setMaxInstancesForQueue(1)
       .setLifespan(TimeUnit.MINUTES.toMillis(1))
       .setMaxAttempts(3)
@@ -55,8 +61,12 @@ class TalerUriRefreshJob private constructor(
         SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.TALER_NICHT_VERBUNDEN)
       }
       is TalerLinkResult.Fehler -> {
-        Log.w(TAG, "previewForUri fehlgeschlagen fuer $uri")
-        // Kein DB-Update - naechster Poll-Durchlauf (Schritt 4g) versucht es erneut.
+        Log.w(TAG, "previewForUri fehlgeschlagen (uri=${TalerCorrelation.shortHash(uri)})")
+        // B2 (REVIEW.md): consecutive_failures hochzaehlen statt keinem
+        // DB-Update - TalerPollingCoordinator braucht das fuer den
+        // exponentiellen Backoff, sonst wird ein dauerhaft fehlschlagender
+        // URI weiter im festen 20s-Takt angefragt.
+        SignalDatabase.talerPayments.recordFailure(uri)
         return
       }
     }
@@ -95,7 +105,7 @@ class TalerUriRefreshJob private constructor(
   override fun getFactoryKey(): String = KEY
 
   override fun onFailure() {
-    Log.w(TAG, "Konnte $uri nicht aktualisieren")
+    Log.w(TAG, "Konnte Vorgang nicht aktualisieren (uri=${TalerCorrelation.shortHash(uri)})")
   }
 
   class Factory : Job.Factory<TalerUriRefreshJob> {
