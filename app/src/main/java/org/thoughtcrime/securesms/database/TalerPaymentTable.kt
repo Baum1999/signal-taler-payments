@@ -2,7 +2,6 @@ package org.thoughtcrime.securesms.database
 
 import android.content.Context
 import org.signal.core.util.insertInto
-import org.signal.core.util.logging.Log
 import org.signal.core.util.readToList
 import org.signal.core.util.readToSingleObject
 import org.signal.core.util.requireInt
@@ -48,8 +47,6 @@ data class TalerPaymentPollCandidate(
 class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : DatabaseTable(context, databaseHelper) {
 
   companion object {
-    private val TAG = Log.tag(TalerPaymentTable::class)
-
     const val TABLE_NAME = "taler_payment"
     const val ID = "_id"
     const val URI = "uri"
@@ -197,13 +194,14 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
    * aendern - fuer die ist auch kein TTL noetig, sie werden hier gar nicht
    * erst betrachtet.
    *
-   * TTL nur fuer UNBEKANNT_OFFLINE/TALER_NICHT_VERBUNDEN: das sind die
-   * unsicheren Zustaende ("App fehlt/nicht vertrauenswuerdig/kein Consent"
-   * bzw. ein fehlgeschlagener Abruf), die ohne Nutzerinteraktion ewig so
-   * bleiben koennen. OFFEN ist ein von Taler bestaetigter, echter
-   * Wartezustand (ein offener Dialog/eine offene Purse) - der bleibt ohne
-   * TTL im Polling, sonst wuerde eine tagelang liegen gelassene, aber
-   * weiterhin gueltige Zahlungsanfrage irgendwann nicht mehr aktualisiert.
+   * TTL fuer UNBEKANNT_OFFLINE/TALER_NICHT_VERBUNDEN/NICHT_INSTALLIERT/
+   * NICHT_VERTRAUENSWUERDIG: das sind die unsicheren Zustaende (App fehlt,
+   * App nicht vertrauenswuerdig, kein Consent, bzw. ein fehlgeschlagener
+   * Abruf), die ohne Nutzerinteraktion ewig so bleiben koennen. OFFEN ist
+   * ein von Taler bestaetigter, echter Wartezustand (ein offener Dialog/eine
+   * offene Purse) - der bleibt ohne TTL im Polling, sonst wuerde eine
+   * tagelang liegen gelassene, aber weiterhin gueltige Zahlungsanfrage
+   * irgendwann nicht mehr aktualisiert.
    *
    * [limit] plus Sortierung nach am laengsten nicht geprueft zuerst sorgt
    * dafuer, dass bei mehr offenen Vorgaengen als das Limit alle Vorgaenge
@@ -214,7 +212,12 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
    */
   fun getPollCandidates(limit: Int, ttlCutoffMillis: Long): List<TalerPaymentPollCandidate> {
     val ttlExempt = listOf(TalerPaymentStatus.OFFEN)
-    val ttlSubject = listOf(TalerPaymentStatus.UNBEKANNT_OFFLINE, TalerPaymentStatus.TALER_NICHT_VERBUNDEN)
+    val ttlSubject = listOf(
+      TalerPaymentStatus.UNBEKANNT_OFFLINE,
+      TalerPaymentStatus.TALER_NICHT_VERBUNDEN,
+      TalerPaymentStatus.NICHT_INSTALLIERT,
+      TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG,
+    )
     val exemptPlaceholders = ttlExempt.joinToString(",") { "?" }
     val subjectPlaceholders = ttlSubject.joinToString(",") { "?" }
     return readableDatabase

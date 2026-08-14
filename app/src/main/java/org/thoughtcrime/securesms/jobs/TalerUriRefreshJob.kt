@@ -55,8 +55,16 @@ class TalerUriRefreshJob private constructor(
     val result = runBlocking { TalerLinkClient(context).previewForUri(uri) }
     when (result) {
       is TalerLinkResult.Ergebnis -> applyPreview(result.value)
-      is TalerLinkResult.NichtInstalliert,
-      is TalerLinkResult.NichtVertrauenswuerdig,
+      // P1 (REVIEW.md): drei fuer den Nutzer unterschiedliche Faelle nicht
+      // mehr auf einen gemeinsamen Fallback-Zustand zusammenfassen - "App
+      // fehlt" ist ein Installationshinweis, "Signatur stimmt nicht" ein
+      // Sicherheitshinweis, "kein Consent" ein reiner Verbindungshinweis.
+      is TalerLinkResult.NichtInstalliert -> {
+        SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.NICHT_INSTALLIERT)
+      }
+      is TalerLinkResult.NichtVertrauenswuerdig -> {
+        SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG)
+      }
       is TalerLinkResult.KeinConsent -> {
         SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.TALER_NICHT_VERBUNDEN)
       }

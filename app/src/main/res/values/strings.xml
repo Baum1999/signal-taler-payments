@@ -10014,5 +10014,48 @@
     <!-- Button declining to paste the recovery key -->
     <string name="RecoveryKeyWarningDialog__dont_share">Don\'t share</string>
 
+    <!-- GNU-Fork (Signal-Taler-Integration, docs/API.md): Strings ausschliesslich fuer diesen Fork, nicht Teil von Signal upstream. -->
+
+    <!-- Label on a payment card under a message, for a taler://pay-push/... link -->
+    <string name="TalerFork_kind_pay_push">Taler payment link</string>
+    <!-- Label on a payment card under a message, for a taler://pay-pull/... link -->
+    <string name="TalerFork_kind_pay_pull">Taler payment request</string>
+    <!-- Label on a payment card under a message, for a taler://pay/... link -->
+    <string name="TalerFork_kind_pay">Taler payment</string>
+    <!-- Label on a payment card under a message, for a taler://withdraw/... link -->
+    <string name="TalerFork_kind_withdraw">Taler withdrawal link</string>
+    <!-- Label on a payment card under a message, for a taler://refund/... link -->
+    <string name="TalerFork_kind_refund">Taler refund link</string>
+    <!-- Label on a payment card under a message, for a recognized but not yet categorized Taler link -->
+    <string name="TalerFork_kind_unknown">Taler link</string>
+
+    <!-- Status text on a payment card: Taler confirmed the payment/request is still open, waiting for a decision -->
+    <string name="TalerFork_status_open">Open</string>
+    <!-- Status text on a payment card: the payment/request was accepted -->
+    <string name="TalerFork_status_accepted">Accepted</string>
+    <!-- Status text on a payment card: the user declined the payment/request in this Signal installation only - does not claim any funds moved -->
+    <string name="TalerFork_status_declined">Declined</string>
+    <!-- Status text on a payment card: the payment/request has expired -->
+    <string name="TalerFork_status_expired">Expired</string>
+    <!-- Status text on a payment card while the local status is not yet known, e.g. right after the link was detected -->
+    <string name="TalerFork_status_checking">Checking…</string>
+    <!-- Status text on a payment card: the link is not a valid Taler link -->
+    <string name="TalerFork_status_invalid">Invalid link</string>
+    <!-- Status text on a payment card: GNU Taler is installed and trusted, but the user has not granted the connection yet -->
+    <string name="TalerFork_status_not_connected">GNU Taler not connected</string>
+    <!-- Status text on a payment card: the GNU Taler app is not installed on this device -->
+    <string name="TalerFork_status_not_installed">GNU Taler is not installed</string>
+    <!-- Status text on a payment card: an app claiming to be GNU Taler responded, but its signing certificate does not match the pinned allowlist. This is a security warning, not an installation hint, and must look visibly different from TalerFork_status_not_installed -->
+    <string name="TalerFork_status_untrusted">GNU Taler: unexpected app signature, connection blocked</string>
+
+    <!-- Row label in chat settings for the temporary GNU Taler connection-test entry -->
+    <string name="TalerFork_settings_row_label">GNU Taler (connection test)</string>
+    <!-- Toast shown after a successful GNU Taler connection test -->
+    <string name="TalerFork_settings_connected">GNU Taler: connected</string>
+    <!-- Toast shown when the GNU Taler connection test failed without further detail -->
+    <string name="TalerFork_settings_connection_error">GNU Taler: connection attempt failed</string>
+    <!-- Toast shown when the GNU Taler connection test failed; %1$s is the exception class name -->
+    <string name="TalerFork_settings_connection_error_detail">GNU Taler: connection attempt failed (%1$s)</string>
+
     <!-- EOF -->
 </resources>
