@@ -141,6 +141,13 @@
             app:measureLastLine="true"
             app:scaleEmojis="true"
             tools:text="Testy test test test" />
+
+        <!-- GNU-Fork (Signal-Taler-Integration), siehe docs/API.md -->
+        <ViewStub
+            android:id="@+id/taler_card_stub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout="@layout/taler_payment_card_container" />
     </org.thoughtcrime.securesms.conversation.v2.items.ShrinkWrapLinearLayout>
 
     <!-- Footer -->

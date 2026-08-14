@@ -8,6 +8,7 @@ package org.thoughtcrime.securesms.conversation.v2.items
 import android.graphics.Color
 import android.graphics.PorterDuff
 import android.graphics.Typeface
+import android.net.Uri
 import android.text.Spannable
 import android.text.SpannableStringBuilder
 import android.text.Spanned
@@ -19,9 +20,12 @@ import android.text.style.ForegroundColorSpan
 import android.text.style.URLSpan
 import android.util.TypedValue
 import android.view.GestureDetector
+import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.Observer
@@ -41,12 +45,17 @@ import org.thoughtcrime.securesms.conversation.mutiselect.MultiselectPart
 import org.thoughtcrime.securesms.conversation.mutiselect.Multiselectable
 import org.thoughtcrime.securesms.conversation.v2.computed.FormattedDate
 import org.thoughtcrime.securesms.conversation.v2.data.ConversationMessageElement
+import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.database.TalerPaymentRecord
 import org.thoughtcrime.securesms.database.model.MessageRecord
 import org.thoughtcrime.securesms.database.model.MmsMessageRecord
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.recipients.RecipientId
+import org.thoughtcrime.securesms.taler.TalerPaymentStatus
+import org.thoughtcrime.securesms.taler.TalerPollingCoordinator
+import org.thoughtcrime.securesms.taler.TalerUriDetector
 import org.thoughtcrime.securesms.util.InterceptableLongClickCopyLinkSpan
 import org.thoughtcrime.securesms.util.LongClickMovementMethod
 import org.thoughtcrime.securesms.util.MAX_BODY_DISPLAY_LENGTH
@@ -257,6 +266,7 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
     }
 
     presentBody()
+    presentTalerCard()
     presentDate()
     presentDeliveryStatus()
     presentFooterBackground()
@@ -438,6 +448,93 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
 
     binding.body.visible = bodyText.isNotEmpty()
     binding.body.text = bodyText
+  }
+
+  /**
+   * GNU-Fork (Signal-Taler-Integration, siehe docs/API.md). Zeigt fuer jede
+   * erkannte Taler-URI im Klartext-Body eine kleine Karte darunter - der
+   * Body-Text selbst bleibt unveraendert (Pflicht: fremde Signal-Clients
+   * sehen weiterhin nur reinen Text). Es werden nur URIs angezeigt, die die
+   * lokale Taler-Schnittstelle bereits (durch TalerUriRefreshJob) bestaetigt
+   * hat; solange kein Ergebnis vorliegt, zeigt die Karte "Checking...".
+   */
+  private fun presentTalerCard() {
+    val stub = binding.talerCardStub ?: return
+    val body = conversationMessage.messageRecord.body
+    val uris = TalerUriDetector.findUris(body)
+
+    // Deckt auch den Fall ab, dass ein Chat mit einer laengst getrackten URI
+    // nur geoeffnet/gescrollt wird (kein neuer Sende-/Empfangs-Hook noetig,
+    // um Polling in Gang zu setzen) - siehe Schritt 4g/docs/API.md.
+    if (uris.isNotEmpty()) {
+      TalerPollingCoordinator.ensureStarted()
+    }
+
+    val container = root.findViewById<LinearLayout?>(R.id.taler_payment_cards)
+      ?: if (uris.isEmpty()) null else stub.inflate() as LinearLayout
+
+    if (container == null) return
+
+    container.removeAllViews()
+    if (uris.isEmpty()) {
+      container.visibility = View.GONE
+      return
+    }
+
+    container.visibility = View.VISIBLE
+    val inflater = LayoutInflater.from(container.context)
+    for (uri in uris) {
+      val record = SignalDatabase.talerPayments.getByUri(uri)
+      val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
+      bindTalerCard(cardView, record)
+      container.addView(cardView)
+    }
+  }
+
+  private fun bindTalerCard(view: View, record: TalerPaymentRecord?) {
+    val kind = view.findViewById<TextView>(R.id.taler_card_kind)
+    val amount = view.findViewById<TextView>(R.id.taler_card_amount)
+    val summary = view.findViewById<TextView>(R.id.taler_card_summary)
+    val exchange = view.findViewById<TextView>(R.id.taler_card_exchange)
+    val status = view.findViewById<TextView>(R.id.taler_card_status)
+
+    kind.text = talerKindLabel(record?.uriKind)
+
+    if (record?.amount != null && record.currency != null) {
+      amount.text = "${record.amount} ${record.currency}"
+      amount.visible = true
+    } else {
+      amount.visible = false
+    }
+
+    summary.text = record?.summary
+    summary.visible = !record?.summary.isNullOrBlank()
+
+    val host = record?.exchangeBaseUrl?.let { Uri.parse(it).host }
+    exchange.text = host
+    exchange.visible = host != null
+
+    val talerStatus = record?.status ?: TalerPaymentStatus.UNBEKANNT_OFFLINE
+    status.text = talerStatusLabel(talerStatus)
+  }
+
+  private fun talerKindLabel(kind: String?): String = when (kind) {
+    "PAY_PUSH" -> "Taler payment link"
+    "PAY_PULL" -> "Taler payment request"
+    "PAY" -> "Taler payment"
+    "WITHDRAW" -> "Taler withdrawal link"
+    "REFUND" -> "Taler refund link"
+    else -> "Taler link"
+  }
+
+  private fun talerStatusLabel(status: TalerPaymentStatus): String = when (status) {
+    TalerPaymentStatus.OFFEN -> "Open"
+    TalerPaymentStatus.ANGENOMMEN -> "Accepted"
+    TalerPaymentStatus.LOKAL_ABGELEHNT -> "Declined"
+    TalerPaymentStatus.ABGELAUFEN -> "Expired"
+    TalerPaymentStatus.UNBEKANNT_OFFLINE -> "Checking…"
+    TalerPaymentStatus.UNGUELTIG -> "Invalid link"
+    TalerPaymentStatus.TALER_NICHT_VERBUNDEN -> "GNU Taler not connected"
   }
 
   private fun linkifyMessageBody(messageBody: Spannable) {

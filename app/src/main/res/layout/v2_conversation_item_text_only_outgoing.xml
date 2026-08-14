@@ -31,11 +31,12 @@
         app:srcCompat="@drawable/symbol_reply_24" />
 
     <!-- Body -->
-    <FrameLayout
+    <LinearLayout
         android:id="@+id/conversation_item_body_wrapper"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="48dp"
+        android:orientation="vertical"
         app:cardElevation="0dp"
         app:layout_constrainedWidth="true"
         app:layout_constraintEnd_toStartOf="@id/conversation_item_alert"
@@ -65,7 +66,14 @@
             app:scaleEmojis="true"
             tools:text="Mango pickle lorem ipsum" />
 
-    </FrameLayout>
+        <!-- GNU-Fork (Signal-Taler-Integration), siehe docs/API.md -->
+        <ViewStub
+            android:id="@+id/taler_card_stub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout="@layout/taler_payment_card_container" />
+
+    </LinearLayout>
 
     <org.thoughtcrime.securesms.components.AlertView
         android:id="@+id/conversation_item_alert"

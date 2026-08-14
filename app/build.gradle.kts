@@ -235,6 +235,7 @@ android {
     buildConfig = true
     viewBinding = true
     compose = true
+    aidl = true
   }
 
   defaultConfig {

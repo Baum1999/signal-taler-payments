@@ -1,8 +1,11 @@
 package org.thoughtcrime.securesms.components.settings.app
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +51,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import net.taler.wallet.link.ConnectionState
 import org.signal.core.ui.compose.ComposeFragment
 import org.signal.core.ui.compose.DayNightPreviews
 import org.signal.core.ui.compose.Dividers
@@ -79,6 +84,9 @@ import org.thoughtcrime.securesms.database.model.InAppPaymentSubscriberRecord
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.profiles.ProfileName
 import org.thoughtcrime.securesms.recipients.Recipient
+import org.thoughtcrime.securesms.taler.TalerAllowlist
+import org.thoughtcrime.securesms.taler.TalerLinkClient
+import org.thoughtcrime.securesms.taler.TalerLinkResult
 import org.thoughtcrime.securesms.util.CommunicationActions
 import org.thoughtcrime.securesms.util.SignalE164Util
 import org.thoughtcrime.securesms.util.navigation.safeNavigate
@@ -496,6 +504,67 @@ private fun AppSettingsContent(
               }
             )
           }
+        }
+
+        item {
+          Dividers.Default()
+        }
+
+        item {
+          val context = LocalContext.current
+          val scope = rememberCoroutineScope()
+
+          fun describe(status: TalerLinkResult<ConnectionState>): String = when (status) {
+            is TalerLinkResult.NichtInstalliert -> "GNU Taler ist nicht installiert"
+            is TalerLinkResult.NichtVertrauenswuerdig -> "GNU Taler: Signatur stimmt nicht mit der Allowlist ueberein"
+            is TalerLinkResult.KeinConsent -> "GNU Taler: installiert, aber nicht verbunden"
+            is TalerLinkResult.Fehler -> "GNU Taler: Fehler beim Verbindungsversuch"
+            is TalerLinkResult.Ergebnis -> when (status.value) {
+              ConnectionState.VERBUNDEN -> "GNU Taler: verbunden"
+              ConnectionState.NICHT_VERBUNDEN -> "GNU Taler: installiert, aber nicht verbunden"
+            }
+          }
+
+          // Nur zum Nachweis der Kopplung in Schritt 3 - loest Talers einmaligen
+          // Consent-Dialog per expliziter startActivityForResult aus (nur so ist
+          // callingPackage dort verlaesslich gesetzt, siehe ConsentActivity in
+          // taler-android). Das eigentliche "Verbinden"-UX aus dem Fallback-Konzept
+          // (docs/API.md) kommt erst mit dem vollen Zustandsmodell in Schritt 4.
+          val consentLauncher = rememberLauncherForActivityResult(
+            ActivityResultContracts.StartActivityForResult()
+          ) {
+            scope.launch {
+              val message = try {
+                describe(TalerLinkClient(context).getConnectionState())
+              } catch (e: Exception) {
+                "GNU Taler: Fehler beim Verbindungsversuch (${e.javaClass.simpleName})"
+              }
+              Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            }
+          }
+
+          Rows.TextRow(
+            text = "GNU Taler (Schritt 3: Verbindungstest)",
+            icon = painterResource(R.drawable.symbol_payment_24),
+            onClick = {
+              scope.launch {
+                val status = try {
+                  TalerLinkClient(context).getConnectionState()
+                } catch (e: Exception) {
+                  Toast.makeText(context, "GNU Taler: Fehler beim Verbindungsversuch (${e.javaClass.simpleName})", Toast.LENGTH_LONG).show()
+                  return@launch
+                }
+                if (status is TalerLinkResult.Ergebnis && status.value == ConnectionState.NICHT_VERBUNDEN) {
+                  consentLauncher.launch(
+                    Intent()
+                      .setClassName(TalerAllowlist.PACKAGE, "net.taler.wallet.link.ConsentActivity")
+                  )
+                } else {
+                  Toast.makeText(context, describe(status), Toast.LENGTH_LONG).show()
+                }
+              }
+            }
+          )
         }
 
         item {

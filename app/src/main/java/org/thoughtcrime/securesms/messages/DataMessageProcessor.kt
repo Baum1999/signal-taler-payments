@@ -96,6 +96,7 @@ import org.thoughtcrime.securesms.recipients.Recipient.HiddenState
 import org.thoughtcrime.securesms.recipients.RecipientId
 import org.thoughtcrime.securesms.recipients.RecipientUtil
 import org.thoughtcrime.securesms.stickers.StickerLocator
+import org.thoughtcrime.securesms.taler.TalerPaymentTracker
 import org.thoughtcrime.securesms.util.EarlyMessageCacheEntry
 import org.thoughtcrime.securesms.util.LinkUtil
 import org.thoughtcrime.securesms.util.MediaUtil
@@ -1035,6 +1036,11 @@ object DataMessageProcessor {
         batchCache.addIncomingMessageInsertThreadUpdate(insertResult.threadId)
       }
       AppDependencies.messageNotifier.updateNotification(context, ConversationId.forConversation(insertResult.threadId))
+      // GNU-Fork (Signal-Taler-Integration): nur 1:1-Chats (docs/API.md Scope),
+      // deshalb nur wenn groupId null ist.
+      if (groupId == null) {
+        TalerPaymentTracker.trackUrisInBody(body, insertResult.threadId)
+      }
       insertResult
     } else {
       null

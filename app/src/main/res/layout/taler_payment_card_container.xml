@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ GNU-Fork (Signal-Taler-Integration), siehe docs/API.md.
+  ~ Wird per ViewStub in v2_conversation_item_text_only_(in|out)going.xml
+  ~ inflated. Haelt 0..n taler_payment_card.xml-Kinder, eines pro erkannter
+  ~ Taler-URI im Nachrichtentext - siehe V2ConversationItemTextOnlyViewHolder.
+  -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/taler_payment_cards"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical" />

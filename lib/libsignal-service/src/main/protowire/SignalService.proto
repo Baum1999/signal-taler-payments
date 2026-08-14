@@ -236,6 +236,15 @@ message DataMessage {
     reserved /*cancellation*/ 1003;
   }
 
+  // GNU-Fork (Signal-Taler-Integration): rohe Taler-URIs (taler://, ext+taler://,
+  // payto://) aus dem `body` dieser Nachricht. Dient nur als Recall-Hilfe beim
+  // Rendern - der Empfaenger validiert jede URI beim Anzeigen erneut ueber die
+  // lokale Taler-Schnittstelle (siehe docs/API.md), bevor sie als Zahlungskarte
+  // statt als Klartext gerendert wird. Dieses Feld ist keine Vertrauensquelle.
+  message TalerPayment {
+    repeated string uris = 1;
+  }
+
   message Quote {
     enum Type {
       NORMAL = 0;
@@ -441,6 +450,13 @@ message DataMessage {
   optional PinMessage pinMessage = 27;
   optional UnpinMessage unpinMessage = 28;
   optional AdminDelete adminDelete = 29;
+
+  // GNU-Fork (Signal-Taler-Integration, siehe docs/API.md Abschnitt 2.8).
+  // Bewusst hohe Feldnummer statt der naechsten freien Upstream-Nummer (30),
+  // um Kollisionen bei kuenftigen Upstream-Merges zu vermeiden - Upstream
+  // vergibt Feldnummern selbst und kennt unseren Fork nicht.
+  optional TalerPayment talerPayment = 9000;
+
   // NEXT ID: 30
 }
 

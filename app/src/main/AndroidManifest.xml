@@ -1627,4 +1627,10 @@
         </provider>
 
     </application>
+
+    <queries>
+        <!-- fuer die Cert-Pruefung der Taler-App vor dem Bind an ihre lokale
+             Schnittstelle, siehe docs/API.md -->
+        <package android:name="de.lenkenhoff.talerfuersignal.fdroid" />
+    </queries>
 </manifest>

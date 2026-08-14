@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?><!--
+  ~ GNU-Fork (Signal-Taler-Integration), siehe docs/API.md.
+  -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="6dp"
+    android:background="@drawable/rounded_rectangle_surface_variant_18"
+    android:orientation="vertical"
+    android:paddingStart="12dp"
+    android:paddingTop="10dp"
+    android:paddingEnd="12dp"
+    android:paddingBottom="10dp">
+
+    <TextView
+        android:id="@+id/taler_card_kind"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/Signal.Text.Caption"
+        android:textStyle="bold"
+        tools:text="Taler payment link" />
+
+    <TextView
+        android:id="@+id/taler_card_amount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textAppearance="@style/Signal.Text.TitleMedium"
+        tools:text="0.05 KUDOS" />
+
+    <TextView
+        android:id="@+id/taler_card_summary"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textAppearance="@style/Signal.Text.BodyMedium"
+        tools:text="Test A" />
+
+    <TextView
+        android:id="@+id/taler_card_exchange"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:textAppearance="@style/Signal.Text.Caption"
+        android:textColor="@color/signal_text_secondary"
+        tools:text="exchange.demo.taler.net" />
+
+    <TextView
+        android:id="@+id/taler_card_status"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textAppearance="@style/Signal.Text.Caption"
+        android:textStyle="bold"
+        tools:text="Open" />
+
+</LinearLayout>

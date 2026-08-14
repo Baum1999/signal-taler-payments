@@ -7,6 +7,7 @@ package org.thoughtcrime.securesms.conversation.v2.items
 
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewStub
 import android.widget.ImageView
 import android.widget.Space
 import android.widget.TextView
@@ -47,7 +48,12 @@ data class V2ConversationItemTextOnlyBindingBridge(
   val footerStarred: ImageView,
   val starredSource: TextView?,
   val starredSourceWrapper: View?,
-  val starredSourceAvatar: AvatarImageView?
+  val starredSourceAvatar: AvatarImageView?,
+  // GNU-Fork (Signal-Taler-Integration), siehe docs/API.md. Null fuer den
+  // Media-Bridge-Pfad (V2ConversationItemMediaBindingBridge.kt), dessen
+  // Layouts keinen taler_card_stub haben - presentTalerCard() wird dort
+  // ohnehin nie aufgerufen (nur von V2ConversationItemTextOnlyViewHolder).
+  val talerCardStub: ViewStub? = null
 )
 
 /**
@@ -74,7 +80,8 @@ fun V2ConversationItemTextOnlyIncomingBinding.bridge(): V2ConversationItemTextOn
     footerStarred = conversationItemFooterStarred,
     starredSource = conversationItemStarredSource,
     starredSourceWrapper = conversationItemStarredSourceWrapper,
-    starredSourceAvatar = conversationItemStarredSourceAvatar
+    starredSourceAvatar = conversationItemStarredSourceAvatar,
+    talerCardStub = talerCardStub
   )
 }
 
@@ -102,6 +109,7 @@ fun V2ConversationItemTextOnlyOutgoingBinding.bridge(): V2ConversationItemTextOn
     footerStarred = conversationItemFooterStarred,
     starredSource = null,
     starredSourceWrapper = null,
-    starredSourceAvatar = null
+    starredSourceAvatar = null,
+    talerCardStub = talerCardStub
   )
 }
