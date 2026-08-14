@@ -29,7 +29,7 @@ object TalerPaymentCardPresenter {
    * Taler-Schnittstelle bereits (durch TalerUriRefreshJob) bestaetigt hat;
    * solange kein Ergebnis vorliegt, zeigt die Karte [TalerPaymentStatus.UNBEKANNT_OFFLINE].
    */
-  fun present(root: ViewGroup, stub: ViewStub?, messageBody: String?) {
+  fun present(root: ViewGroup, stub: ViewStub?, messageBody: String) {
     if (stub == null) return
     val uris = TalerUriDetector.findUris(messageBody)
 
