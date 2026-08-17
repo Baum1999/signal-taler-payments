@@ -220,13 +220,24 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     )
     val exemptPlaceholders = ttlExempt.joinToString(",") { "?" }
     val subjectPlaceholders = ttlSubject.joinToString(",") { "?" }
-    return readableDatabase
+    // B3 (REVIEW.md, root-cause 2026-08-15): CAST(? AS INTEGER) ist notwendig,
+    // nicht kosmetisch. Der Query-Builder bindet Selection-Args immer als
+    // TEXT (Android SupportSQLiteQueryBuilder-API kennt nur String[]).
+    // COALESCE(...) traegt - anders als eine nackte Spaltenreferenz - keine
+    // Spalten-Affinitaet (SQLite-Doku "Column Affinity", Abschnitt 3.1), also
+    // erzwingt die COALESCE-Huelle hier keine numerische Typkonvertierung des
+    // gebundenen Strings. Ohne Affinitaet vergleicht SQLite nach Storage-
+    // Class, und NUMERIC sortiert dort IMMER unter TEXT - der Vergleich war
+    // dadurch fuer jede Zeile unabhaengig vom tatsaechlichen Timestamp false.
+    // CAST(? AS INTEGER) gibt dem gebundenen Parameter explizite Affinitaet
+    // zurueck. Lokal mit sqlite3 (Python) gegen genau dieses Muster verifiziert.
+    val result = readableDatabase
       .select(URI, LAST_CHECKED_AT, CONSECUTIVE_FAILURES)
       .from(TABLE_NAME)
       .where(
         """
         ($STATUS IN ($exemptPlaceholders))
-        OR ($STATUS IN ($subjectPlaceholders) AND COALESCE($LAST_CHECKED_AT, $CREATED_AT) >= ?)
+        OR ($STATUS IN ($subjectPlaceholders) AND COALESCE($LAST_CHECKED_AT, $CREATED_AT) >= CAST(? AS INTEGER))
         """,
         *ttlExempt.map { it.name }.toTypedArray(),
         *ttlSubject.map { it.name }.toTypedArray(),
@@ -242,5 +253,6 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
           consecutiveFailures = it.requireInt(CONSECUTIVE_FAILURES),
         )
       }
+    return result
   }
 }
