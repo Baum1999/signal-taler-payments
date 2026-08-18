@@ -29,7 +29,13 @@ object TalerPaymentCardPresenter {
    * Taler-Schnittstelle bereits (durch TalerUriRefreshJob) bestaetigt hat;
    * solange kein Ergebnis vorliegt, zeigt die Karte [TalerPaymentStatus.UNBEKANNT_OFFLINE].
    */
-  fun present(root: ViewGroup, stub: ViewStub?, messageBody: String) {
+  fun present(
+    root: ViewGroup,
+    stub: ViewStub?,
+    messageBody: String,
+    onAccept: (uri: String, threadId: Long) -> Unit = { _, _ -> },
+    onReject: (uri: String, threadId: Long) -> Unit = { _, _ -> },
+  ) {
     if (stub == null) return
     val uris = TalerUriDetector.findUris(messageBody)
 
@@ -56,12 +62,17 @@ object TalerPaymentCardPresenter {
     for (uri in uris) {
       val record = SignalDatabase.talerPayments.getByUri(uri)
       val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
-      bind(cardView, record)
+      bind(cardView, record, onAccept, onReject)
       container.addView(cardView)
     }
   }
 
-  private fun bind(view: View, record: TalerPaymentRecord?) {
+  private fun bind(
+    view: View,
+    record: TalerPaymentRecord?,
+    onAccept: (uri: String, threadId: Long) -> Unit,
+    onReject: (uri: String, threadId: Long) -> Unit,
+  ) {
     val context = view.context
     val kind = view.findViewById<TextView>(R.id.taler_card_kind)
     val amount = view.findViewById<TextView>(R.id.taler_card_amount)
@@ -87,6 +98,31 @@ object TalerPaymentCardPresenter {
 
     val talerStatus = record?.status ?: TalerPaymentStatus.UNBEKANNT_OFFLINE
     status.text = statusLabel(context, talerStatus)
+
+    val actionsRow = view.findViewById<android.view.View>(R.id.taler_card_actions)
+    val acceptButton = view.findViewById<android.widget.Button>(R.id.taler_card_accept)
+    val rejectButton = view.findViewById<android.widget.Button>(R.id.taler_card_reject)
+
+    // Annehmen/Ablehnen nur bei einer Karte mit konkretem DB-Eintrag im
+    // Zustand OFFEN - bei einer noch unbekannten (record == null) oder
+    // bereits entschiedenen Karte gibt es nichts mehr zu entscheiden
+    // (siehe docs/API.md 3.6, "Bewusst noch nicht enthalten").
+    //
+    // Zusaetzlich auf PAY_PUSH beschraenkt: der Taler-seitige Ruecksprung-
+    // Mechanismus (TalerReturnActivity/TalerCorrelationStore) ist bisher nur
+    // fuer pay-push-Vorgaenge Ende-zu-Ende verdrahtet. Bei PAY_PULL wuerde
+    // Annehmen zwar Talers Bestaetigungs-UI oeffnen, aber nie einen
+    // funktionierenden Ruecksprung nach Signal ausloesen - ein funktionierend
+    // aussehender Button ohne Wirkung waere schlimmer als gar keiner. Das ist
+    // eine bewusste Umfangsbegrenzung fuer diesen Meilenstein, kein Versehen -
+    // volle pay-pull-Unterstuetzung folgt in einem spaeteren Meilenstein.
+    val showActions = record?.status == TalerPaymentStatus.OFFEN &&
+      record.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name
+    actionsRow.visibility = if (showActions) android.view.View.VISIBLE else android.view.View.GONE
+    if (showActions && record != null) {
+      acceptButton.setOnClickListener { onAccept(record.uri, record.threadId) }
+      rejectButton.setOnClickListener { onReject(record.uri, record.threadId) }
+    }
   }
 
   private fun kindLabel(context: Context, kind: String?): String = context.getString(

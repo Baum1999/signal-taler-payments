@@ -125,6 +125,14 @@ public interface MessageTypes {
   long SPECIAL_TYPE_POLL_TERMINATE            = 0xC00000000L;
   long SPECIAL_TYPE_PINNED_MESSAGE            = 0xD00000000L;
 
+  // GNU-Fork (Signal-Taler-Integration, docs/API.md 2.10, Teil 1 Abschnitt 2):
+  // lokale Statuszeile bei Taler-Zahlungs-Statuswechsel (Annehmen/Ablehnen/
+  // Ablauf). Welcher Wechsel genau, steht im Message-Body als
+  // TalerPaymentStatus.name() - kein zweites Bit noetig, analog zum Muster
+  // bei anderen Update-Typen, die ihren Detailzustand nicht im Bitfeld
+  // kodieren.
+  long SPECIAL_TYPE_TALER_PAYMENT_UPDATE      = 0x700000000L;
+
   long IGNORABLE_TYPESMASK_WHEN_COUNTING = END_SESSION_BIT | KEY_EXCHANGE_IDENTITY_UPDATE_BIT | KEY_EXCHANGE_IDENTITY_VERIFIED_BIT;
 
   static boolean isStoryReaction(long type) {

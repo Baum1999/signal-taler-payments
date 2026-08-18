@@ -3029,7 +3029,11 @@ open class MessageTable(context: Context?, databaseHelper: SignalDatabase) : Dat
       retrieved.type == MessageType.IDENTITY_VERIFIED ||
       retrieved.type == MessageType.IDENTITY_UPDATE
 
-    val read = silent || retrieved.type == MessageType.EXPIRATION_UPDATE
+    // TALER_PAYMENT_UPDATE ist wie EXPIRATION_UPDATE eine rein lokale
+    // Systemzeile fuer eine bereits vom Nutzer selbst getroffene Aktion
+    // (Annehmen/Ablehnen/Ablauf) - ungelesen zaehlen und benachrichtigen
+    // waere falsch, der Nutzer weiss ja bereits, was er getan hat.
+    val read = silent || retrieved.type == MessageType.EXPIRATION_UPDATE || retrieved.type == MessageType.TALER_PAYMENT_UPDATE
 
     val contentValues = contentValuesOf(
       DATE_SENT to retrieved.sentTimeMillis,
@@ -6257,6 +6261,7 @@ open class MessageTable(context: Context?, databaseHelper: SignalDatabase) : Dat
       MessageType.IDENTITY_DEFAULT -> MessageTypes.KEY_EXCHANGE_IDENTITY_DEFAULT_BIT or MessageTypes.BASE_INBOX_TYPE
       MessageType.POLL_TERMINATE -> MessageTypes.SPECIAL_TYPE_POLL_TERMINATE or MessageTypes.BASE_INBOX_TYPE
       MessageType.PINNED_MESSAGE -> MessageTypes.SPECIAL_TYPE_PINNED_MESSAGE or MessageTypes.BASE_INBOX_TYPE
+      MessageType.TALER_PAYMENT_UPDATE -> MessageTypes.SPECIAL_TYPE_TALER_PAYMENT_UPDATE or MessageTypes.BASE_INBOX_TYPE
       MessageType.GROUP_UPDATE -> {
         val isOnlyGroupLeave = this.groupContext?.let { GroupV2UpdateMessageUtil.isJustAGroupLeave(it) } ?: false
 

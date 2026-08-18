@@ -47,6 +47,7 @@ import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.recipients.RecipientId
+import org.thoughtcrime.securesms.taler.TalerAcceptRejectActions
 import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
 import org.thoughtcrime.securesms.util.InterceptableLongClickCopyLinkSpan
 import org.thoughtcrime.securesms.util.LongClickMovementMethod
@@ -446,7 +447,13 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
   // und Bindung der Zahlungskarte(n) leben in TalerPaymentCardPresenter, um
   // diesen Eingriff in eine Upstream-Datei klein zu halten.
   private fun presentTalerCard() {
-    TalerPaymentCardPresenter.present(root, binding.talerCardStub, conversationMessage.messageRecord.body)
+    TalerPaymentCardPresenter.present(
+      root,
+      binding.talerCardStub,
+      conversationMessage.messageRecord.body,
+      onAccept = { uri, threadId -> TalerAcceptRejectActions.onAcceptClicked(root.context, uri, threadId) },
+      onReject = { uri, threadId -> TalerAcceptRejectActions.onRejectClicked(root.context, uri, threadId) },
+    )
   }
 
   private fun linkifyMessageBody(messageBody: Spannable) {

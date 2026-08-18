@@ -320,6 +320,19 @@ public abstract class MessageRecord extends DisplayRecord {
     } else if (MessageRecordUtil.hasPinnedMessageUpdate(this)) {
      return getFromRecipient().isSelf() ? staticUpdateDescriptionWithExpiration(context.getString(R.string.PinnedMessage__you_pinned_a_message), Glyph.PIN)
                                         : staticUpdateDescriptionWithExpiration(context.getString(R.string.PinnedMessage__s_pinned_a_message, getFromRecipient().getDisplayName(context)), Glyph.PIN);
+    } else if (isTalerPaymentUpdate()) {
+      String rawStatus = getBody();
+      int textRes;
+      if ("ANGENOMMEN".equals(rawStatus)) {
+        textRes = R.string.TalerFork_update_accepted;
+      } else if ("LOKAL_ABGELEHNT".equals(rawStatus)) {
+        textRes = R.string.TalerFork_update_declined;
+      } else if ("ABGELAUFEN".equals(rawStatus)) {
+        textRes = R.string.TalerFork_update_expired;
+      } else {
+        return null;
+      }
+      return staticUpdateDescription(context.getString(textRes), Glyph.ACTIVATE_PAYMENTS);
     }
 
     return null;
@@ -765,7 +778,12 @@ public abstract class MessageRecord extends DisplayRecord {
            isProfileChange() || isGroupV1MigrationEvent() || isChatSessionRefresh() || isBadDecryptType() ||
            isChangeNumber() || isReleaseChannelDonationRequest() || isThreadMergeEventType() || isSmsExportType() || isSessionSwitchoverEventType() ||
            isPaymentsRequestToActivate() || isPaymentsActivated() || isReportedSpam() || isMessageRequestAccepted() ||
-           isBlocked() || isUnblocked() || isUnsupported() || isPollTerminate() || isPinnedMessageUpdate();
+           isBlocked() || isUnblocked() || isUnsupported() || isPollTerminate() || isPinnedMessageUpdate() ||
+           isTalerPaymentUpdate();
+  }
+
+  public boolean isTalerPaymentUpdate() {
+    return (getType() & MessageTypes.SPECIAL_TYPES_MASK) == MessageTypes.SPECIAL_TYPE_TALER_PAYMENT_UPDATE;
   }
 
   public boolean isMediaPending() {

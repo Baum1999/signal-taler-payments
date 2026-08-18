@@ -14,10 +14,13 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.signal.core.util.readToList
+import org.signal.core.util.requireLong
+import org.signal.core.util.requireString
+import org.signal.core.util.select
 import org.signal.core.util.update
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
-import org.thoughtcrime.securesms.testutil.MockAppDependenciesRule
-import org.thoughtcrime.securesms.testutil.SignalDatabaseRule
+import org.thoughtcrime.securesms.testutil.RecipientTestRule
 import java.util.concurrent.TimeUnit
 
 /**
@@ -37,16 +40,27 @@ import java.util.concurrent.TimeUnit
 @Config(manifest = Config.NONE, application = Application::class)
 class TalerPaymentTableTest {
 
+  // insertLocalStatusLine_insertsAnUpdateMessageInTheGivenThread (u.a. via
+  // insertMessageInbox -> ThreadTable.updateForMessageInsert -> getConversationSnippet)
+  // braucht ein echtes, aufloesbares Recipient.self() - mit den vorherigen
+  // Einzel-Rules MockAppDependenciesRule/SignalDatabaseRule ist
+  // AppDependencies.recipientCache ein voll-relaxter mockk-Mock, dessen
+  // getSelf().id.serialize() unbeschaltet "" statt einer echten Recipient-ID
+  // liefert - FROM_RECIPIENT_ID landet dann als "" in der DB und der
+  // Rueckgelesen-Cursor stolpert beim requireLong() darueber
+  // (NumberFormatException). RecipientTestRule verkabelt statt des Mocks
+  // eine echte LiveRecipientCache-Instanz plus gemocktem SignalStore.account
+  // (aci/e164) und legt "self" vorab in der Recipients-Tabelle an - genau das
+  // Muster, das der Rest der Codebase fuer Tests mit echten
+  // Recipient-Inserts verwendet (siehe RecipientTestRule-Doc-Kommentar). Sie
+  // kapselt SignalDatabaseRule/MockAppDependenciesRule bereits intern.
   @get:Rule
-  val appDependencies = MockAppDependenciesRule()
-
-  @get:Rule
-  val signalDatabaseRule = SignalDatabaseRule()
+  val recipientTestRule = RecipientTestRule()
 
   private val table get() = SignalDatabase.talerPayments
 
   /**
-   * [SignalDatabaseRule] baut das Schema nur aus den CREATE_TABLE-Konstanten
+   * [org.thoughtcrime.securesms.testutil.SignalDatabaseRule] baut das Schema nur aus den CREATE_TABLE-Konstanten
    * auf (kein Replay der echten Migrationshistorie) - CONSECUTIVE_FAILURES
    * ist bewusst nicht Teil von [TalerPaymentTable.CREATE_TABLE] (siehe
    * Kommentar dort und in V323_AddTalerPaymentPollingColumns), fehlt im
@@ -105,6 +119,109 @@ class TalerPaymentTableTest {
     val candidates = table.getPollCandidates(limit = 200, ttlCutoffMillis = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(24))
 
     assertTrue(candidates.isEmpty())
+  }
+
+  @Test
+  fun insertLocalStatusLine_insertsAnUpdateMessageInTheGivenThread() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionE"
+    table.upsertDetected(uri, threadId = 1)
+
+    table.insertLocalStatusLine(threadId = 1, status = TalerPaymentStatus.ANGENOMMEN)
+
+    val rows = SignalDatabase.writableDatabase
+      .select(MessageTable.TYPE, MessageTable.BODY)
+      .from(MessageTable.TABLE_NAME)
+      .where("${MessageTable.THREAD_ID} = ?", 1)
+      .run()
+      .readToList { it.requireLong(MessageTable.TYPE) to it.requireString(MessageTable.BODY) }
+
+    val statusLine = rows.singleOrNull { (type, _) -> (type and MessageTypes.SPECIAL_TYPES_MASK) == MessageTypes.SPECIAL_TYPE_TALER_PAYMENT_UPDATE }
+    assertEquals("ANGENOMMEN", statusLine?.second)
+  }
+
+  /**
+   * REVIEW.md Finding 3a: updateStatus() darf ein bestehendes
+   * LOKAL_ABGELEHNT nicht ueberschreiben - Regressionsschutz fuer genau die
+   * im Review beschriebene Sequenz (Annehmen angestossen, dann in Signal
+   * Ablehnen, dann ein verspaeteter Ruecksprung/Refresh, der versucht, den
+   * Status auf OFFEN zurueckzudrehen).
+   */
+  @Test
+  fun updateStatus_doesNotOverwriteExistingLokalAbgelehnt() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionF"
+    table.upsertDetected(uri, threadId = 1)
+    table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
+
+    table.updateStatus(uri, TalerPaymentStatus.OFFEN)
+
+    assertEquals(TalerPaymentStatus.LOKAL_ABGELEHNT, table.getByUri(uri)?.status)
+  }
+
+  /**
+   * Ein echter, erneuter Reject-Aufruf (status selbst == LOKAL_ABGELEHNT)
+   * muss weiterhin funktionieren - der Guard darf keine Idempotenz brechen.
+   */
+  @Test
+  fun updateStatus_allowsReapplyingLokalAbgelehnt() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionG"
+    table.upsertDetected(uri, threadId = 1)
+    table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
+
+    table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
+
+    assertEquals(TalerPaymentStatus.LOKAL_ABGELEHNT, table.getByUri(uri)?.status)
+  }
+
+  /**
+   * REVIEW.md Finding 3a: updateFromPreview() (der TalerUriRefreshJob-Pfad)
+   * darf ein bestehendes LOKAL_ABGELEHNT ebenfalls nicht ueberschreiben -
+   * TalerPaymentStatus.fromTalerStatus() liefert diesen Wert nie, ein
+   * Preview-Refresh will ihn also nie legitim setzen.
+   */
+  @Test
+  fun updateFromPreview_doesNotOverwriteExistingLokalAbgelehnt() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionH"
+    table.upsertDetected(uri, threadId = 1)
+    table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
+
+    table.updateFromPreview(
+      uri = uri,
+      uriKind = "PAY_PUSH",
+      status = TalerPaymentStatus.OFFEN,
+      amount = "1",
+      currency = "KUDOS",
+      exchangeBaseUrl = "https://exchange.demo.taler.net/",
+      summary = "resurrected",
+    )
+
+    assertEquals(TalerPaymentStatus.LOKAL_ABGELEHNT, table.getByUri(uri)?.status)
+  }
+
+  /**
+   * REVIEW.md Finding 2: die lokale Statuszeile beschreibt eine bereits vom
+   * Nutzer selbst getroffene Aktion - sie soll deshalb nicht ungelesen
+   * landen (Badge-Zaehler) und nicht benachrichtigen (MessageTable.READ = 0
+   * ist die gemeinsame Voraussetzung fuer beides, siehe getUnreadCount()
+   * und die NOTIFIED-Abfragen in MessageTable). Vor dem Fix (insertMessageInbox
+   * las TALER_PAYMENT_UPDATE nicht in der `read`-Bedingung) landete diese
+   * Zeile mit READ = 0.
+   */
+  @Test
+  fun insertLocalStatusLine_insertsAnAlreadyReadMessage() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionI"
+    table.upsertDetected(uri, threadId = 1)
+
+    table.insertLocalStatusLine(threadId = 1, status = TalerPaymentStatus.LOKAL_ABGELEHNT)
+
+    val readValues = SignalDatabase.writableDatabase
+      .select(MessageTable.READ)
+      .from(MessageTable.TABLE_NAME)
+      .where("${MessageTable.THREAD_ID} = ?", 1)
+      .run()
+      .readToList { it.requireLong(MessageTable.READ) }
+
+    assertEquals(1, readValues.size)
+    assertEquals(1L, readValues.single())
   }
 
   private fun setLastCheckedAt(uri: String, timestamp: Long) {

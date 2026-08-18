@@ -10048,6 +10048,19 @@
     <!-- Status text on a payment card: an app claiming to be GNU Taler responded, but its signing certificate does not match the pinned allowlist. This is a security warning, not an installation hint, and must look visibly different from TalerFork_status_not_installed -->
     <string name="TalerFork_status_untrusted">GNU Taler: unexpected app signature, connection blocked</string>
 
+    <!-- Button on a payment card: accept an incoming Taler payment, opens GNU Taler's own confirmation UI -->
+    <string name="TalerFork_action_accept">Accept</string>
+    <!-- Button on a payment card: locally decline an incoming Taler payment, no network traffic -->
+    <string name="TalerFork_action_reject">Decline</string>
+    <!-- Title of the confirmation dialog before locally declining a Taler payment -->
+    <string name="TalerFork_decline_dialog_title">Decline this payment?</string>
+    <!-- Body of the decline confirmation dialog - must never imply money moves, only that this device stops tracking -->
+    <string name="TalerFork_decline_dialog_message">This only stops this device from tracking the payment. It does not notify the sender and does not return any funds.</string>
+    <!-- Confirm button in the decline dialog -->
+    <string name="TalerFork_decline_dialog_confirm">Decline</string>
+    <!-- Cancel button in the decline dialog -->
+    <string name="TalerFork_decline_dialog_cancel">Cancel</string>
+
     <!-- Row label in chat settings for the temporary GNU Taler connection-test entry -->
     <string name="TalerFork_settings_row_label">GNU Taler (connection test)</string>
     <!-- Toast shown after a successful GNU Taler connection test -->
@@ -10056,6 +10069,13 @@
     <string name="TalerFork_settings_connection_error">GNU Taler: connection attempt failed</string>
     <!-- Toast shown when the GNU Taler connection test failed; %1$s is the exception class name -->
     <string name="TalerFork_settings_connection_error_detail">GNU Taler: connection attempt failed (%1$s)</string>
+
+    <!-- Local system-message line shown when this device accepted an incoming Taler payment (docs/API.md 2.10) -->
+    <string name="TalerFork_update_accepted">Taler payment accepted</string>
+    <!-- Local system-message line shown when this device locally declined an incoming Taler payment - wording must never imply money moved, only that this device stopped tracking the transaction -->
+    <string name="TalerFork_update_declined">Taler payment declined on this device</string>
+    <!-- Local system-message line shown when a Taler payment link expired before being accepted or declined -->
+    <string name="TalerFork_update_expired">Taler payment link expired</string>
 
     <!-- EOF -->
 </resources>

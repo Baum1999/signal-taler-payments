@@ -52,9 +52,14 @@ class TalerUriRefreshJob private constructor(
   )
 
   override fun onRun() {
+    val previousStatus = SignalDatabase.talerPayments.getByUri(uri)?.status
     val result = runBlocking { TalerLinkClient(context).previewForUri(uri) }
     when (result) {
-      is TalerLinkResult.Ergebnis -> applyPreview(result.value)
+      is TalerLinkResult.Ergebnis -> {
+        applyPreview(result.value)
+        val newStatus = TalerPaymentStatus.fromTalerStatus(result.value.status)
+        maybeInsertLocalStatusLine(previousStatus, newStatus)
+      }
       // P1 (REVIEW.md): drei fuer den Nutzer unterschiedliche Faelle nicht
       // mehr auf einen gemeinsamen Fallback-Zustand zusammenfassen - "App
       // fehlt" ist ein Installationshinweis, "Signatur stimmt nicht" ein
@@ -87,6 +92,18 @@ class TalerUriRefreshJob private constructor(
     // ("ein Vorgang pro URI, nicht pro Nachricht").
     SignalDatabase.talerPayments.getByUri(uri)?.let { record ->
       AppDependencies.databaseObserver.notifyConversationListeners(record.threadId)
+    }
+  }
+
+  /**
+   * Lokale Info-Zeile nur bei tatsaechlichem Wechsel IN einen Endzustand
+   * (nicht bei jedem Poll-Tick mit unveraendertem Status) - docs/API.md 2.10.
+   */
+  private fun maybeInsertLocalStatusLine(previous: TalerPaymentStatus?, new: TalerPaymentStatus) {
+    val terminalStates = setOf(TalerPaymentStatus.ANGENOMMEN, TalerPaymentStatus.ABGELAUFEN)
+    if (new !in terminalStates || previous == new) return
+    SignalDatabase.talerPayments.getByUri(uri)?.let { record ->
+      SignalDatabase.talerPayments.insertLocalStatusLine(record.threadId, new)
     }
   }
 

@@ -48,5 +48,8 @@ enum class MessageType {
   POLL_TERMINATE,
 
   /** A message has been pinned **/
-  PINNED_MESSAGE
+  PINNED_MESSAGE,
+
+  /** A Taler payment changed status locally (accepted, declined, or expired) */
+  TALER_PAYMENT_UPDATE
 }

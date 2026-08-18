@@ -162,6 +162,27 @@
             </intent-filter>
         </activity>
 
+        <!-- Ruecksprungziel fuer Meilenstein 4 (Annehmen), docs/API.md 2.10.
+             Exportiert, aber Parameter sind angreiferkontrolliert - siehe
+             TalerReturnActivity. -->
+        <activity
+            android:name="org.thoughtcrime.securesms.taler.TalerReturnActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="taler-return"
+                    android:scheme="signalfuergnu" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name=".sharing.interstitial.ShareInterstitialActivity"
             android:configChanges="touchscreen|keyboard|keyboardHidden|orientation|screenLayout|screenSize"

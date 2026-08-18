@@ -11,6 +11,8 @@ import org.signal.core.util.requireNonNullString
 import org.signal.core.util.requireString
 import org.signal.core.util.select
 import org.signal.core.util.update
+import org.thoughtcrime.securesms.mms.IncomingMessage
+import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
 
 data class TalerPaymentRecord(
@@ -126,6 +128,16 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     exchangeBaseUrl: String?,
     summary: String?,
   ) {
+    // Schuetzt einen lokal per Reject gesetzten LOKAL_ABGELEHNT-Zustand vor
+    // dem Ueberschreiben durch einen verspaeteten Refresh (REVIEW.md,
+    // Finding 3a) - z.B. wenn ein TalerUriRefreshJob noch unterwegs war, als
+    // der Nutzer bereits abgelehnt hat. TalerPaymentStatus.fromTalerStatus()
+    // liefert nie LOKAL_ABGELEHNT (das ist ein rein lokaler Zustand), ein
+    // Preview-Refresh will diesen Wert also nie legitim setzen - ein
+    // bestehendes LOKAL_ABGELEHNT bleibt hier deshalb immer unangetastet.
+    if (getByUri(uri)?.status == TalerPaymentStatus.LOKAL_ABGELEHNT) {
+      return
+    }
     writableDatabase
       .update(TABLE_NAME)
       .values(
@@ -143,7 +155,35 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       .run()
   }
 
+  /**
+   * Lokale Statuszeile bei Taler-Statuswechsel (docs/API.md Teil 1 Abschnitt
+   * 2 / 2.10) - insertMessageInbox OHNE jobManager.add, es geht keine
+   * Nachricht raus. Body traegt den TalerPaymentStatus-Namen, damit
+   * MessageRecord.getUpdateDisplayBody() den richtigen Text waehlen kann
+   * (siehe MessageTypes.SPECIAL_TYPE_TALER_PAYMENT_UPDATE).
+   */
+  fun insertLocalStatusLine(threadId: Long, status: TalerPaymentStatus) {
+    val message = IncomingMessage(
+      type = MessageType.TALER_PAYMENT_UPDATE,
+      from = Recipient.self().id,
+      sentTimeMillis = System.currentTimeMillis(),
+      serverTimeMillis = System.currentTimeMillis(),
+      receivedTimeMillis = System.currentTimeMillis(),
+      body = status.name,
+    )
+    SignalDatabase.messages.insertMessageInbox(message, threadId)
+  }
+
   fun updateStatus(uri: String, status: TalerPaymentStatus) {
+    // Gleicher Schutz wie in updateFromPreview (REVIEW.md, Finding 3a) - ein
+    // bestehendes LOKAL_ABGELEHNT wird nicht ueberschrieben, AUSSER der
+    // Aufruf selbst setzt (erneut) LOKAL_ABGELEHNT - ein echter Reject-Klick
+    // muss weiterhin funktionieren, nur ein Zurueckdrehen auf einen anderen
+    // Zustand (z.B. durch einen verspaeteten TalerReturnActivity-Ruecksprung
+    // nach einem bereits erfolgten lokalen Reject) wird verhindert.
+    if (status != TalerPaymentStatus.LOKAL_ABGELEHNT && getByUri(uri)?.status == TalerPaymentStatus.LOKAL_ABGELEHNT) {
+      return
+    }
     writableDatabase
       .update(TABLE_NAME)
       .values(
