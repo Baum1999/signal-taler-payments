@@ -229,10 +229,8 @@ public class MessageSender {
       InsertResult insertResult      = database.insertMessageOutbox(applyUniversalExpireTimerIfNecessary(context, recipient, message, allocatedThreadId), allocatedThreadId, sendType != SendType.SIGNAL, insertListener);
       long         messageId         = insertResult.getMessageId();
 
-      // GNU-Fork (Signal-Taler-Integration): nur 1:1-Chats (docs/API.md Scope).
-      if (!recipient.isGroup()) {
-        TalerPaymentTracker.trackUrisInBody(message.getBody(), allocatedThreadId);
-      }
+      // Track Taler URIs in all chat types (1:1, group, self)
+      TalerPaymentTracker.trackUrisInBody(message.getBody(), allocatedThreadId);
 
       if (message.getThreadRecipient().isGroup()) {
         if (message.getAttachments().isEmpty() && message.getLinkPreviews().isEmpty() && message.getSharedContacts().isEmpty()) {

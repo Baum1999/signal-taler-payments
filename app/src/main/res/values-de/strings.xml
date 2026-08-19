@@ -10009,5 +10009,47 @@
     <!-- Button declining to paste the recovery key -->
     <string name="RecoveryKeyWarningDialog__dont_share">Nicht weitergeben</string>
 
+    <!-- GNU-Fork (Signal-Taler-Integration, docs/API.md): Strings ausschliesslich fuer diesen Fork, nicht Teil von Signal upstream. -->
+
+    <string name="TalerFork_kind_pay_push">Taler-Zahlungslink</string>
+    <string name="TalerFork_kind_pay_pull">Taler-Zahlungsanfrage</string>
+    <string name="TalerFork_kind_pay">Taler-Zahlung</string>
+    <string name="TalerFork_kind_withdraw">Taler-Abhebungslink</string>
+    <string name="TalerFork_kind_refund">Taler-Erstattungslink</string>
+    <string name="TalerFork_kind_unknown">Taler-Link</string>
+
+    <string name="TalerFork_status_open">Offen</string>
+    <string name="TalerFork_status_accepted">Angenommen</string>
+    <string name="TalerFork_status_declined">Abgelehnt</string>
+    <string name="TalerFork_status_expired">Abgelaufen</string>
+    <string name="TalerFork_status_checking">Wird geprüft…</string>
+    <string name="TalerFork_status_invalid">Ungültiger Link</string>
+    <string name="TalerFork_status_not_connected">GNU Taler nicht verbunden</string>
+    <string name="TalerFork_status_not_installed">GNU Taler ist nicht installiert</string>
+    <string name="TalerFork_status_untrusted">GNU Taler: unerwartete App-Signatur, Verbindung blockiert</string>
+
+    <string name="TalerFork_action_accept">Annehmen</string>
+    <string name="TalerFork_action_reject">Ablehnen</string>
+    <string name="TalerFork_action_cancel">Abbrechen</string>
+    <string name="TalerFork_action_refresh">Aktualisieren</string>
+    <string name="TalerFork_decline_dialog_title">Diese Zahlung ablehnen?</string>
+    <string name="TalerFork_decline_dialog_message">Dies bewirkt nur, dass dieses Gerät die Zahlung nicht mehr verfolgt. Der Absender wird nicht benachrichtigt und es fließt kein Geld zurück.</string>
+    <string name="TalerFork_decline_dialog_confirm">Ablehnen</string>
+    <string name="TalerFork_decline_dialog_cancel">Abbrechen</string>
+
+    <string name="TalerFork_settings_row_label">GNU Taler (Verbindungstest)</string>
+    <string name="TalerFork_settings_connected">GNU Taler: verbunden</string>
+    <string name="TalerFork_settings_connection_error">GNU Taler: Verbindungsversuch fehlgeschlagen</string>
+    <string name="TalerFork_settings_connection_error_detail">GNU Taler: Verbindungsversuch fehlgeschlagen (%1$s)</string>
+
+    <string name="TalerFork_update_accepted">Taler-Zahlung angenommen</string>
+    <string name="TalerFork_update_declined">Taler-Zahlung auf diesem Gerät abgelehnt</string>
+    <string name="TalerFork_update_expired">Taler-Zahlungslink abgelaufen</string>
+
+    <!-- Vom Parser (TalerConfirmationDetector) exakt erkannter Text - %1$s muss mit einem der TalerFork_kind_*-Werte uebereinstimmen, %2$s ist die urspruengliche Taler-URI (eindeutige Referenz fuer die Zuordnung beim Empfaenger) -->
+    <string name="TalerFork_accept_confirmation_message">Zahlung für %1$s akzeptiert (%2$s)</string>
+
+    <string name="TalerFork_confirmation_icon_content_description">GNU-Taler-Zahlungsbestätigung</string>
+
     <!-- EOF -->
 </resources>

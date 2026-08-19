@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.dependencies.AppDependencies
+import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob
 
 /**
  * Klick-Handler fuer die Annehmen-/Ablehnen-Buttons der Taler-Zahlungskarte -
@@ -61,5 +63,34 @@ object TalerAcceptRejectActions {
       }
       .setNegativeButton(R.string.TalerFork_decline_dialog_cancel, null)
       .show()
+  }
+
+  /**
+   * Abbrechen einer eigenen ausgehenden Zahlung. Oeffnet Talers eigene UI
+   * zum Abbrechen der Zahlung.
+   */
+  fun onCancelClicked(context: Context, uri: String, threadId: Long) {
+    val correlationId = java.util.UUID.randomUUID().toString()
+    TalerCorrelationStore.put(correlationId, uri, threadId)
+
+    val returnUri = "signalfuergnu://taler-return"
+    val separator = if (uri.contains("?")) "&" else "?"
+    val target = "$uri${separator}correlationId=${Uri.encode(correlationId)}&returnUri=${Uri.encode(returnUri)}"
+
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
+      setPackage(TalerAllowlist.PACKAGE)
+    }
+    context.startActivity(intent)
+  }
+
+  /**
+   * Manueller Refresh des Zahlungsstatus. Loest einen sofortigen
+   * Polling-Zyklus fuer diese URI aus.
+   */
+  fun onRefreshClicked(context: Context, uri: String, threadId: Long) {
+    // Trigger immediate refresh via TalerPollingCoordinator
+    TalerPollingCoordinator.ensureStarted()
+    // Enqueue a fresh job with RETURN priority for immediate processing
+    AppDependencies.jobManager.add(TalerUriRefreshJob(uri, TalerUriRefreshJob.TriggerType.MANUAL))
   }
 }

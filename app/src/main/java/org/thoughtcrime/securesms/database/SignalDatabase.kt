@@ -74,6 +74,7 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
   val lastResortKeyTuples: LastResortKeyTupleTable = LastResortKeyTupleTable(context, this)
   val attachmentMetadataTable: AttachmentMetadataTable = AttachmentMetadataTable(context, this)
   val talerPaymentTable: TalerPaymentTable = TalerPaymentTable(context, this)
+  val talerConfirmationMessageTable: TalerConfirmationMessageTable = TalerConfirmationMessageTable(context, this)
 
   override fun onOpen(db: net.zetetic.database.sqlcipher.SQLiteDatabase) {
     db.setForeignKeyConstraintsEnabled(true)
@@ -134,6 +135,8 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     db.execSQL(AttachmentMetadataTable.CREATE_TABLE)
     db.execSQL(TalerPaymentTable.CREATE_TABLE)
     db.execSQL(TalerPaymentTable.CREATE_INDEX)
+    db.execSQL(TalerConfirmationMessageTable.CREATE_TABLE)
+    db.execSQL(TalerConfirmationMessageTable.CREATE_INDEX)
 
     executeStatements(db, RecipientTable.CREATE_INDEXS)
     executeStatements(db, MessageTable.CREATE_INDEXS)
@@ -575,5 +578,10 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     @get:JvmName("talerPayments")
     val talerPayments: TalerPaymentTable
       get() = instance!!.talerPaymentTable
+
+    @get:JvmStatic
+    @get:JvmName("talerConfirmationMessages")
+    val talerConfirmationMessages: TalerConfirmationMessageTable
+      get() = instance!!.talerConfirmationMessageTable
   }
 }

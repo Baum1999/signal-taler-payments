@@ -6,6 +6,7 @@ import org.thoughtcrime.securesms.conversation.ConversationIntents
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob
+import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob.TriggerType
 
 /**
  * Ruecksprungziel fuer den Annehmen-Flow (docs/API.md 2.10),
@@ -37,7 +38,11 @@ class TalerReturnActivity : Activity() {
       val correlationId = if (data?.isHierarchical == true) data.getQueryParameter("correlationId") else null
       val entry = correlationId?.let { TalerCorrelationStore.take(it) } ?: return
 
-      AppDependencies.jobManager.add(TalerUriRefreshJob(entry.uri))
+      // Bug 3 Fix: Fast-Poll anfordern statt direktem Job-Enqueue.
+      // requestFastPoll() aktiviert den Fast-Poll-Modus fuer diese URI,
+      // enqueued sofort einen RETURN-Job (hohe Prioritaet, separate Queue)
+      // und pollt die URI fuer 2 Minuten mit 2s-Intervall.
+      TalerPollingCoordinator.requestFastPoll(entry.uri)
 
       val recipientId = SignalDatabase.threads.getRecipientIdForThreadId(entry.threadId)
       if (recipientId != null) {

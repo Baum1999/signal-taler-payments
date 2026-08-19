@@ -96,6 +96,7 @@ import org.thoughtcrime.securesms.recipients.Recipient.HiddenState
 import org.thoughtcrime.securesms.recipients.RecipientId
 import org.thoughtcrime.securesms.recipients.RecipientUtil
 import org.thoughtcrime.securesms.stickers.StickerLocator
+import org.thoughtcrime.securesms.taler.TalerConfirmationTracker
 import org.thoughtcrime.securesms.taler.TalerPaymentTracker
 import org.thoughtcrime.securesms.util.EarlyMessageCacheEntry
 import org.thoughtcrime.securesms.util.LinkUtil
@@ -1036,10 +1037,16 @@ object DataMessageProcessor {
         batchCache.addIncomingMessageInsertThreadUpdate(insertResult.threadId)
       }
       AppDependencies.messageNotifier.updateNotification(context, ConversationId.forConversation(insertResult.threadId))
-      // GNU-Fork (Signal-Taler-Integration): nur 1:1-Chats (docs/API.md Scope),
-      // deshalb nur wenn groupId null ist.
-      if (groupId == null) {
-        TalerPaymentTracker.trackUrisInBody(body, insertResult.threadId)
+      // Track Taler URIs in all chat types (1:1, group, self)
+      TalerPaymentTracker.trackUrisInBody(body, insertResult.threadId)
+      // Bestaetigungsnachricht ("Zahlung fuer [Kind] akzeptiert") nur in 1:1-Chats
+      // erkennen, spiegelbildlich zur Sendebedingung in
+      // TalerUriRefreshJob.maybeSendAcceptConfirmation. Bug 2 Fix: Self-Chat
+      // nicht mehr zusaetzlich ausgeschlossen (siehe Begruendung dort) -
+      // isOwnPayment beim zugehoerigen TalerPaymentTracker-Eintrag ist bereits
+      // die korrekte Unterscheidung.
+      if (threadRecipient.isIndividual) {
+        TalerConfirmationTracker.trackConfirmationInBody(context, body, insertResult.threadId, insertResult.messageId)
       }
       insertResult
     } else {

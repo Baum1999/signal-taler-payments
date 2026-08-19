@@ -47,7 +47,9 @@ import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.recipients.RecipientId
+import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.taler.TalerAcceptRejectActions
+import org.thoughtcrime.securesms.taler.TalerConfirmationIconPresenter
 import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
 import org.thoughtcrime.securesms.util.InterceptableLongClickCopyLinkSpan
 import org.thoughtcrime.securesms.util.LongClickMovementMethod
@@ -260,6 +262,7 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
 
     presentBody()
     presentTalerCard()
+    presentTalerConfirmationIcon()
     presentDate()
     presentDeliveryStatus()
     presentFooterBackground()
@@ -416,6 +419,16 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
     binding.body.setLinkTextColor(themeDelegate.getBodyTextColor(conversationMessage))
 
     val record = conversationMessage.messageRecord
+
+    // GNU-Fork (Signal-Taler-Integration): erkannte Bestaetigungsnachrichten
+    // ("Zahlung fuer [Kind] akzeptiert") zeigen statt des Rohtexts nur das
+    // Icon aus presentTalerConfirmationIcon() - der Rohtext wird verworfen,
+    // nicht nur versteckt (kein Overflow/Highlight-Handling noetig).
+    if (SignalDatabase.talerConfirmationMessages.getByMessageId(record.id) != null) {
+      binding.body.visible = false
+      binding.body.setOverflowText(null)
+      return
+    }
     var styledText: Spannable = conversationMessage.getDisplayBody(context)
     if (conversationContext.isMessageRequestAccepted) {
       linkifyMessageBody(styledText)
@@ -453,6 +466,16 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
       conversationMessage.messageRecord.body,
       onAccept = { uri, threadId -> TalerAcceptRejectActions.onAcceptClicked(root.context, uri, threadId) },
       onReject = { uri, threadId -> TalerAcceptRejectActions.onRejectClicked(root.context, uri, threadId) },
+      onCancel = { uri, threadId -> TalerAcceptRejectActions.onCancelClicked(root.context, uri, threadId) },
+      onRefresh = { uri, threadId -> TalerAcceptRejectActions.onRefreshClicked(root.context, uri, threadId) },
+    )
+  }
+
+  private fun presentTalerConfirmationIcon() {
+    TalerConfirmationIconPresenter.present(
+      binding.talerConfirmationIcon,
+      conversationMessage.messageRecord.id,
+      themeDelegate.getFooterForegroundColor(conversationMessage),
     )
   }
 

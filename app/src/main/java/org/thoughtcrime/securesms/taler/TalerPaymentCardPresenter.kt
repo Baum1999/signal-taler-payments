@@ -35,6 +35,8 @@ object TalerPaymentCardPresenter {
     messageBody: String,
     onAccept: (uri: String, threadId: Long) -> Unit = { _, _ -> },
     onReject: (uri: String, threadId: Long) -> Unit = { _, _ -> },
+    onCancel: (uri: String, threadId: Long) -> Unit = { _, _ -> },
+    onRefresh: (uri: String, threadId: Long) -> Unit = { _, _ -> },
   ) {
     if (stub == null) return
     val uris = TalerUriDetector.findUris(messageBody)
@@ -62,7 +64,7 @@ object TalerPaymentCardPresenter {
     for (uri in uris) {
       val record = SignalDatabase.talerPayments.getByUri(uri)
       val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
-      bind(cardView, record, onAccept, onReject)
+      bind(cardView, record, onAccept, onReject, onCancel, onRefresh)
       container.addView(cardView)
     }
   }
@@ -72,6 +74,8 @@ object TalerPaymentCardPresenter {
     record: TalerPaymentRecord?,
     onAccept: (uri: String, threadId: Long) -> Unit,
     onReject: (uri: String, threadId: Long) -> Unit,
+    onCancel: (uri: String, threadId: Long) -> Unit,
+    onRefresh: (uri: String, threadId: Long) -> Unit,
   ) {
     val context = view.context
     val kind = view.findViewById<TextView>(R.id.taler_card_kind)
@@ -102,6 +106,8 @@ object TalerPaymentCardPresenter {
     val actionsRow = view.findViewById<android.view.View>(R.id.taler_card_actions)
     val acceptButton = view.findViewById<android.widget.Button>(R.id.taler_card_accept)
     val rejectButton = view.findViewById<android.widget.Button>(R.id.taler_card_reject)
+    val cancelButton = view.findViewById<android.widget.Button>(R.id.taler_card_cancel)
+    val refreshButton = view.findViewById<android.widget.Button>(R.id.taler_card_refresh)
 
     // Annehmen/Ablehnen nur bei einer Karte mit konkretem DB-Eintrag im
     // Zustand OFFEN - bei einer noch unbekannten (record == null) oder
@@ -116,16 +122,34 @@ object TalerPaymentCardPresenter {
     // aussehender Button ohne Wirkung waere schlimmer als gar keiner. Das ist
     // eine bewusste Umfangsbegrenzung fuer diesen Meilenstein, kein Versehen -
     // volle pay-pull-Unterstuetzung folgt in einem spaeteren Meilenstein.
-    val showActions = record?.status == TalerPaymentStatus.OFFEN &&
-      record.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name
-    actionsRow.visibility = if (showActions) android.view.View.VISIBLE else android.view.View.GONE
-    if (showActions && record != null) {
+    //
+    // Unterschied zwischen eigenen und fremden Zahlungen:
+    // - isOwnPayment=false (eingehend): zeige Annehmen/Ablehnen
+    // - isOwnPayment=true (ausgehend): zeige Abbrechen/Refresh
+    val showAcceptReject = record?.status == TalerPaymentStatus.OFFEN &&
+      record.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name &&
+      !record.isOwnPayment
+    val showCancelRefresh = record?.status == TalerPaymentStatus.OFFEN &&
+      record.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name &&
+      record.isOwnPayment
+    
+    actionsRow.visibility = if (showAcceptReject || showCancelRefresh) android.view.View.VISIBLE else android.view.View.GONE
+    acceptButton.visibility = if (showAcceptReject) android.view.View.VISIBLE else android.view.View.GONE
+    rejectButton.visibility = if (showAcceptReject) android.view.View.VISIBLE else android.view.View.GONE
+    cancelButton.visibility = if (showCancelRefresh) android.view.View.VISIBLE else android.view.View.GONE
+    refreshButton.visibility = if (showCancelRefresh) android.view.View.VISIBLE else android.view.View.GONE
+    
+    if (showAcceptReject && record != null) {
       acceptButton.setOnClickListener { onAccept(record.uri, record.threadId) }
       rejectButton.setOnClickListener { onReject(record.uri, record.threadId) }
     }
+    if (showCancelRefresh && record != null) {
+      cancelButton.setOnClickListener { onCancel(record.uri, record.threadId) }
+      refreshButton.setOnClickListener { onRefresh(record.uri, record.threadId) }
+    }
   }
 
-  private fun kindLabel(context: Context, kind: String?): String = context.getString(
+  fun kindLabel(context: Context, kind: String?): String = context.getString(
     when (kind) {
       "PAY_PUSH" -> R.string.TalerFork_kind_pay_push
       "PAY_PULL" -> R.string.TalerFork_kind_pay_pull

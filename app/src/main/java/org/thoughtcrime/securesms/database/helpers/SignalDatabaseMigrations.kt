@@ -176,6 +176,8 @@ import org.thoughtcrime.securesms.database.helpers.migration.V320_AddAttachmentT
 import org.thoughtcrime.securesms.database.helpers.migration.V321_AddScheduledMessageIndex
 import org.thoughtcrime.securesms.database.helpers.migration.V322_AddTalerPaymentTable
 import org.thoughtcrime.securesms.database.helpers.migration.V323_AddTalerPaymentPollingColumns
+import org.thoughtcrime.securesms.database.helpers.migration.V324_AddTalerPaymentIsOwnPaymentColumn
+import org.thoughtcrime.securesms.database.helpers.migration.V325_AddTalerConfirmationMessageTable
 import org.thoughtcrime.securesms.database.SQLiteDatabase as SignalSqliteDatabase
 
 /**
@@ -359,10 +361,12 @@ object SignalDatabaseMigrations {
     320 to V320_AddAttachmentThumbnailFileAndUuidIndexes,
     321 to V321_AddScheduledMessageIndex,
     322 to V322_AddTalerPaymentTable,
-    323 to V323_AddTalerPaymentPollingColumns
+    323 to V323_AddTalerPaymentPollingColumns,
+    324 to V324_AddTalerPaymentIsOwnPaymentColumn,
+    325 to V325_AddTalerConfirmationMessageTable
   )
 
-  const val DATABASE_VERSION = 323
+  const val DATABASE_VERSION = 325
 
   @JvmStatic
   fun migrate(context: Application, db: SignalSqliteDatabase, oldVersion: Int, newVersion: Int) {

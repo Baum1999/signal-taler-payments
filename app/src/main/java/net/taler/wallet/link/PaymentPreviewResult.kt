@@ -26,6 +26,9 @@ import kotlinx.parcelize.Parcelize
 // vollstaendig), sondern aus einem zweiten Aufruf getTransactionById(transactionId)
 // - siehe TalerLinkService.detailsFor(). Fuer PAY/WITHDRAW/REFUND (noch nicht an
 // wallet-core angebunden) bleiben alle Felder null.
+//
+// isOwnPayment gibt an, ob die URI zu einer eigenen ausgehenden Zahlung des Nutzers
+// gehoert (true) oder eine eingehende Zahlungsanfrage von jemand anderem ist (false).
 @Parcelize
 data class PaymentPreviewResult(
     val uriKind: TalerUriKind,
@@ -35,4 +38,5 @@ data class PaymentPreviewResult(
     val exchangeBaseUrl: String?,
     val summary: String?,
     val expirationTimestamp: Long?,
+    val isOwnPayment: Boolean = false,
 ) : Parcelable

@@ -27,6 +27,7 @@ data class TalerPaymentRecord(
   val createdAt: Long,
   val lastCheckedAt: Long?,
   val consecutiveFailures: Int,
+  val isOwnPayment: Boolean,
 )
 
 /**
@@ -68,6 +69,13 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
      */
     const val CONSECUTIVE_FAILURES = "consecutive_failures"
 
+    /**
+     * Gibt an, ob die URI zu einer eigenen ausgehenden Zahlung des Nutzers
+     * gehoert (true) oder eine eingehende Zahlungsanfrage von jemand anderem ist (false).
+     * Wird von Taler beim URI-Check bestimmt.
+     */
+    const val IS_OWN_PAYMENT = "is_own_payment"
+
     const val CREATE_TABLE = """
       CREATE TABLE $TABLE_NAME (
         $ID INTEGER PRIMARY KEY,
@@ -80,7 +88,9 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
         $EXCHANGE_BASE_URL TEXT DEFAULT NULL,
         $SUMMARY TEXT DEFAULT NULL,
         $CREATED_AT INTEGER NOT NULL,
-        $LAST_CHECKED_AT INTEGER DEFAULT NULL
+        $LAST_CHECKED_AT INTEGER DEFAULT NULL,
+        $CONSECUTIVE_FAILURES INTEGER DEFAULT 0,
+        $IS_OWN_PAYMENT INTEGER DEFAULT 0
       )
     """
 
@@ -98,6 +108,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       createdAt = cursor.requireLong(CREATED_AT),
       lastCheckedAt = cursor.requireLongOrNull(LAST_CHECKED_AT),
       consecutiveFailures = cursor.requireInt(CONSECUTIVE_FAILURES),
+      isOwnPayment = cursor.requireInt(IS_OWN_PAYMENT) != 0,
     )
   }
 
@@ -127,6 +138,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     currency: String?,
     exchangeBaseUrl: String?,
     summary: String?,
+    isOwnPayment: Boolean = false,
   ) {
     // Schuetzt einen lokal per Reject gesetzten LOKAL_ABGELEHNT-Zustand vor
     // dem Ueberschreiben durch einen verspaeteten Refresh (REVIEW.md,
@@ -147,6 +159,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
         CURRENCY to currency,
         EXCHANGE_BASE_URL to exchangeBaseUrl,
         SUMMARY to summary,
+        IS_OWN_PAYMENT to if (isOwnPayment) 1 else 0,
         LAST_CHECKED_AT to System.currentTimeMillis(),
         // B2 (REVIEW.md): erfolgreicher Abruf setzt den Backoff zurueck.
         CONSECUTIVE_FAILURES to 0,

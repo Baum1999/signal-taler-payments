@@ -53,7 +53,12 @@ data class V2ConversationItemTextOnlyBindingBridge(
   // Media-Bridge-Pfad (V2ConversationItemMediaBindingBridge.kt), dessen
   // Layouts keinen taler_card_stub haben - presentTalerCard() wird dort
   // ohnehin nie aufgerufen (nur von V2ConversationItemTextOnlyViewHolder).
-  val talerCardStub: ViewStub? = null
+  val talerCardStub: ViewStub? = null,
+  // GNU-Fork (Signal-Taler-Integration): Bestaetigungs-Icon fuer erkannte
+  // "Zahlung fuer [Kind] akzeptiert"-Nachrichten (TalerConfirmationDetector).
+  // Null im Outgoing-Layout und im Media-Bridge-Pfad - presentTalerConfirmationIcon()
+  // wird dort ohnehin nie mit sichtbarem Effekt aufgerufen, siehe talerCardStub oben.
+  val talerConfirmationIcon: ImageView? = null
 )
 
 /**
@@ -81,7 +86,8 @@ fun V2ConversationItemTextOnlyIncomingBinding.bridge(): V2ConversationItemTextOn
     starredSource = conversationItemStarredSource,
     starredSourceWrapper = conversationItemStarredSourceWrapper,
     starredSourceAvatar = conversationItemStarredSourceAvatar,
-    talerCardStub = talerCardStub
+    talerCardStub = talerCardStub,
+    talerConfirmationIcon = talerConfirmationIcon
   )
 }
 
