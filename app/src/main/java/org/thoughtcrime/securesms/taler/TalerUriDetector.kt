@@ -19,4 +19,13 @@ object TalerUriDetector {
       .map { it.value.trimEnd(*TRAILING_PUNCTUATION) }
       .distinct()
       .toList()
+
+  /**
+   * Prueft, ob [text] GENAU eine wohlgeformte Taler-URI ist - der gesamte
+   * String, kein Praefix/Suffix, kein zusaetzlicher Text, keine zweite URI.
+   * Sicherheitskritisch: einzige Gate zwischen einem Intent-Extra einer
+   * exportierten Activity (TalerReturnActivity) und einer echten ausgehenden
+   * Nachricht - siehe TalerUriDetectorTest fuer die Randfaelle.
+   */
+  fun isExactlyOneUri(text: String): Boolean = findUris(text).firstOrNull() == text
 }

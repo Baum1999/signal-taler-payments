@@ -10084,8 +10084,26 @@
     <!-- Real outgoing 1:1 chat message sent automatically after this device accepted an incoming Taler payment and Taler confirmed the acceptance; %1$s is the link kind label (e.g. TalerFork_kind_pay_push), %2$s is the original Taler URI - included so the recipient's client can unambiguously match this confirmation to the exact payment (TalerConfirmationDetector) -->
     <string name="TalerFork_accept_confirmation_message">Payment for %1$s accepted (%2$s)</string>
 
+    <!-- Real outgoing 1:1 chat message sent after this device composed a new outgoing Taler payment via the attachment menu and Taler confirmed creation; %1$s is the link kind label (e.g. TalerFork_kind_pay_push), %2$s is the new Taler URI -->
+    <string name="TalerFork_send_message">Payment sent: %1$s (%2$s)</string>
+
     <!-- Accessibility label for the small icon shown instead of the raw text on a recognized accept-confirmation message; gray while unconfirmed, blue once Taler confirms the payment as accepted -->
     <string name="TalerFork_confirmation_icon_content_description">GNU Taler payment confirmation</string>
+
+    <!-- Title of the amount-entry dialog shown before starting an outgoing Taler payment from the attachment menu -->
+    <string name="TalerFork_send_dialog_title">Send with Taler</string>
+    <!-- Hint text for the amount field in the Taler send dialog -->
+    <string name="TalerFork_send_dialog_amount_hint">Amount</string>
+    <!-- Hint text for the currency field in the Taler send dialog -->
+    <string name="TalerFork_send_dialog_currency_hint">Currency</string>
+    <!-- Hint text for the optional purpose field in the Taler send dialog -->
+    <string name="TalerFork_send_dialog_purpose_hint">Purpose (optional)</string>
+    <!-- Confirm button in the Taler send dialog; proceeds to GNU Taler's own confirmation UI -->
+    <string name="TalerFork_send_dialog_confirm">Continue in Taler</string>
+    <!-- Cancel button in the Taler send dialog -->
+    <string name="TalerFork_send_dialog_cancel">Cancel</string>
+    <!-- Attachment menu entry that starts an outgoing Taler payment -->
+    <string name="AttachmentKeyboard_taler_send">Send with Taler</string>
 
     <!-- EOF -->
 </resources>

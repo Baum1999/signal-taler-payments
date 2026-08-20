@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <EditText
+        android:id="@+id/taler_send_amount"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="@string/TalerFork_send_dialog_amount_hint"
+        android:inputType="numberDecimal" />
+
+    <EditText
+        android:id="@+id/taler_send_currency"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="@string/TalerFork_send_dialog_currency_hint" />
+
+    <EditText
+        android:id="@+id/taler_send_purpose"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="@string/TalerFork_send_dialog_purpose_hint" />
+
+</LinearLayout>

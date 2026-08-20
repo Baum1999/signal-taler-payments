@@ -69,4 +69,14 @@ class TalerCorrelationStoreTest {
 
     assertEquals(3L, entry?.threadId)
   }
+
+  @Test
+  fun `put with null uri (compose-send flow) returns entry with null uri`() {
+    TalerCorrelationStore.put("corr-6", uri = null, threadId = 9L)
+
+    val entry = TalerCorrelationStore.take("corr-6")
+
+    assertNull(entry?.uri)
+    assertEquals(9L, entry?.threadId)
+  }
 }

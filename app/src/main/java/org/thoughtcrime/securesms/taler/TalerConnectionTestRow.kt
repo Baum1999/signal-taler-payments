@@ -9,6 +9,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.taler.wallet.link.ConnectionState
 import org.signal.core.ui.compose.Rows
@@ -48,6 +49,7 @@ fun TalerConnectionTestRow() {
       val message = try {
         describe(TalerLinkClient(context).getConnectionState())
       } catch (e: Exception) {
+        if (e is CancellationException) throw e
         context.getString(R.string.TalerFork_settings_connection_error_detail, e.javaClass.simpleName)
       }
       Toast.makeText(context, message, Toast.LENGTH_LONG).show()
@@ -62,6 +64,7 @@ fun TalerConnectionTestRow() {
         val status = try {
           TalerLinkClient(context).getConnectionState()
         } catch (e: Exception) {
+          if (e is CancellationException) throw e
           val message = context.getString(R.string.TalerFork_settings_connection_error_detail, e.javaClass.simpleName)
           Toast.makeText(context, message, Toast.LENGTH_LONG).show()
           return@launch

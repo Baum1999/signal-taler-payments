@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -13,6 +14,8 @@ import net.taler.wallet.link.ConnectionState
 import net.taler.wallet.link.ITalerLink
 import net.taler.wallet.link.OperationStatusResult
 import net.taler.wallet.link.PaymentPreviewResult
+import net.taler.wallet.link.PrepareSendRequest
+import net.taler.wallet.link.PrepareSendResult
 import net.taler.wallet.link.TalerOperationStatus
 import net.taler.wallet.link.TalerUriValidity
 import kotlin.coroutines.resume
@@ -55,6 +58,9 @@ class TalerLinkClient(private val context: Context) {
   suspend fun statusForUri(uri: String): TalerLinkResult<TalerOperationStatus> =
     call { it.statusForUri(uri).status }
 
+  suspend fun prepareSend(request: PrepareSendRequest): TalerLinkResult<PrepareSendResult> =
+    call { it.prepareSend(request) }
+
   private suspend fun <T> call(block: (ITalerLink) -> T): TalerLinkResult<T> {
     if (!isTalerInstalled()) return TalerLinkResult.NichtInstalliert
     if (!isTalerTrusted()) return TalerLinkResult.NichtVertrauenswuerdig
@@ -83,6 +89,16 @@ class TalerLinkClient(private val context: Context) {
       // docs/API.md Abschnitt 2.5. Sollte praktisch nie eintreten, da Signal
       // vor dem Bind bereits selbst prueft (isTalerTrusted).
       TalerLinkResult.NichtVertrauenswuerdig
+    } catch (e: CancellationException) {
+      // CancellationException ist auf JVM-Ebene eine Unterklasse von
+      // IllegalStateException. Ohne diesen frueheren, spezifischeren Catch
+      // wuerde eine echte Coroutine-Cancellation (z.B. via Job.cancel()) vom
+      // catch(IllegalStateException) darunter mitgefangen und zu einem
+      // irrefuehrenden KeinConsent-Ergebnis verfaelscht, statt wie erforderlich
+      // weiterzupropagieren. Bitte NICHT "vereinfachen"/entfernen - ein Aufrufer
+      // (AttachmentKeyboardFragment's Stale-Closure-Race-Fix) verlaesst sich
+      // darauf, dass Cancellation hier tatsaechlich wirkt.
+      throw e
     } catch (e: IllegalStateException) {
       // Aufrufer ist in der Allowlist, aber der Nutzer hat die Verbindung
       // (noch) nicht bestaetigt - docs/API.md Abschnitt 2.5/2.6.
