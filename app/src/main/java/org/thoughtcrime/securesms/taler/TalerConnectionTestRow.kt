@@ -71,7 +71,10 @@ fun TalerConnectionTestRow() {
         }
         if (status is TalerLinkResult.Ergebnis && status.value == ConnectionState.NICHT_VERBUNDEN) {
           consentLauncher.launch(
-            Intent().setClassName(TalerAllowlist.PACKAGE, "net.taler.wallet.link.ConsentActivity")
+            Intent().apply {
+              setClassName(TalerAllowlist.PACKAGE, "net.taler.wallet.link.ConsentActivity")
+              setPackage(TalerAllowlist.PACKAGE)
+            }
           )
         } else {
           Toast.makeText(context, describe(status), Toast.LENGTH_LONG).show()

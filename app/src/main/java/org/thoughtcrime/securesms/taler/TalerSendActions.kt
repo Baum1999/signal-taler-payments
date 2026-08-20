@@ -72,6 +72,7 @@ object TalerSendActions {
         is TalerLinkResult.Ergebnis -> {
           val intent = Intent(Intent.ACTION_VIEW, Uri.parse(result.value.deepLink)).apply {
             setClassName(TalerAllowlist.PACKAGE, "net.taler.wallet.main.MainActivity")
+            setPackage(TalerAllowlist.PACKAGE)
           }
           // Zwischen dem erfolgreichen prepareSend()-Aufruf oben und diesem
           // startActivity() koennte Taler deinstalliert oder die Ziel-Activity
