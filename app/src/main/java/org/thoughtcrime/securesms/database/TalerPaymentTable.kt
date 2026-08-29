@@ -241,6 +241,18 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       .readToList { readRecord(it) }
 
   /**
+   * Alle bekannten Taler-Vorgaenge ueber alle Threads hinweg - Grundlage fuer
+   * [org.thoughtcrime.securesms.payments.history.PaymentHistoryManager.syncFromTalerPayments].
+   */
+  fun getAll(): List<TalerPaymentRecord> =
+    readableDatabase
+      .select()
+      .from(TABLE_NAME)
+      .orderBy("$CREATED_AT ASC")
+      .run()
+      .readToList { readRecord(it) }
+
+  /**
    * Kandidaten fuers Polling (Schritt 4g/docs/API.md: "Source of Truth ist
    * Taler"; Backoff/Cap: REVIEW.md B2). ANGENOMMEN, ABGELAUFEN, UNGUELTIG und
    * LOKAL_ABGELEHNT sind Endzustaende, die sich nicht mehr von selbst

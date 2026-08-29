@@ -10031,8 +10031,20 @@
 
     <!-- Status text on a payment card: Taler confirmed the payment/request is still open, waiting for a decision -->
     <string name="TalerFork_status_open">Open</string>
+    <!-- Status text on a payment card: for incoming PAY_PUSH, waiting for user to accept -->
+    <string name="TalerFork_status_waiting_for_acceptance">Wartet auf Annahme</string>
+    <!-- Status text on a payment card: for outgoing PAY_PUSH, waiting for recipient to accept. %1$s is the recipient name. -->
+    <string name="TalerFork_status_waiting_for_recipient">Wartet auf Bestätigung von %1$s</string>
     <!-- Status text on a payment card: the payment/request was accepted -->
     <string name="TalerFork_status_accepted">Accepted</string>
+    <!-- Status text on a payment card: for incoming PAY_PUSH that was accepted, %1$s is the sender name -->
+    <string name="TalerFork_status_accepted_by_sender">Accepted from %1$s</string>
+    <!-- Status text on a payment card: for outgoing PAY_PUSH that was confirmed, %1$s is the recipient name -->
+    <string name="TalerFork_status_sent_confirmed">Sent by you to %1$s (confirmed)</string>
+    <!-- Amount line with sender and recipient: %1$s is sender, %2$s is recipient, %3$s is amount, %4$s is currency -->
+    <string name="TalerFork_amount_with_parties">%1$s → %2$s: %3$s %4$s</string>
+    <!-- Short form of "you" for use in payment card amount line -->
+    <string name="TalerFork_you">You</string>
     <!-- Status text on a payment card: the user declined the payment/request in this Signal installation only - does not claim any funds moved -->
     <string name="TalerFork_status_declined">Declined</string>
     <!-- Status text on a payment card: the payment/request has expired -->
@@ -10040,13 +10052,16 @@
     <!-- Status text on a payment card while the local status is not yet known, e.g. right after the link was detected -->
     <string name="TalerFork_status_checking">Checking…</string>
     <!-- Status text on a payment card: the link is not a valid Taler link -->
-    <string name="TalerFork_status_invalid">Invalid link</string>
+    <string name="TalerFork_status_invalid">Payment failed</string>
     <!-- Status text on a payment card: GNU Taler is installed and trusted, but the user has not granted the connection yet -->
     <string name="TalerFork_status_not_connected">GNU Taler not connected</string>
     <!-- Status text on a payment card: the GNU Taler app is not installed on this device -->
     <string name="TalerFork_status_not_installed">GNU Taler is not installed</string>
     <!-- Status text on a payment card: an app claiming to be GNU Taler responded, but its signing certificate does not match the pinned allowlist. This is a security warning, not an installation hint, and must look visibly different from TalerFork_status_not_installed -->
     <string name="TalerFork_status_untrusted">GNU Taler: unexpected app signature, connection blocked</string>
+
+    <!-- Meilenstein 7: Section header for payment tab in conversation settings -->
+    <string name="TalerFork_payments">Payments</string>
 
     <!-- Button on a payment card: accept an incoming Taler payment, opens GNU Taler's own confirmation UI -->
     <string name="TalerFork_action_accept">Accept</string>
@@ -10056,6 +10071,8 @@
     <string name="TalerFork_action_cancel">Cancel</string>
     <!-- Button on a payment card: refresh the status of an outgoing Taler payment -->
     <string name="TalerFork_action_refresh">Refresh</string>
+    <!-- Button on an accepted incoming Taler payment card (Meilenstein 6): start a refund (a new payment back to the sender), opens GNU Taler's own confirmation UI -->
+    <string name="TalerFork_action_refund">Refund</string>
     <!-- Title of the confirmation dialog before locally declining a Taler payment -->
     <string name="TalerFork_decline_dialog_title">Decline this payment?</string>
     <!-- Body of the decline confirmation dialog - must never imply money moves, only that this device stops tracking -->
@@ -10090,20 +10107,48 @@
     <!-- Accessibility label for the small icon shown instead of the raw text on a recognized accept-confirmation message; gray while unconfirmed, blue once Taler confirms the payment as accepted -->
     <string name="TalerFork_confirmation_icon_content_description">GNU Taler payment confirmation</string>
 
-    <!-- Title of the amount-entry dialog shown before starting an outgoing Taler payment from the attachment menu -->
-    <string name="TalerFork_send_dialog_title">Send with Taler</string>
-    <!-- Hint text for the amount field in the Taler send dialog -->
-    <string name="TalerFork_send_dialog_amount_hint">Amount</string>
-    <!-- Hint text for the currency field in the Taler send dialog -->
-    <string name="TalerFork_send_dialog_currency_hint">Currency</string>
-    <!-- Hint text for the optional purpose field in the Taler send dialog -->
-    <string name="TalerFork_send_dialog_purpose_hint">Purpose (optional)</string>
-    <!-- Confirm button in the Taler send dialog; proceeds to GNU Taler's own confirmation UI -->
-    <string name="TalerFork_send_dialog_confirm">Continue in Taler</string>
-    <!-- Cancel button in the Taler send dialog -->
-    <string name="TalerFork_send_dialog_cancel">Cancel</string>
-    <!-- Attachment menu entry that starts an outgoing Taler payment -->
+    <!-- Attachment menu entry that opens Taler directly to start an outgoing payment (1:1 or group); Taler itself asks for the amount -->
     <string name="AttachmentKeyboard_taler_send">Send with Taler</string>
+    <!-- Generic "Cancel" label reused across Taler dialogs (e.g. the forward-choice dialog in TalerForwardGate) -->
+    <string name="TalerFork_send_dialog_cancel">Cancel</string>
+
+    <!-- Meilenstein 6: Rueckerstatten und Weiterleiten -->
+
+    <!-- Title of the interstitial dialog shown when forwarding a message that contains exactly one Taler payment link -->
+    <string name="TalerFork_forward_choice_title">Forward Taler payment</string>
+    <!-- Option to forward the live, redeemable payment link itself -->
+    <string name="TalerFork_forward_as_payment">Forward as payment</string>
+    <!-- Option to forward a plain text reference with the payment link removed, so the recipient cannot redeem it -->
+    <string name="TalerFork_forward_as_text">Forward as text</string>
+    <!-- Warning shown before forwarding a still-open (unclaimed) payment link as a payment -->
+    <string name="TalerFork_forward_payment_warning">This forwards an unclaimed payment. Whoever opens it first can claim the money.</string>
+    <!-- Shown in place of the payment option when the payment is no longer open and therefore can\'t be forwarded as a live payment -->
+    <string name="TalerFork_forward_as_payment_disabled_reason">Only open payments can be forwarded as a payment.</string>
+    <!-- Placeholder text substituted for a Taler payment link when the user chooses to forward it as plain text instead of as a payment -->
+    <string name="TalerFork_forward_redacted_placeholder">[Taler payment link removed]</string>
+
+    <!-- Payment History -->
+    <string name="payment_history">Zahlungshistorie</string>
+    <string name="payment_history_no_payments">Keine Zahlungen</string>
+    <string name="payment_history_one_payment">1 Zahlung</string>
+    <string name="payment_history_count">%d Zahlungen</string>
+    <string name="payment_history_view_all">Alle Zahlungen anzeigen</string>
+    <string name="payment_history_filter_all_time">Alle Zeiten</string>
+    <string name="payment_history_filter_last_7_days">Letzte 7 Tage</string>
+    <string name="payment_history_filter_last_30_days">Letzte 30 Tage</string>
+    <string name="payment_history_filter_last_90_days">Letzte 90 Tage</string>
+    <string name="payment_history_filter_inflow">Eingehend</string>
+    <string name="payment_history_filter_outflow">Ausgehend</string>
+    <string name="payment_history_filter_all_directions">Alle Richtungen</string>
+    <string name="payment_history_status_pending">Ausstehend</string>
+    <string name="payment_history_status_completed">Abgeschlossen</string>
+    <string name="payment_history_status_refunded">Erstattet</string>
+    <string name="payment_history_status_failed">Fehlgeschlagen</string>
+    <string name="payment_history_status_unknown">Unbekannt</string>
+    <string name="payment_history_action_refund">Refund</string>
+    <string name="payment_history_action_view_chat">Zum Chat</string>
+    <string name="payment_history_empty_state">Keine Zahlungen in der Historie</string>
+    <string name="payment_history_error_loading">Fehler beim Laden der Zahlungshistorie</string>
 
     <!-- EOF -->
 </resources>

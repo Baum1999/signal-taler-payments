@@ -8,9 +8,11 @@ import android.view.ViewGroup
 import android.view.ViewStub
 import android.widget.LinearLayout
 import android.widget.TextView
+import net.taler.wallet.link.TalerUriKind
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.TalerPaymentRecord
+import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.util.visible
 import java.net.IDN
 
@@ -37,6 +39,7 @@ object TalerPaymentCardPresenter {
     onReject: (uri: String, threadId: Long) -> Unit = { _, _ -> },
     onCancel: (uri: String, threadId: Long) -> Unit = { _, _ -> },
     onRefresh: (uri: String, threadId: Long) -> Unit = { _, _ -> },
+    onRefund: (uri: String, threadId: Long) -> Unit = { _, _ -> },
   ) {
     if (stub == null) return
     val uris = TalerUriDetector.findUris(messageBody)
@@ -64,7 +67,7 @@ object TalerPaymentCardPresenter {
     for (uri in uris) {
       val record = SignalDatabase.talerPayments.getByUri(uri)
       val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
-      bind(cardView, record, onAccept, onReject, onCancel, onRefresh)
+      bind(cardView, record, onAccept, onReject, onCancel, onRefresh, onRefund)
       container.addView(cardView)
     }
   }
@@ -76,6 +79,7 @@ object TalerPaymentCardPresenter {
     onReject: (uri: String, threadId: Long) -> Unit,
     onCancel: (uri: String, threadId: Long) -> Unit,
     onRefresh: (uri: String, threadId: Long) -> Unit,
+    onRefund: (uri: String, threadId: Long) -> Unit,
   ) {
     val context = view.context
     val kind = view.findViewById<TextView>(R.id.taler_card_kind)
@@ -86,8 +90,39 @@ object TalerPaymentCardPresenter {
 
     kind.text = kindLabel(context, record?.uriKind)
 
+    // Erweitere Betragszeile mit Sender/Empfaenger-Information
     if (record?.amount != null && record.currency != null) {
-      amount.text = "${record.amount} ${record.currency}"
+      // Versuche, Sender und Empfaenger zu ermitteln
+      val otherPartyName = record.threadId?.let { threadId ->
+        SignalDatabase.threads.getRecipientForThreadId(threadId)?.getDisplayName(context)
+      }
+      
+      val senderName = if (record.isOwnPayment) {
+        // Eigene Zahlung: Sender ist "You/Du", Empfaenger ist otherPartyName
+        context.getString(R.string.TalerFork_you)
+      } else {
+        // Eingehende Zahlung: Sender ist otherPartyName, Empfaenger ist "You/Du"
+        otherPartyName
+      }
+      
+      val recipientName = if (record.isOwnPayment) {
+        otherPartyName
+      } else {
+        context.getString(R.string.TalerFork_you)
+      }
+      
+      // Verwende das erweiterte Format mit Sender → Empfaenger: Betrag Währung
+      if (!senderName.isNullOrBlank() && !recipientName.isNullOrBlank()) {
+        amount.text = context.getString(
+          R.string.TalerFork_amount_with_parties,
+          senderName,
+          recipientName,
+          record.amount,
+          record.currency
+        )
+      } else {
+        amount.text = "${record.amount} ${record.currency}"
+      }
       amount.visible = true
     } else {
       amount.visible = false
@@ -101,13 +136,14 @@ object TalerPaymentCardPresenter {
     exchange.visible = host != null
 
     val talerStatus = record?.status ?: TalerPaymentStatus.UNBEKANNT_OFFLINE
-    status.text = statusLabel(context, talerStatus)
+    status.text = getStatusText(context, record, talerStatus)
 
     val actionsRow = view.findViewById<android.view.View>(R.id.taler_card_actions)
     val acceptButton = view.findViewById<android.widget.Button>(R.id.taler_card_accept)
     val rejectButton = view.findViewById<android.widget.Button>(R.id.taler_card_reject)
     val cancelButton = view.findViewById<android.widget.Button>(R.id.taler_card_cancel)
     val refreshButton = view.findViewById<android.widget.Button>(R.id.taler_card_refresh)
+    val refundButton = view.findViewById<android.widget.Button>(R.id.taler_card_refund)
 
     // Annehmen/Ablehnen nur bei einer Karte mit konkretem DB-Eintrag im
     // Zustand OFFEN - bei einer noch unbekannten (record == null) oder
@@ -124,21 +160,31 @@ object TalerPaymentCardPresenter {
     // volle pay-pull-Unterstuetzung folgt in einem spaeteren Meilenstein.
     //
     // Unterschied zwischen eigenen und fremden Zahlungen:
-    // - isOwnPayment=false (eingehend): zeige Annehmen/Ablehnen
-    // - isOwnPayment=true (ausgehend): zeige Abbrechen/Refresh
+    // - isOwnPayment=false, OFFEN (eingehend, noch offen): zeige Annehmen/Ablehnen
+    // - isOwnPayment=true, OFFEN (ausgehend, noch offen): zeige Abbrechen/Refresh
+    // - isOwnPayment=false, ANGENOMMEN (Geld ist bei mir angekommen - egal ob
+    //   durch einen empfangenen PAY_PUSH oder durch einen von mir erstellten
+    //   PAY_PULL, den jemand bezahlt hat): zeige Refund - man kann nur Geld
+    //   zurueckerstatten, das man tatsaechlich erhalten hat. Bewusst NICHT
+    //   mehr auf PAY_PUSH beschraenkt (Fix: "Konterpfad"-Generalisierung) -
+    //   TalerRefundActions sendet in beiden Faellen gleich per neuem PUSH
+    //   zurueck, unabhaengig von der Art des Original-Links.
     val showAcceptReject = record?.status == TalerPaymentStatus.OFFEN &&
       record.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name &&
       !record.isOwnPayment
     val showCancelRefresh = record?.status == TalerPaymentStatus.OFFEN &&
       record.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name &&
       record.isOwnPayment
-    
-    actionsRow.visibility = if (showAcceptReject || showCancelRefresh) android.view.View.VISIBLE else android.view.View.GONE
+    val showRefund = record?.status == TalerPaymentStatus.ANGENOMMEN &&
+      !record.isOwnPayment
+
+    actionsRow.visibility = if (showAcceptReject || showCancelRefresh || showRefund) android.view.View.VISIBLE else android.view.View.GONE
     acceptButton.visibility = if (showAcceptReject) android.view.View.VISIBLE else android.view.View.GONE
     rejectButton.visibility = if (showAcceptReject) android.view.View.VISIBLE else android.view.View.GONE
     cancelButton.visibility = if (showCancelRefresh) android.view.View.VISIBLE else android.view.View.GONE
     refreshButton.visibility = if (showCancelRefresh) android.view.View.VISIBLE else android.view.View.GONE
-    
+    refundButton.visibility = if (showRefund) android.view.View.VISIBLE else android.view.View.GONE
+
     if (showAcceptReject && record != null) {
       acceptButton.setOnClickListener { onAccept(record.uri, record.threadId) }
       rejectButton.setOnClickListener { onReject(record.uri, record.threadId) }
@@ -146,6 +192,9 @@ object TalerPaymentCardPresenter {
     if (showCancelRefresh && record != null) {
       cancelButton.setOnClickListener { onCancel(record.uri, record.threadId) }
       refreshButton.setOnClickListener { onRefresh(record.uri, record.threadId) }
+    }
+    if (showRefund && record != null) {
+      refundButton.setOnClickListener { onRefund(record.uri, record.threadId) }
     }
   }
 
@@ -173,6 +222,66 @@ object TalerPaymentCardPresenter {
       TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> R.string.TalerFork_status_untrusted
     }
   )
+
+  /**
+   * Erzeugt den anzuzeigenden Status-Text unter Beruecksichtigung des URI-Typs
+   * und ob es sich um eine eigene oder fremde Zahlung handelt. Fuer OFFENE
+   * pay-push-Zahlungen wird ein spezifischerer Text angezeigt, der klar macht,
+   * worauf gewartet wird. Fuer ANGENOMMENE pay-push-Zahlungen wird der Sender
+   * oder Empfaenger angezeigt.
+   */
+  private fun getStatusText(context: Context, record: TalerPaymentRecord?, status: TalerPaymentStatus): String {
+    // Spezielle Behandlung fuer OFFENE pay-push-Vorgaenge
+    if (status == TalerPaymentStatus.OFFEN && 
+        record?.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name) {
+      
+      // Versuche, den Empfaenger-Namen zu ermitteln
+      val recipientName = record.threadId?.let { threadId ->
+        SignalDatabase.threads.getRecipientForThreadId(threadId)?.getDisplayName(context)
+      }
+      
+      return if (record.isOwnPayment) {
+        // Eigene ausgehende Zahlung: warte auf Empfaenger
+        if (!recipientName.isNullOrBlank()) {
+          context.getString(R.string.TalerFork_status_waiting_for_recipient, recipientName)
+        } else {
+          context.getString(R.string.TalerFork_status_waiting_for_recipient, "Empfaenger")
+        }
+      } else {
+        // Eingehende Zahlung: warte auf eigene Annahme
+        context.getString(R.string.TalerFork_status_waiting_for_acceptance)
+      }
+    }
+    
+    // Spezielle Behandlung fuer ANGENOMMENE pay-push-Vorgaenge
+    if (status == TalerPaymentStatus.ANGENOMMEN && 
+        record?.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name) {
+      
+      // Versuche, den Sender- oder Empfaenger-Namen zu ermitteln
+      val otherPartyName = record.threadId?.let { threadId ->
+        SignalDatabase.threads.getRecipientForThreadId(threadId)?.getDisplayName(context)
+      }
+      
+      return if (record.isOwnPayment) {
+        // Eigene ausgehende Zahlung: wurde vom Empfaenger angenommen
+        if (!otherPartyName.isNullOrBlank()) {
+          context.getString(R.string.TalerFork_status_sent_confirmed, otherPartyName)
+        } else {
+          context.getString(R.string.TalerFork_status_sent_confirmed, "Empfaenger")
+        }
+      } else {
+        // Eingehende Zahlung: wurde von uns angenommen, zeige Sender
+        if (!otherPartyName.isNullOrBlank()) {
+          context.getString(R.string.TalerFork_status_accepted_by_sender, otherPartyName)
+        } else {
+          context.getString(R.string.TalerFork_status_accepted_by_sender, "Sender")
+        }
+      }
+    }
+    
+    // Standard-Fall: verwende den einfachen Status-Text
+    return statusLabel(context, status)
+  }
 
   /**
    * P4 (REVIEW.md): [exchangeBaseUrl]s Host kommt vom Absender der Nachricht

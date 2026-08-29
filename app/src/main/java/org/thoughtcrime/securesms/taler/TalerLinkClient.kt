@@ -14,6 +14,8 @@ import net.taler.wallet.link.ConnectionState
 import net.taler.wallet.link.ITalerLink
 import net.taler.wallet.link.OperationStatusResult
 import net.taler.wallet.link.PaymentPreviewResult
+import net.taler.wallet.link.PrepareRefundRequest
+import net.taler.wallet.link.PrepareRefundResult
 import net.taler.wallet.link.PrepareSendRequest
 import net.taler.wallet.link.PrepareSendResult
 import net.taler.wallet.link.TalerOperationStatus
@@ -60,6 +62,9 @@ class TalerLinkClient(private val context: Context) {
 
   suspend fun prepareSend(request: PrepareSendRequest): TalerLinkResult<PrepareSendResult> =
     call { it.prepareSend(request) }
+
+  suspend fun prepareRefund(request: PrepareRefundRequest): TalerLinkResult<PrepareRefundResult> =
+    call { it.prepareRefund(request) }
 
   private suspend fun <T> call(block: (ITalerLink) -> T): TalerLinkResult<T> {
     if (!isTalerInstalled()) return TalerLinkResult.NichtInstalliert

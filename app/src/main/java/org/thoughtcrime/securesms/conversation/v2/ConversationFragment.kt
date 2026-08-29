@@ -349,7 +349,11 @@ import org.thoughtcrime.securesms.stickers.manage.StickerManagementScreen
 import org.thoughtcrime.securesms.stickers.preview.StickerPackPreviewActivity
 import org.thoughtcrime.securesms.stories.StoryViewerArgs
 import org.thoughtcrime.securesms.stories.viewer.StoryViewerActivity
+import org.thoughtcrime.securesms.taler.TalerAllowlist
+import org.thoughtcrime.securesms.taler.TalerForwardGate
+import org.thoughtcrime.securesms.taler.TalerRefundActions
 import org.thoughtcrime.securesms.taler.TalerSendActions
+import org.thoughtcrime.securesms.taler.TalerUriDetector
 import org.thoughtcrime.securesms.util.BubbleUtil
 import org.thoughtcrime.securesms.util.CommunicationActions
 import org.thoughtcrime.securesms.util.ConversationUtil
@@ -3074,6 +3078,32 @@ class ConversationFragment :
   private fun handleForwardMessageParts(messageParts: Set<MultiselectPart>) {
     inputPanel.clearQuote()
 
+    // GNU-Fork (Signal-Taler-Integration, Meilenstein 6; REVIEW.md H4-Muster):
+    // Interstitial nur, wenn die Auswahl genau eine Nachricht mit genau einer
+    // Taler-URI ist - siehe TalerForwardGate fuer die Begruendung und alle
+    // anderen Faelle bleiben unveraendert.
+    val talerUri = TalerForwardGate.detectSingleTalerUri(messageParts)
+    if (talerUri != null) {
+      TalerForwardGate.showChoiceDialog(
+        context = requireContext(),
+        uri = talerUri,
+        onForwardAsPayment = {
+          MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
+            MultiselectForwardFragment.showBottomSheet(childFragmentManager, args)
+          }
+        },
+        onForwardAsText = {
+          MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
+            MultiselectForwardFragment.showBottomSheet(
+              childFragmentManager,
+              TalerForwardGate.redactPaymentUri(requireContext(), args)
+            )
+          }
+        },
+      )
+      return
+    }
+
     MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
       MultiselectForwardFragment.showBottomSheet(childFragmentManager, args)
     }
@@ -3929,8 +3959,37 @@ class ConversationFragment :
     override fun onScheduledIndicatorClicked(view: View, conversationMessage: ConversationMessage) = Unit
 
     override fun onUrlClicked(url: String): Boolean {
+      // Taler-URI-Handling (taler://refund/..., taler://pay-push/..., etc.)
+      if (TalerUriDetector.findUris(url).firstOrNull() == url) {
+        handleTalerUri(url)
+        return true
+      }
+      
       return CommunicationActions.handlePotentialGroupLinkUrl(requireActivity(), url) ||
         CommunicationActions.handlePotentialProxyLinkUrl(requireActivity(), url)
+    }
+
+    /**
+     * Behandelt Taler-URIs (taler://, ext+taler://, payto://) beim Klicken.
+     * Fuer taler://refund/...-URIs wird Taler Wallet direkt geoeffnet, da ohne
+     * Originalzahlungsdaten kein vorbefuellter Dialog moeglich ist.
+     * Andere Taler-URIs werden direkt an Taler Wallet weitergeleitet.
+     */
+    private fun handleTalerUri(url: String) {
+      // Bereinige die URI (entferne ext+ Praefix)
+      val cleanUri = url.removePrefix("ext+")
+
+      // Fix (Regression): der else-Zweig rief zuvor TalerSendActions.onSendClicked
+      // auf - das ignoriert die angeklickte URI komplett und oeffnet stattdessen
+      // einen unabhaengigen "neue Zahlung senden"-Dialog. Die Zahlungskarte
+      // (TalerPaymentCardPresenter) bietet fuer PAY_PUSH/PAY_PULL bereits eigene
+      // Annehmen/Ablehnen/Abbrechen/Refund-Buttons - ein Tap auf den rohen
+      // URI-Text in der Nachricht ist nur ein Fallback und soll fuer JEDE
+      // Taler-URI dasselbe tun wie fuer Refund: Taler Wallet direkt oeffnen.
+      val intent = Intent(Intent.ACTION_VIEW, Uri.parse(cleanUri)).apply {
+        setPackage(TalerAllowlist.PACKAGE)
+      }
+      runCatching { requireActivity().startActivity(intent) }
     }
 
     override fun onViewGiftBadgeClicked(messageRecord: MessageRecord) {

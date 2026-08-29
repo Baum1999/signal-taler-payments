@@ -25,7 +25,7 @@ object TalerAcceptRejectActions {
    */
   fun onAcceptClicked(context: Context, uri: String, threadId: Long) {
     val correlationId = java.util.UUID.randomUUID().toString()
-    TalerCorrelationStore.put(correlationId, uri, threadId)
+    TalerCorrelationStore.put(correlationId, TalerCorrelationIntent.ACCEPT_OR_CANCEL, uri, threadId)
 
     val returnUri = "signalfuergnu://taler-return"
     val separator = if (uri.contains("?")) "&" else "?"
@@ -71,7 +71,7 @@ object TalerAcceptRejectActions {
    */
   fun onCancelClicked(context: Context, uri: String, threadId: Long) {
     val correlationId = java.util.UUID.randomUUID().toString()
-    TalerCorrelationStore.put(correlationId, uri, threadId)
+    TalerCorrelationStore.put(correlationId, TalerCorrelationIntent.ACCEPT_OR_CANCEL, uri, threadId)
 
     val returnUri = "signalfuergnu://taler-return"
     val separator = if (uri.contains("?")) "&" else "?"

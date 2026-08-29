@@ -10019,11 +10019,23 @@
     <string name="TalerFork_kind_unknown">Taler-Link</string>
 
     <string name="TalerFork_status_open">Offen</string>
+    <!-- Status-Text auf einer Zahlungskarte: für eingehende PAY_PUSH, wartet darauf, dass der Nutzer annimmt -->
+    <string name="TalerFork_status_waiting_for_acceptance">Wartet auf Annahme</string>
+    <!-- Status-Text auf einer Zahlungskarte: für ausgehende PAY_PUSH, wartet auf Bestätigung des Empfängers. %1$s ist der Empfänger-Name. -->
+    <string name="TalerFork_status_waiting_for_recipient">Wartet auf Bestätigung von %1$s</string>
     <string name="TalerFork_status_accepted">Angenommen</string>
+    <!-- Status text on a payment card: for incoming PAY_PUSH that was accepted, %1$s is the sender name -->
+    <string name="TalerFork_status_accepted_by_sender">Angenommen von %1$s</string>
+    <!-- Status text on a payment card: for outgoing PAY_PUSH that was confirmed, %1$s is the recipient name -->
+    <string name="TalerFork_status_sent_confirmed">Von dir gesendet an %1$s (bestätigt)</string>
+    <!-- Amount line with sender and recipient: %1$s is sender, %2$s is recipient, %3$s is amount, %4$s is currency -->
+    <string name="TalerFork_amount_with_parties">%1$s → %2$s: %3$s %4$s</string>
+    <!-- Short form of "you" for use in payment card amount line -->
+    <string name="TalerFork_you">Du</string>
     <string name="TalerFork_status_declined">Abgelehnt</string>
     <string name="TalerFork_status_expired">Abgelaufen</string>
     <string name="TalerFork_status_checking">Wird geprüft…</string>
-    <string name="TalerFork_status_invalid">Ungültiger Link</string>
+    <string name="TalerFork_status_invalid">Zahlung fehlgeschlagen</string>
     <string name="TalerFork_status_not_connected">GNU Taler nicht verbunden</string>
     <string name="TalerFork_status_not_installed">GNU Taler ist nicht installiert</string>
     <string name="TalerFork_status_untrusted">GNU Taler: unerwartete App-Signatur, Verbindung blockiert</string>

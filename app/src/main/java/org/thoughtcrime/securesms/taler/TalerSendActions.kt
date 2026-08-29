@@ -1,71 +1,46 @@
 package org.thoughtcrime.securesms.taler
 
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.widget.EditText
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import net.taler.wallet.link.PrepareSendRequest
-import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.recipients.Recipient
 
 /**
- * Klick-Handler fuer "Send with Taler" im Anhang-Menue (Meilenstein 5).
- * "Eingabe X" passiert hier (rein lokal, keine Balance-Abfrage moeglich -
- * Signal darf Taler-Salden nicht abfragen) - Gebuehr und die eigentliche
- * Bestaetigung passieren ausschliesslich in Talers eigener UI (Regel: Signal
- * bestaetigt niemals selbst eine Zahlung).
+ * Klick-Handler fuer "Send with Taler" im Anhang-Menue (Meilenstein 5,
+ * seither umgebaut). Signal fragt Betrag/Waehrung/Zweck NICHT mehr selbst ab
+ * (Regel: Signal darf keine Taler-Salden/Betraege kennen) - der Button
+ * oeffnet Taler direkt und gibt nur unbedenkliche Kontextinfo mit
+ * (Empfaenger-Hinweis, Gruppe/Mitgliederzahl, Verschwinde-Nachrichten-Status),
+ * anhand derer Taler seinen eigenen Betrags-Screen zeigt. Frueher zusaetzlich
+ * ueber einen zweiten Button (TalerPaymentActions) fuer Gruppen erreichbar -
+ * inzwischen vereinheitlicht, dieser eine Handler deckt 1:1 und Gruppen ab
+ * (Gating in AttachmentKeyboardFragment.kt, Backstop in
+ * TalerReturnActivity.kt).
  */
 object TalerSendActions {
 
   fun onSendClicked(context: Context, recipient: Recipient, threadId: Long) {
-    val view = android.view.LayoutInflater.from(context).inflate(R.layout.taler_send_amount_dialog, null)
-    val amountField = view.findViewById<EditText>(R.id.taler_send_amount)
-    val currencyField = view.findViewById<EditText>(R.id.taler_send_currency)
-    val purposeField = view.findViewById<EditText>(R.id.taler_send_purpose)
-
-    AlertDialog.Builder(context)
-      .setTitle(R.string.TalerFork_send_dialog_title)
-      .setView(view)
-      .setPositiveButton(R.string.TalerFork_send_dialog_confirm) { _, _ ->
-        val amount = amountField.text?.toString()?.trim().orEmpty()
-        val currency = currencyField.text?.toString()?.trim().orEmpty()
-        val purpose = purposeField.text?.toString()?.trim()?.ifBlank { null }
-        if (amount.isNotEmpty() && currency.isNotEmpty()) {
-          startCompose(context, recipient, threadId, amount, currency, purpose)
-        }
-      }
-      .setNegativeButton(R.string.TalerFork_send_dialog_cancel, null)
-      .show()
-  }
-
-  private fun startCompose(
-    context: Context,
-    recipient: Recipient,
-    threadId: Long,
-    amount: String,
-    currency: String,
-    purpose: String?,
-  ) {
     val correlationId = java.util.UUID.randomUUID().toString()
-    TalerCorrelationStore.put(correlationId, uri = null, threadId = threadId)
+    TalerCorrelationStore.put(correlationId, TalerCorrelationIntent.SEND, uri = null, threadId = threadId)
     val returnUri = "signalfuergnu://taler-return"
 
     val request = PrepareSendRequest(
-      amount = amount,
-      currency = currency,
       recipientHint = recipient.getDisplayName(context),
-      purpose = purpose,
+      isGroup = recipient.isGroup,
+      memberCount = if (recipient.isGroup) recipient.participantIds.size else null,
+      disappearingMessagesSeconds = recipient.expiresInSeconds,
       correlationId = correlationId,
       returnUri = returnUri,
     )
 
     // Kein Fragment/Activity-Referenz mit eigenem lifecycleScope hier
-    // verfuegbar (reiner Dialog-Callback) - ein einmaliger MainScope() ist
-    // vertretbar, weil der einzige sichtbare Effekt (startActivity) harmlos
-    // bleibt, falls der Dialog laengst geschlossen ist.
+    // verfuegbar (Aufruf direkt aus dem Anhang-Menue-Callback) - ein
+    // einmaliger MainScope() ist vertretbar, weil der einzige sichtbare
+    // Effekt (startActivity) harmlos bleibt, falls der Aufrufer laengst
+    // verschwunden ist.
     MainScope().launch {
       val client = TalerLinkClient(context.applicationContext)
       when (val result = client.prepareSend(request)) {

@@ -721,6 +721,7 @@ dependencies {
   implementation(libs.androidx.exifinterface)
   implementation(libs.androidx.compose.rxjava3)
   implementation(libs.androidx.compose.runtime.livedata)
+  implementation(libs.androidx.compose.material.icons.extended)
   implementation(libs.androidx.activity.compose)
   implementation(libs.androidx.constraintlayout)
   implementation(libs.androidx.navigation.fragment.ktx)

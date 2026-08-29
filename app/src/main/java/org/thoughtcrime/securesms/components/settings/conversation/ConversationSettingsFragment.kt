@@ -72,10 +72,14 @@ import org.thoughtcrime.securesms.components.settings.conversation.preferences.L
 import org.thoughtcrime.securesms.components.settings.conversation.preferences.LegacyGroupPreference
 import org.thoughtcrime.securesms.components.settings.conversation.preferences.RecipientPreference
 import org.thoughtcrime.securesms.components.settings.conversation.preferences.SharedMediaPreference
+import org.thoughtcrime.securesms.components.settings.conversation.preferences.PaymentHistoryPreference
+import org.thoughtcrime.securesms.components.settings.conversation.preferences.TalerPaymentPreference
 import org.thoughtcrime.securesms.components.settings.conversation.preferences.Utils.formatMutedUntil
+import org.thoughtcrime.securesms.payments.history.PaymentDirection
 import org.thoughtcrime.securesms.conversation.ConversationIntents
 import org.thoughtcrime.securesms.conversation.colors.ColorizerV2
 import org.thoughtcrime.securesms.database.AttachmentTable
+import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.groups.GroupId
 import org.thoughtcrime.securesms.groups.memberlabel.MemberLabelEducationSheet
 import org.thoughtcrime.securesms.groups.memberlabel.StyledMemberLabel
@@ -305,6 +309,8 @@ class ConversationSettingsFragment :
     GroupDescriptionPreference.register(adapter)
     LegacyGroupPreference.register(adapter)
     CallPreference.register(adapter)
+    TalerPaymentPreference.register(adapter)
+    PaymentHistoryPreference.register(adapter)
 
     val recipientId = args.recipientId
     if (recipientId != null) {
@@ -740,6 +746,53 @@ class ConversationSettingsFragment :
           onClick = {
             startActivityForResult(MediaOverviewActivity.forThread(requireContext(), state.threadId), REQUEST_CODE_RETURN_FROM_MEDIA)
           }
+        )
+      }
+
+      // Meilenstein 7: Zahlungs-Tab mit Daten aus Signals eigener TalerPaymentTable
+      // Nur sichtbar, wenn es Taler-Zahlungen in diesem Thread gibt
+      val talerPayments = SignalDatabase.talerPayments.getForThread(state.threadId)
+      if (talerPayments.isNotEmpty()) {
+        dividerPref()
+        sectionHeaderPref(R.string.TalerFork_payments)
+
+        customPref(TalerPaymentPreference.Model(state.threadId))
+      }
+
+      // Meilenstein 8: Zahlungshistorie - zeigt alle Zahlungen für diesen Chat
+      // Nur sichtbar, wenn es Zahlungen in der History für diesen Thread gibt
+      val paymentHistoryItems = SignalDatabase.paymentHistory.getForChat(state.threadId)
+      if (paymentHistoryItems.isNotEmpty()) {
+        dividerPref()
+        sectionHeaderPref(R.string.payment_history)
+
+        val totalInflow = paymentHistoryItems
+            .filter { it.direction == PaymentDirection.INFLOW }
+            .sumOf { it.amount.toBigDecimalOrNull() ?: 0.toBigDecimal() }
+            .toString()
+        
+        val totalOutflow = paymentHistoryItems
+            .filter { it.direction == PaymentDirection.OUTFLOW }
+            .sumOf { it.amount.toBigDecimalOrNull() ?: 0.toBigDecimal() }
+            .toString()
+
+        customPref(
+            PaymentHistoryPreference.PaymentHistoryModel(
+                chatId = state.threadId,
+                paymentCount = paymentHistoryItems.size,
+                latestPayment = paymentHistoryItems.firstOrNull(),
+                totalInflow = totalInflow,
+                totalOutflow = totalOutflow
+            )
+        )
+
+        // Klick-Handler für die Zahlungshistorie
+        clickPref(
+            title = DSLSettingsText.from(R.string.payment_history_view_all),
+            onClick = {
+                val action = ConversationSettingsFragmentDirections.actionConversationSettingsFragmentToPaymentHistoryFragment(state.threadId)
+                navController.safeNavigate(action)
+            }
         )
       }
 

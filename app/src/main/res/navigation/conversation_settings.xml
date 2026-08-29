@@ -152,6 +152,19 @@
                 app:argType="boolean" />
         </action>
 
+        <action
+            android:id="@+id/action_conversationSettingsFragment_to_paymentHistoryFragment"
+            app:destination="@id/paymentHistoryFragment"
+            app:enterAnim="@anim/fragment_open_enter"
+            app:exitAnim="@anim/fragment_open_exit"
+            app:popEnterAnim="@anim/fragment_close_enter"
+            app:popExitAnim="@anim/fragment_close_exit">
+
+            <argument
+                android:name="chat_id"
+                app:argType="long" />
+        </action>
+
     </fragment>
 
     <fragment
@@ -253,5 +266,6 @@
     </fragment>
 
     <include app:graph="@navigation/app_settings_expire_timer" />
+    <include app:graph="@navigation/payments_history" />
 
 </navigation>

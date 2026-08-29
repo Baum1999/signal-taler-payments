@@ -148,12 +148,14 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
     val paymentsValues = SignalStore.payments
     val isPaymentsAvailable = paymentsValues.paymentsAvailability.isSendAllowed && !recipient.isSelf && !recipient.isGroup && recipient.isRegistered && SignalStore.account.isPrimaryDevice
 
-    // Gleiche Empfaenger-Einschraenkung wie bei Payments (kein Self-Chat, keine
-    // Gruppe, registrierter Empfaenger, primaeres Geraet) - Taler-URIs sind ein
-    // Inhaberpapier, ein Versand ueber diesen Button darf deshalb nie in einer
-    // Gruppe oder an sich selbst landen (siehe TalerReturnActivity.sendComposedPayment,
-    // das dieselbe Bedingung als Backstop nochmal prueft).
-    val isTalerRecipientAllowed = !recipient.isSelf && !recipient.isGroup && recipient.isRegistered && SignalStore.account.isPrimaryDevice
+    // Empfaenger-Einschraenkung fuer den Taler-Button: kein Self-Chat (Notiz
+    // an mich), registrierter Empfaenger, primaeres Geraet. Anders als
+    // frueher AUCH in Gruppen erlaubt (siehe TalerReturnActivity.
+    // sendComposedPayment, das dieselbe Bedingung als Backstop nochmal
+    // prueft und dort ausfuehrlich begruendet, warum Gruppen jetzt erlaubt
+    // sind) - ein Taler-URI bleibt ein Inhaberpapier, das Compose-Send-Screen
+    // warnt bei Gruppen explizit ("wer zuerst bestaetigt").
+    val isTalerRecipientAllowed = !recipient.isSelf && recipient.isRegistered && SignalStore.account.isPrimaryDevice
 
     applyButtonFilters(isPaymentsAvailable, talerConnected && isTalerRecipientAllowed)
 
