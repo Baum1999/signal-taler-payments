@@ -17,6 +17,7 @@ import org.thoughtcrime.securesms.taler.TalerLinkResult
 import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
 import java.util.concurrent.TimeUnit
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Fragt Status/Vorschau eines einzelnen Taler-URI bei der lokalen
@@ -171,6 +172,7 @@ class TalerUriRefreshJob private constructor(
       threadRecipient = recipient,
       body = body,
       sentTimeMillis = System.currentTimeMillis(),
+      expiresIn = recipient.expiresInSeconds.seconds.inWholeMilliseconds,
       isSecure = true
     )
     MessageSender.send(context, message, record.threadId, MessageSender.SendType.SIGNAL, null, null)

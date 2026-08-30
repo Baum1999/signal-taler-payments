@@ -12,6 +12,7 @@ import org.thoughtcrime.securesms.conversation.ConversationIntents
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.mms.OutgoingMessage
 import org.thoughtcrime.securesms.sms.MessageSender
+import kotlin.time.Duration.Companion.seconds
 
 /**
  * Ruecksprungziel fuer Annehmen/Ablehnen/Abbrechen (docs/API.md 2.10,
@@ -200,6 +201,7 @@ class TalerReturnActivity : Activity() {
         threadRecipient = recipient,
         body = body,
         sentTimeMillis = System.currentTimeMillis(),
+        expiresIn = recipient.expiresInSeconds.seconds.inWholeMilliseconds,
         isSecure = true
       )
       MessageSender.send(appContext, message, threadId, MessageSender.SendType.SIGNAL, null, null)
