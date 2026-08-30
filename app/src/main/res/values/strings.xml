@@ -10116,16 +10116,12 @@
 
     <!-- Title of the interstitial dialog shown when forwarding a message that contains exactly one Taler payment link -->
     <string name="TalerFork_forward_choice_title">Forward Taler payment</string>
-    <!-- Option to forward the live, redeemable payment link itself -->
-    <string name="TalerFork_forward_as_payment">Forward as payment</string>
-    <!-- Option to forward a plain text reference with the payment link removed, so the recipient cannot redeem it -->
+    <!-- Option to forward the original message text unchanged, including the live, redeemable payment link -->
     <string name="TalerFork_forward_as_text">Forward as text</string>
-    <!-- Warning shown before forwarding a still-open (unclaimed) payment link as a payment -->
+    <!-- Option to forward a static image snapshot of the payment card instead of the live payment link -->
+    <string name="TalerFork_forward_as_image">Forward as image</string>
+    <!-- Warning shown before forwarding a still-open (unclaimed) payment link as text, since whoever opens it first can claim the money -->
     <string name="TalerFork_forward_payment_warning">This forwards an unclaimed payment. Whoever opens it first can claim the money.</string>
-    <!-- Shown in place of the payment option when the payment is no longer open and therefore can\'t be forwarded as a live payment -->
-    <string name="TalerFork_forward_as_payment_disabled_reason">Only open payments can be forwarded as a payment.</string>
-    <!-- Placeholder text substituted for a Taler payment link when the user chooses to forward it as plain text instead of as a payment -->
-    <string name="TalerFork_forward_redacted_placeholder">[Taler payment link removed]</string>
 
     <!-- Payment History -->
     <string name="payment_history">Zahlungshistorie</string>

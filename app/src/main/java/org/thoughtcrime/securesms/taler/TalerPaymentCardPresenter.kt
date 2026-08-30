@@ -72,6 +72,20 @@ object TalerPaymentCardPresenter {
     }
   }
 
+  /**
+   * Rendert eine einzelne Zahlungskarte losgeloest von einer Nachricht - fuer
+   * den "Als Bild"-Weiterleiten-Snapshot (siehe TalerForwardGate). Nutzt
+   * dieselbe bind()-Logik wie present(), blendet die Aktionsreihe aber immer
+   * aus: ein statisches PNG kann Annehmen/Ablehnen/Abbrechen/Refresh/Refund
+   * nicht ausfuehren, ein funktional wirkender Button waere irrefuehrend.
+   */
+  fun renderStandalone(context: Context, record: TalerPaymentRecord?): View {
+    val view = LayoutInflater.from(context).inflate(R.layout.taler_payment_card, null, false)
+    bind(view, record, { _, _ -> }, { _, _ -> }, { _, _ -> }, { _, _ -> }, { _, _ -> })
+    view.findViewById<View>(R.id.taler_card_actions).visibility = View.GONE
+    return view
+  }
+
   private fun bind(
     view: View,
     record: TalerPaymentRecord?,

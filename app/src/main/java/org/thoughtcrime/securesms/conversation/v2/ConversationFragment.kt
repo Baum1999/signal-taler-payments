@@ -3087,17 +3087,16 @@ class ConversationFragment :
       TalerForwardGate.showChoiceDialog(
         context = requireContext(),
         uri = talerUri,
-        onForwardAsPayment = {
+        onForwardAsText = {
           MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
             MultiselectForwardFragment.showBottomSheet(childFragmentManager, args)
           }
         },
-        onForwardAsText = {
+        onForwardAsImage = {
           MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
-            MultiselectForwardFragment.showBottomSheet(
-              childFragmentManager,
-              TalerForwardGate.redactPaymentUri(requireContext(), args)
-            )
+            TalerForwardGate.attachPaymentSnapshot(requireContext(), viewLifecycleOwner, talerUri, args) { imaged ->
+              MultiselectForwardFragment.showBottomSheet(childFragmentManager, imaged)
+            }
           }
         },
       )

@@ -2,10 +2,20 @@ package org.thoughtcrime.securesms.taler
 
 import android.app.AlertDialog
 import android.content.Context
+import android.graphics.Bitmap
+import android.view.View
+import androidx.core.view.drawToBitmap
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.conversation.mutiselect.MultiselectPart
 import org.thoughtcrime.securesms.conversation.mutiselect.forward.MultiselectForwardFragmentArgs
 import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.dependencies.AppDependencies
+import java.io.ByteArrayOutputStream
 
 /**
  * Meilenstein 6: Interstitial fuer "Weiterleiten" einer Auswahl, die genau
@@ -19,15 +29,23 @@ import org.thoughtcrime.securesms.database.SignalDatabase
  * weitergeleitet. Bewusste, einfache Vorgabe fuer diesen Meilenstein, kein
  * Versehen - siehe Meilenstein-6-Bericht.
  *
- * Weiterleiten "als Zahlung" traegt die rohe URI unveraendert weiter (das ist
- * bereits das heutige Standardverhalten von buildMultiShareArgs, siehe
- * Kommentar an onForwardAsPayment unten) - nur bei OFFEN erlaubt und mit
- * sichtbarer Warnung, weil damit ein Inhaberpapier weitergegeben wird
- * (PROMPT.md Meilenstein 6). Weiterleiten "als Text" ersetzt die URI durch
- * einen Platzhalter, damit die weitergeleitete Kopie keine lebendige Karte
- * mehr rendert.
+ * Der Dialog bietet immer zwei Wege an, unabhaengig vom Zahlungsstatus:
+ * Weiterleiten "als Text" traegt die rohe URI unveraendert weiter (das ist
+ * bereits das heutige Standardverhalten von buildMultiShareArgs) - bei OFFEN
+ * mit sichtbarer Warnung, weil damit ein Inhaberpapier weitergegeben wird
+ * (wer den Link zuerst oeffnet, kann die Zahlung einloesen); bei jedem
+ * anderen Status ist das Risiko nicht mehr gegeben, daher keine Warnung, aber
+ * weiterhin erlaubt - eine bereits entschiedene/abgelaufene URI unveraendert
+ * weiterzugeben ist unproblematisch, nur das *Einloesen* einer offenen
+ * Zahlung ist der Risikofall. Weiterleiten "als Bild" rendert stattdessen
+ * einen Schnappschuss der aktuellen Zahlungskarte (Betrag/Status/
+ * Zusammenfassung zum Zeitpunkt des Weiterleitens) als PNG - die
+ * weitergeleitete Kopie enthaelt keine URI mehr und rendert beim Empfaenger
+ * keine lebendige Karte.
  */
 object TalerForwardGate {
+
+  private const val SNAPSHOT_WIDTH_PX = 1080
 
   /**
    * Liefert die Taler-URI, wenn [messageParts] genau eine Nachricht mit genau
@@ -42,57 +60,76 @@ object TalerForwardGate {
   }
 
   /**
-   * [onForwardAsPayment] laesst den bestehenden Weiterleiten-Flow
-   * unveraendert (die rohe URI bleibt im Text - "als Zahlung" ist bereits das
-   * Standardverhalten, siehe Klassendoc), nur erreichbar bei OFFEN. Ist die
-   * Zahlung nicht mehr offen, bietet der Dialog nur noch "Als Text" an - eine
-   * bereits entschiedene/abgelaufene URI als Zahlung weiterzugeben waere
-   * irrefuehrend.
+   * Zeigt die Wahl zwischen "Als Text" (rohe URI, [onForwardAsText]) und
+   * "Als Bild" (Schnappschuss, [onForwardAsImage]) - beide immer verfuegbar.
+   * Die Claim-Warnung erscheint nur, wenn die Zahlung noch OFFEN ist.
    */
   fun showChoiceDialog(
     context: Context,
     uri: String,
-    onForwardAsPayment: () -> Unit,
     onForwardAsText: () -> Unit,
+    onForwardAsImage: () -> Unit,
   ) {
     val isOpen = SignalDatabase.talerPayments.getByUri(uri)?.status == TalerPaymentStatus.OFFEN
 
     val builder = AlertDialog.Builder(context)
       .setTitle(R.string.TalerFork_forward_choice_title)
       .setNegativeButton(R.string.TalerFork_send_dialog_cancel, null)
+      .setPositiveButton(R.string.TalerFork_forward_as_text) { _, _ -> onForwardAsText() }
+      .setNeutralButton(R.string.TalerFork_forward_as_image) { _, _ -> onForwardAsImage() }
 
     if (isOpen) {
-      builder
-        .setMessage(R.string.TalerFork_forward_payment_warning)
-        .setPositiveButton(R.string.TalerFork_forward_as_payment) { _, _ -> onForwardAsPayment() }
-        .setNeutralButton(R.string.TalerFork_forward_as_text) { _, _ -> onForwardAsText() }
-    } else {
-      builder
-        .setMessage(R.string.TalerFork_forward_as_payment_disabled_reason)
-        .setPositiveButton(R.string.TalerFork_forward_as_text) { _, _ -> onForwardAsText() }
+      builder.setMessage(R.string.TalerFork_forward_payment_warning)
     }
     builder.show()
   }
 
   /**
-   * Ersetzt in jedem [MultiShareArgs]-Eintrag, dessen draftText eine
-   * Taler-URI enthaelt, den kompletten draftText durch einen Platzhalter -
-   * ueber buildUpon()/withDraftText() (bestehender Copy-Mechanismus von
-   * MultiShareArgs), kein neuer Parsing-/Konstruktionspfad. Andere Eintraege
-   * (z. B. bei einer Mehrfachauswahl, die hier zwar nicht das Interstitial
-   * ausloest, aber theoretisch trotzdem durchlaufen koennte) bleiben
-   * unveraendert.
+   * Rendert die Zahlungskarte zu [uri] offscreen zu einem PNG und ersetzt in
+   * jedem [MultiShareArgs]-Eintrag, dessen draftText diese URI enthaelt, den
+   * draftText durch das gerenderte Bild (ueber buildUpon()/withDataUri()/
+   * withDataType(), bestehender Copy-Mechanismus von MultiShareArgs - analog
+   * zum Weg, den MultiselectForwardFragmentArgs.create() fuer einzelne
+   * Medien-URIs bereits nutzt). [onReady] wird auf dem Main-Dispatcher mit
+   * den so veraenderten Args aufgerufen, sobald das Bild fertig ist.
    */
-  fun redactPaymentUri(context: Context, args: MultiselectForwardFragmentArgs): MultiselectForwardFragmentArgs {
-    val placeholder = context.getString(R.string.TalerFork_forward_redacted_placeholder)
-    val redacted = args.multiShareArgs.map { share ->
-      val text = share.draftText
-      if (!text.isNullOrEmpty() && TalerUriDetector.findUris(text).isNotEmpty()) {
-        share.buildUpon().withDraftText(placeholder).build()
-      } else {
-        share
+  fun attachPaymentSnapshot(
+    context: Context,
+    lifecycleOwner: LifecycleOwner,
+    uri: String,
+    args: MultiselectForwardFragmentArgs,
+    onReady: (MultiselectForwardFragmentArgs) -> Unit,
+  ) {
+    lifecycleOwner.lifecycleScope.launch {
+      val record = SignalDatabase.talerPayments.getByUri(uri)
+      val pngUri = withContext(Dispatchers.Default) {
+        val view = TalerPaymentCardPresenter.renderStandalone(context, record)
+        view.measure(
+          View.MeasureSpec.makeMeasureSpec(SNAPSHOT_WIDTH_PX, View.MeasureSpec.EXACTLY),
+          View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        view.layout(0, 0, view.measuredWidth, view.measuredHeight)
+
+        val bitmap = view.drawToBitmap()
+        val outputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 0, outputStream)
+
+        AppDependencies.blobs
+          .forData(outputStream.toByteArray())
+          .withMimeType("image/png")
+          .withFileName("Taler-Zahlung.png")
+          .createForSingleSessionInMemory()
       }
+
+      val withSnapshot = args.multiShareArgs.map { share ->
+        val text = share.draftText
+        if (!text.isNullOrEmpty() && TalerUriDetector.findUris(text).isNotEmpty()) {
+          share.buildUpon().withDraftText(null).withDataUri(pngUri).withDataType("image/png").build()
+        } else {
+          share
+        }
+      }
+      onReady(args.copy(multiShareArgs = withSnapshot))
     }
-    return args.copy(multiShareArgs = redacted)
   }
 }
