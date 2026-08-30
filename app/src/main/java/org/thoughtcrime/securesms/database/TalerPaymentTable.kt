@@ -14,6 +14,7 @@ import org.signal.core.util.update
 import org.thoughtcrime.securesms.mms.IncomingMessage
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
+import kotlin.time.Duration.Companion.seconds
 
 data class TalerPaymentRecord(
   val uri: String,
@@ -174,8 +175,14 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
    * Nachricht raus. Body traegt den TalerPaymentStatus-Namen, damit
    * MessageRecord.getUpdateDisplayBody() den richtigen Text waehlen kann
    * (siehe MessageTypes.SPECIAL_TYPE_TALER_PAYMENT_UPDATE).
+   *
+   * expiresIn kommt vom Recipient des Threads, nicht von einem festen Wert -
+   * dieselbe Quelle wie bei allen anderen Taler-Systemnachrichten
+   * (TalerUriRefreshJob, TalerReturnActivity). Ohne das haette diese
+   * Statuszeile die konfigurierte Verschwinde-Frist des Chats ignoriert.
    */
   fun insertLocalStatusLine(threadId: Long, status: TalerPaymentStatus) {
+    val recipient = SignalDatabase.threads.getRecipientForThreadId(threadId)
     val message = IncomingMessage(
       type = MessageType.TALER_PAYMENT_UPDATE,
       from = Recipient.self().id,
@@ -183,6 +190,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       serverTimeMillis = System.currentTimeMillis(),
       receivedTimeMillis = System.currentTimeMillis(),
       body = status.name,
+      expiresIn = (recipient?.expiresInSeconds ?: 0).seconds.inWholeMilliseconds,
     )
     SignalDatabase.messages.insertMessageInbox(message, threadId)
   }
