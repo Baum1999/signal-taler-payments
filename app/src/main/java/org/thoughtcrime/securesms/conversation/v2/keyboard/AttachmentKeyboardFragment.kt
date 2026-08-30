@@ -149,13 +149,16 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
     val isPaymentsAvailable = paymentsValues.paymentsAvailability.isSendAllowed && !recipient.isSelf && !recipient.isGroup && recipient.isRegistered && SignalStore.account.isPrimaryDevice
 
     // Empfaenger-Einschraenkung fuer den Taler-Button: kein Self-Chat (Notiz
-    // an mich), registrierter Empfaenger, primaeres Geraet. Anders als
-    // frueher AUCH in Gruppen erlaubt (siehe TalerReturnActivity.
-    // sendComposedPayment, das dieselbe Bedingung als Backstop nochmal
-    // prueft und dort ausfuehrlich begruendet, warum Gruppen jetzt erlaubt
-    // sind) - ein Taler-URI bleibt ein Inhaberpapier, das Compose-Send-Screen
-    // warnt bei Gruppen explizit ("wer zuerst bestaetigt").
-    val isTalerRecipientAllowed = !recipient.isSelf && recipient.isRegistered && SignalStore.account.isPrimaryDevice
+    // an mich), registrierter Empfaenger. Anders als frueher AUCH in Gruppen
+    // erlaubt (siehe TalerReturnActivity.sendComposedPayment, das dieselbe
+    // Bedingung als Backstop nochmal prueft und dort ausfuehrlich begruendet,
+    // warum Gruppen jetzt erlaubt sind) - ein Taler-URI bleibt ein
+    // Inhaberpapier, das Compose-Send-Screen warnt bei Gruppen explizit
+    // ("wer zuerst bestaetigt"). KEIN isPrimaryDevice-Check: die Taler-AIDL-
+    // Verbindung laeuft lokal zur Taler-App auf diesem Geraet, unabhaengig von
+    // Signals Primaer/Verknuepft-Konzept (anders als isPaymentsAvailable oben,
+    // dessen MobileCoin-Schluessel nur auf dem primaeren Geraet liegen).
+    val isTalerRecipientAllowed = !recipient.isSelf && recipient.isRegistered
 
     applyButtonFilters(isPaymentsAvailable, talerConnected && isTalerRecipientAllowed)
 
