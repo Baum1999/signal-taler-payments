@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Taler Brand Logo: Circle with nested circle pattern (from HTML SVG) -->
+    <path
+        android:fillColor="@color/core_black"
+        android:pathData="M12,2c5.52,0 10,4.48 10,10s-4.48,10 -10,10s-10,-4.48 -10,-10s4.48,-10 10,-10z"
+        android:strokeColor="@color/core_black"
+        android:strokeWidth="1.6" />
+    
+    <path
+        android:fillColor="@color/core_black"
+        android:pathData="M8,9.5c0,-1.38 1.12,-2.5 2.5,-2.5s2.5,1.12 2.5,2.5s-1.12,2.5 -2.5,2.5s-2.5,-1.12 -2.5,-2.5z"
+        android:strokeColor="@color/core_black"
+        android:strokeWidth="1.6"
+        android:strokeLineCap="round" />
+</vector>

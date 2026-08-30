@@ -64,4 +64,32 @@
     <color name="safety_number_card_blue">#ff506ECD</color>
 
     <color name="notification_background_ultramarine">#3B45FD</color>
+
+    <!-- Taler-spezifische Farben (neues Design) -->
+    <color name="taler_accent">#5b5fc7</color>
+    <color name="taler_accent_dark">#7c7fe6</color>
+    <color name="taler_direction_in_light">#2f9e5b</color>
+    <color name="taler_direction_in_dark">#4fce8a</color>
+    <color name="taler_direction_out_light">#5b5fc7</color>
+    <color name="taler_direction_out_dark">#9aa0ff</color>
+    <color name="taler_status_ok_light">#2f9e5b</color>
+    <color name="taler_status_ok_dark">#4fce8a</color>
+    <color name="taler_status_waiting_light">#b9821f</color>
+    <color name="taler_status_waiting_dark">#e0af51</color>
+    <color name="taler_status_bad_light">#d1495a</color>
+    <color name="taler_status_bad_dark">#ef7a86</color>
+    <color name="taler_status_neutral_light">#8a8a90</color>
+    <color name="taler_status_neutral_dark">#97979d</color>
+    <color name="taler_split_warning_light">#b9821f</color>
+    <color name="taler_split_warning_dark">#e0af51</color>
+    <color name="taler_progress_bar_track_light">#ececf1</color>
+    <color name="taler_progress_bar_track_dark">#29292d</color>
+    <color name="taler_progress_bar_fill_light">#5b5fc7</color>
+    <color name="taler_progress_bar_fill_dark">#7c7fe6</color>
+    <color name="taler_button_primary_background">#5b5fc7</color>
+    <color name="taler_button_primary_text">#ffffff</color>
+    <color name="taler_button_secondary_background_light">#eceef2</color>
+    <color name="taler_button_secondary_text_light">#1c1c1e</color>
+    <color name="taler_button_secondary_background_dark">#2c2c30</color>
+    <color name="taler_button_secondary_text_dark">#f2f2f3</color>
 </resources>

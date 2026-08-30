@@ -4,6 +4,7 @@ import android.app.Activity
 import android.os.Bundle
 import androidx.annotation.StringRes
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import net.taler.wallet.link.TalerUriKind
 import org.signal.core.util.concurrent.SignalExecutors
 import org.signal.core.util.logging.Log
@@ -81,20 +82,32 @@ class TalerReturnActivity : Activity() {
           // dem Versand noch sehen/anpassen koennen.
           val status = if (data?.isHierarchical == true) data.getQueryParameter("status") else null
           val talerUri = if (status == "ready" && data?.isHierarchical == true) data.getQueryParameter("talerUri") else null
-          // Vor der Uebernahme wird per TalerUriDetector geprueft, dass der
-          // GESAMTE String ein wohlgeformtes Taler-URI-Muster ist (nicht nur
-          // irgendwo eins enthaelt) - TalerUriDetector.findUris() erkennt
-          // auch ext+taler:// und payto://-URIs jeder Art, der
-          // Compose-Send-Flow erzeugt aber ausschliesslich pay-push-URIs.
-          // Diese erste Pruefung ist reine Textmustererkennung und billig
-          // genug fuer den Main-Thread ("ist das ueberhaupt ein plausibler
-          // Kandidat"). Fuer SEND entscheidet sendComposedPayment per
-          // TalerLinkClient.previewForUri() (echter, autoritativer
-          // AIDL-Aufruf an Taler), ob der Kandidat WIRKLICH pay-push ist -
-          // fuer REFUND (nur Entwurfstext, keine automatische Nachricht)
-          // reicht die guenstige Textmuster-Pruefung hier, da der Nutzer die
-          // eingefuegte URI ohnehin vor dem Senden sieht.
-          if (talerUri != null && TalerUriDetector.isExactlyOneUri(talerUri)) {
+          val talerPaymentDataJson = if (status == "ready" && data?.isHierarchical == true) data.getQueryParameter("talerPaymentData") else null
+          
+          // Versuche, talerPaymentData JSON zu parsen
+          val paymentData = talerPaymentDataJson?.let {
+            try {
+              Json.decodeFromString<TalerPaymentData>(it)
+            } catch (e: Exception) {
+              Log.w(TAG, "Failed to parse talerPaymentData JSON", e)
+              null
+            }
+          }
+          
+          // Priorität: talerPaymentData > talerUri (Fallback für ältere Taler-Versionen)
+          if (paymentData != null && paymentData.uri.isNotEmpty()) {
+            val firstUri = paymentData.uri.first()
+            if (TalerUriDetector.isExactlyOneUri(firstUri)) {
+              if (entry.intent == TalerCorrelationIntent.REFUND) {
+                // Für Refund: JSON als Entwurfstext
+                draftText = Json.encodeToString(paymentData)
+              } else {
+                // Für SEND: JSON direkt als Nachricht senden
+                sendComposedPaymentWithData(entry.threadId, paymentData)
+              }
+            }
+          } else if (talerUri != null && TalerUriDetector.isExactlyOneUri(talerUri)) {
+            // Fallback für ältere Taler-Versionen ohne JSON-Unterstützung
             if (entry.intent == TalerCorrelationIntent.REFUND) {
               draftText = talerUri
             } else {
@@ -196,6 +209,43 @@ class TalerReturnActivity : Activity() {
 
       val kindLabel = TalerPaymentCardPresenter.kindLabel(appContext, TalerUriKind.PAY_PUSH.name)
       val body = appContext.getString(messageRes, kindLabel, uri)
+
+      val message = OutgoingMessage(
+        threadRecipient = recipient,
+        body = body,
+        sentTimeMillis = System.currentTimeMillis(),
+        expiresIn = recipient.expiresInSeconds.seconds.inWholeMilliseconds,
+        isSecure = true
+      )
+      MessageSender.send(appContext, message, threadId, MessageSender.SendType.SIGNAL, null, null)
+    }
+  }
+
+  /**
+   * Sendet eine Zahlungsnachricht mit JSON-Format (für Gruppen-Split-Transaktionen).
+   * Verwende JSON statt plain URI, um Metadaten wie includeSelf und totalAmount
+   * zu transportieren.
+   */
+  private fun sendComposedPaymentWithData(threadId: Long, paymentData: TalerPaymentData) {
+    val appContext = applicationContext
+    SignalExecutors.BOUNDED.execute {
+      val recipient = SignalDatabase.threads.getRecipientForThreadId(threadId) ?: return@execute
+      if (recipient.isSelf || !(recipient.isIndividual || recipient.isGroup)) return@execute
+
+      // Klassifiziere die erste URI im paymentData, um sicherzustellen, dass es sich um
+      // eine gültige Taler-URI handelt. Dies ist ein zusätzlicher Schutzmechanismus,
+      // falls das JSON manipuliert wurde.
+      val preview = when (val result = runBlocking { TalerLinkClient(appContext).previewForUri(paymentData.uri.first()) }) {
+        is TalerLinkResult.Ergebnis -> result.value
+        is TalerLinkResult.NichtInstalliert,
+        is TalerLinkResult.NichtVertrauenswuerdig,
+        is TalerLinkResult.KeinConsent,
+        is TalerLinkResult.Fehler -> return@execute
+      }
+      if (preview.uriKind != TalerUriKind.PAY_PUSH) return@execute
+
+      // Verwende das JSON-Objekt direkt als Nachrichtenkörper
+      val body = Json.encodeToString(paymentData)
 
       val message = OutgoingMessage(
         threadRecipient = recipient,

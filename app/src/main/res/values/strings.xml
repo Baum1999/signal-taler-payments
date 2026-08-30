@@ -10146,5 +10146,60 @@
     <string name="payment_history_empty_state">Keine Zahlungen in der Historie</string>
     <string name="payment_history_error_loading">Fehler beim Laden der Zahlungshistorie</string>
 
+    <!-- Neues Design (taler-kachel-preview.html): Kompakte Statusmeldungen -->
+    <!-- Party direction -->
+    <string name="TalerFork_party_to_you">an dich</string>
+    <string name="TalerFork_party_from_you">von dir</string>
+    
+    <!-- Kompakte Statusmeldungen -->
+    <string name="TalerFork_status_compact_open">Offen</string>
+    <string name="TalerFork_status_compact_waiting_acceptance">Wartet auf Annahme</string>
+    <string name="TalerFork_status_compact_waiting_recipient">Wartet auf Bestätigung</string>
+    <string name="TalerFork_status_compact_accepted">Angenommen</string>
+    <string name="TalerFork_status_compact_confirmed">Bestätigt</string>
+    <string name="TalerFork_status_compact_declined">Abgelehnt</string>
+    <string name="TalerFork_status_compact_expired">Abgelaufen</string>
+    <string name="TalerFork_status_compact_checking">Wird geprüft…</string>
+    <string name="TalerFork_status_compact_invalid">Zahlung fehlgeschlagen</string>
+    <string name="TalerFork_status_compact_not_connected">Nicht verbunden</string>
+    <string name="TalerFork_status_compact_not_installed">Nicht installiert</string>
+    <string name="TalerFork_status_compact_untrusted">Nicht vertrauenswürdig</string>
+    
+    <!-- Status Icons (Unicode) -->
+    <string name="TalerFork_status_icon_open">○</string>
+    <string name="TalerFork_status_icon_waiting">⏳</string>
+    <string name="TalerFork_status_icon_accepted">✓</string>
+    <string name="TalerFork_status_icon_confirmed">✓</string>
+    <string name="TalerFork_status_icon_declined">✕</string>
+    <string name="TalerFork_status_icon_expired">⏱</string>
+    <string name="TalerFork_status_icon_checking">…</string>
+    <string name="TalerFork_status_icon_invalid">!</string>
+    <string name="TalerFork_status_icon_not_connected">⚠</string>
+    <string name="TalerFork_status_icon_not_installed">⚠</string>
+    <string name="TalerFork_status_icon_untrusted">⚠</string>
+    
+    <!-- Direction arrows -->
+    <string name="TalerFork_direction_in">↓</string>
+    <string name="TalerFork_direction_out">↑</string>
+    
+    <!-- Währungssymbole -->
+    <string name="TalerFork_currency_symbol_KUDOS">ク</string>
+    <string name="TalerFork_currency_symbol_EUR">€</string>
+    <string name="TalerFork_currency_symbol_USD">$</string>
+    
+    <!-- Split Feature -->
+    <string name="TalerFork_split_preview_badge">Vorschau: Split</string>
+    <string name="TalerFork_split_note_with_self">Gesamt %1$s %2$s \u00f7 %3$d Personen (inkl. dir) \u2022 %4$d Links verschickt</string>
+    <string name="TalerFork_split_note_without_self">Gesamt %1$s %2$s \u00f7 %3$d Personen (ohne dich)</string>
+    <string name="TalerFork_split_all_done_pay_push">Alle haben angenommen</string>
+    <string name="TalerFork_split_all_done_pay_pull">Alle haben bezahlt</string>
+    <string name="TalerFork_split_progress">%1$d von %2$d haben %3$s</string>
+    <string name="TalerFork_split_warning">⚠ Du hast das schon %s — trotzdem nochmal möglich</string>
+    <string name="TalerFork_split_warning_accepted">angenommen</string>
+    <string name="TalerFork_split_warning_paid">bezahlt</string>
+    
+    <!-- Exchange Chip -->
+    <string name="TalerFork_exchange_chip_icon">⇄</string>
+
     <!-- EOF -->
 </resources>
