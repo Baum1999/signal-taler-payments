@@ -245,10 +245,19 @@ object TalerPaymentCardPresenter {
    * oder Empfaenger angezeigt.
    */
   private fun getStatusText(context: Context, record: TalerPaymentRecord?, status: TalerPaymentStatus): String {
-    // Spezielle Behandlung fuer OFFENE pay-push-Vorgaenge
-    if (status == TalerPaymentStatus.OFFEN && 
+    // Spezielle Behandlung fuer OFFENE pay-push-Vorgaenge. Eine eigene
+    // ausgehende Zahlung durchlaeuft wallet-core-seitig nie den
+    // Dialog-Zustand (der ist fuer eine lokal noch zu treffende Entscheidung
+    // - bei einer bereits abgeschickten Zahlung gibt es dafuer nichts zu
+    // entscheiden), sondern haengt bis zur Annahme durch die Gegenseite in
+    // Pending/Finalizing - beides bildet TalerTransactionStateMapper bewusst
+    // auf UNBEKANNT_OFFLINE ab (siehe dort). Ohne diese Ausnahme zeigte die
+    // Karte beim Absender die ganze Wartezeit ueber "Wird geprueft..." statt
+    // "Wartet auf Bestaetigung von X" - obwohl das Geld laengst abgebucht war
+    // und schlicht auf die Gegenseite gewartet wird, kein Fehler vorliegt.
+    if ((status == TalerPaymentStatus.OFFEN || (status == TalerPaymentStatus.UNBEKANNT_OFFLINE && record?.isOwnPayment == true)) &&
         record?.uriKind == net.taler.wallet.link.TalerUriKind.PAY_PUSH.name) {
-      
+
       // Versuche, den Empfaenger-Namen zu ermitteln
       val recipientName = record.threadId?.let { threadId ->
         SignalDatabase.threads.getRecipientForThreadId(threadId)?.getDisplayName(context)
