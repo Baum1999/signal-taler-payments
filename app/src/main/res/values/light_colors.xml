@@ -221,4 +221,11 @@
     <color name="release_notes_header_background">#FFF6F7FF</color>
     <color name="release_notes_toolbar_scrolled">#FFEAEDF8</color>
     <color name="release_notes_toolbar_transparent">#00EAEDF8</color>
+
+    <!-- Taler-Kachel (taler_payment_card.xml), siehe design/taler-kachel-preview.html -->
+    <color name="taler_exchange_chip_background">#f2f2f5</color>
+    <color name="taler_exchange_chip_text">#8f8f96</color>
+    <color name="taler_split_preview_background">#fff1d6</color>
+    <color name="taler_split_preview_text">#9a6a00</color>
+    <color name="taler_split_warning">@color/taler_split_warning_light</color>
 </resources>
