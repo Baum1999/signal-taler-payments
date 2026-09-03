@@ -55,7 +55,7 @@ object TalerForwardGate {
   fun detectSingleTalerUri(messageParts: Set<MultiselectPart>): String? {
     val records = messageParts.map { it.conversationMessage.messageRecord }.distinct()
     if (records.size != 1) return null
-    val uris = TalerUriDetector.findUris(records.first().body)
+    val uris = urisFromMessageBody(records.first().body)
     return uris.singleOrNull()
   }
 
@@ -123,7 +123,7 @@ object TalerForwardGate {
 
       val withSnapshot = args.multiShareArgs.map { share ->
         val text = share.draftText
-        if (!text.isNullOrEmpty() && TalerUriDetector.findUris(text).isNotEmpty()) {
+        if (!text.isNullOrEmpty() && urisFromMessageBody(text).isNotEmpty()) {
           share.buildUpon().withDraftText(null).withDataUri(pngUri).withDataType("image/png").build()
         } else {
           share

@@ -11,7 +11,9 @@ import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.conversation.ConversationIntents
 import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.mms.OutgoingMessage
+import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.sms.MessageSender
 import kotlin.time.Duration.Companion.seconds
 
@@ -96,8 +98,14 @@ class TalerReturnActivity : Activity() {
           
           // Priorität: talerPaymentData > talerUri (Fallback für ältere Taler-Versionen)
           if (paymentData != null && paymentData.uri.isNotEmpty()) {
-            val firstUri = paymentData.uri.first()
-            if (TalerUriDetector.isExactlyOneUri(firstUri)) {
+            // Jede einzelne URI syntaktisch pruefen (nicht nur die erste) -
+            // data kommt aus einem Intent-Extra und ist laut Kommentar oben
+            // angreiferkontrolliert; bei einem Gruppen-Split-Versand
+            // (Meilenstein 2, PROMPT_parallel_group_split.md) traegt
+            // paymentData.uri mehrere Elemente. Nur ein grober Vorfilter -
+            // die eigentliche autoritative Pruefung (previewForUri) macht
+            // sendComposedPaymentWithData weiter unten fuer jede URI erneut.
+            if (paymentData.uri.all { TalerUriDetector.isExactlyOneUri(it) }) {
               if (entry.intent == TalerCorrelationIntent.REFUND) {
                 // Für Refund: JSON als Entwurfstext
                 draftText = Json.encodeToString(paymentData)
@@ -232,20 +240,50 @@ class TalerReturnActivity : Activity() {
       val recipient = SignalDatabase.threads.getRecipientForThreadId(threadId) ?: return@execute
       if (recipient.isSelf || !(recipient.isIndividual || recipient.isGroup)) return@execute
 
-      // Klassifiziere die erste URI im paymentData, um sicherzustellen, dass es sich um
-      // eine gültige Taler-URI handelt. Dies ist ein zusätzlicher Schutzmechanismus,
-      // falls das JSON manipuliert wurde.
-      val preview = when (val result = runBlocking { TalerLinkClient(appContext).previewForUri(paymentData.uri.first()) }) {
-        is TalerLinkResult.Ergebnis -> result.value
-        is TalerLinkResult.NichtInstalliert,
-        is TalerLinkResult.NichtVertrauenswuerdig,
-        is TalerLinkResult.KeinConsent,
-        is TalerLinkResult.Fehler -> return@execute
+      // Klassifiziere JEDE URI im paymentData (nicht nur die erste), um
+      // sicherzustellen, dass es sich um gueltige Taler-Pay-Push-URIs
+      // handelt. Zusaetzlicher Schutzmechanismus, falls das JSON manipuliert
+      // wurde - bei einem Gruppen-Split-Versand (Meilenstein 2,
+      // PROMPT_parallel_group_split.md) traegt paymentData.uri N Elemente;
+      // eine einzelne, davon abweichende ungueltige URI darf die anderen
+      // nicht unentdeckt mit durchrutschen lassen. Schlaegt auch nur eine
+      // Klassifizierung fehl, wird NICHTS verschickt (gleiche konservative
+      // Regel wie beim Einzel-URI-Pfad oben) - kein unvollstaendiges Paket.
+      if (paymentData.uri.isEmpty()) return@execute
+      for (uri in paymentData.uri) {
+        val preview = when (val result = runBlocking { TalerLinkClient(appContext).previewForUri(uri) }) {
+          is TalerLinkResult.Ergebnis -> result.value
+          is TalerLinkResult.NichtInstalliert,
+          is TalerLinkResult.NichtVertrauenswuerdig,
+          is TalerLinkResult.KeinConsent,
+          is TalerLinkResult.Fehler -> return@execute
+        }
+        if (preview.uriKind != TalerUriKind.PAY_PUSH) return@execute
       }
-      if (preview.uriKind != TalerUriKind.PAY_PUSH) return@execute
+
+      // Gruppen-Split (Meilenstein 4, PROMPT_parallel_group_split.md): jeder
+      // Empfaenger-Client braucht recipientAcis, um per resolveGroupCardRole()
+      // die eigene Rolle und einen deterministischen Start-Index fuer
+      // resolveTargetUri() zu bestimmen (GroupSplitCard.kt) - nur bei
+      // tatsaechlichem Gruppen-Split (>1 URI an eine Gruppe) gesetzt, eine
+      // regulaere Einzelzahlung bleibt unveraendert (null). Sender selbst
+      // braucht keinen Slot: der wird ueber ACI-Gleichheit mit dem Absender
+      // als Creator erkannt, nicht ueber diese Liste. Sortiert fuer eine
+      // Reihenfolge, auf die sich alle Geraete unabhaengig einigen.
+      val effectivePaymentData = if (recipient.isGroup && paymentData.uri.size > 1) {
+        val selfAci = SignalStore.account.requireAci().toString()
+        val recipientAcis = recipient.participantIds
+          .map { Recipient.resolved(it) }
+          .mapNotNull { if (it.aci.isPresent) it.aci.get().toString() else null }
+          .filter { it != selfAci }
+          .sorted()
+        paymentData.copy(recipientAcis = recipientAcis)
+      } else {
+        paymentData
+      }
 
       // Verwende das JSON-Objekt direkt als Nachrichtenkörper
-      val body = Json.encodeToString(paymentData)
+      val body = Json.encodeToString(effectivePaymentData)
 
       val message = OutgoingMessage(
         threadRecipient = recipient,

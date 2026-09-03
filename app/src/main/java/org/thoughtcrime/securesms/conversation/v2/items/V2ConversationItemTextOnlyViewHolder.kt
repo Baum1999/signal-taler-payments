@@ -465,6 +465,8 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
       root,
       binding.talerCardStub,
       conversationMessage.messageRecord.body,
+      threadId = conversationMessage.messageRecord.threadId,
+      sender = conversationMessage.messageRecord.fromRecipient,
       onAccept = { uri, threadId -> TalerAcceptRejectActions.onAcceptClicked(root.context, uri, threadId) },
       onReject = { uri, threadId -> TalerAcceptRejectActions.onRejectClicked(root.context, uri, threadId) },
       onCancel = { uri, threadId -> TalerAcceptRejectActions.onCancelClicked(root.context, uri, threadId) },

@@ -10,10 +10,13 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
 import net.taler.wallet.link.TalerUriKind
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.TalerPaymentRecord
+import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.util.visible
 import java.net.IDN
@@ -54,6 +57,8 @@ object TalerPaymentCardPresenter {
     root: ViewGroup,
     stub: ViewStub?,
     messageBody: String,
+    threadId: Long,
+    sender: Recipient,
     onAccept: (uri: String, threadId: Long) -> Unit = { _, _ -> },
     onReject: (uri: String, threadId: Long) -> Unit = { _, _ -> },
     onCancel: (uri: String, threadId: Long) -> Unit = { _, _ -> },
@@ -61,7 +66,7 @@ object TalerPaymentCardPresenter {
     onRefund: (uri: String, threadId: Long) -> Unit = { _, _ -> },
   ) {
     if (stub == null) return
-    val uris = TalerUriDetector.findUris(messageBody)
+    val uris = urisFromMessageBody(messageBody)
 
     // Deckt auch den Fall ab, dass ein Chat mit einer laengst getrackten URI
     // nur geoeffnet/gescrollt wird (kein neuer Sende-/Empfangs-Hook noetig,
@@ -83,6 +88,19 @@ object TalerPaymentCardPresenter {
 
     container.visibility = View.VISIBLE
     val inflater = LayoutInflater.from(container.context)
+
+    // Gruppen-Split (Meilenstein 4, PROMPT_parallel_group_split.md): EINE
+    // Sammelkarte fuer die ganze Nachricht statt einer Karte pro URI - das
+    // "N Karten"-Wording im urspruenglichen Plan ist ueberholt, siehe
+    // GroupSplitCard.kt. Der Einzel-URI-Pfad (der ueberwiegende Normalfall)
+    // bleibt unten unveraendert.
+    if (uris.size > 1) {
+      val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
+      bindGroupCard(cardView, uris, threadId, sender, messageBody, onAccept, onReject)
+      container.addView(cardView)
+      return
+    }
+
     for (uri in uris) {
       val record = SignalDatabase.talerPayments.getByUri(uri)
       val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
@@ -289,6 +307,185 @@ object TalerPaymentCardPresenter {
     if (showRefund && record != null) {
       refundButton.setOnClickListener { onRefund(record.uri, record.threadId) }
     }
+  }
+
+  /**
+   * Sammelkarte fuer eine Gruppen-Split-Nachricht (mehrere URIs, siehe
+   * GroupSplitCard.kt fuer die reine Entscheidungslogik dahinter). Teilt sich
+   * bewusst Betrag/Waehrung/Zusammenfassung/Exchange-Chip/Art-Label mit
+   * bind() (dieselben Felder, ein einzelner repraesentativer Datensatz reicht
+   * dafuer, da alle Anteile derselben Nachricht dieselben Metadaten tragen) -
+   * dupliziert aber NICHT dessen Status-/Aktionen-Logik, die fuer eine
+   * einzelne URI gedacht ist und hier keinen Sinn ergibt.
+   */
+  private fun bindGroupCard(
+    view: View,
+    uris: List<String>,
+    threadId: Long,
+    sender: Recipient,
+    messageBody: String,
+    onAccept: (uri: String, threadId: Long) -> Unit,
+    onReject: (uri: String, threadId: Long) -> Unit,
+  ) {
+    val context = view.context
+
+    // Alle Anteile derselben Sammelnachricht teilen Betrag/Waehrung/Zweck/
+    // Exchange - der erste lokal bereits bekannte Datensatz reicht als
+    // Quelle dafuer; ist noch keiner bekannt (frisch eingetroffene Nachricht,
+    // Polling noch nicht durchgelaufen), zeigt die Karte denselben
+    // "wird geprueft"-Zustand wie die Einzel-Karte bei unbekanntem record.
+    val record = uris.firstNotNullOfOrNull { SignalDatabase.talerPayments.getByUri(it) }
+    val statuses = uris.map { SignalDatabase.talerPayments.getByUri(it)?.status }
+
+    val paymentData = parsePaymentDataOrNull(messageBody)
+    val myAci = SignalStore.account.requireAci().toString()
+    val role = if (sender.aci.isPresent) {
+      resolveGroupCardRole(paymentData?.recipientAcis, sender.aci.get().toString(), myAci)
+    } else {
+      // Ohne bekannte Absender-ACI laesst sich weder Ersteller- noch
+      // Empfaenger-Rolle feststellen - read-only, wie ein spaeter
+      // beigetretenes Gruppenmitglied ohne Anspruch auf einen Anteil.
+      GroupCardRole.NotAParticipant
+    }
+
+    // ========================================================================
+    // View Referenzen
+    // ========================================================================
+    val kindView = view.findViewById<TextView>(R.id.taler_card_kind)
+    val previewBadge = view.findViewById<TextView>(R.id.taler_card_preview_badge)
+    val directionView = view.findViewById<TextView>(R.id.taler_card_direction)
+    val amountView = view.findViewById<TextView>(R.id.taler_card_amount)
+    val currencyView = view.findViewById<TextView>(R.id.taler_card_currency)
+    val partyView = view.findViewById<TextView>(R.id.taler_card_party)
+    val splitNoteView = view.findViewById<TextView>(R.id.taler_card_split_note)
+    val summaryView = view.findViewById<TextView>(R.id.taler_card_summary)
+    val exchangeChip = view.findViewById<LinearLayout>(R.id.taler_card_exchange_chip)
+    val exchangeTextView = view.findViewById<TextView>(R.id.taler_card_exchange)
+    val statusLayout = view.findViewById<LinearLayout>(R.id.taler_card_status)
+    val splitProgressContainer = view.findViewById<LinearLayout>(R.id.taler_card_split_progress_container)
+    val splitProgressBar = view.findViewById<ProgressBar>(R.id.taler_card_split_progress_bar)
+    val splitProgressText = view.findViewById<TextView>(R.id.taler_card_split_progress_text)
+    val splitWarningView = view.findViewById<TextView>(R.id.taler_card_split_warning)
+
+    // ========================================================================
+    // Richtung: aus der Rolle abgeleitet statt aus einem einzelnen record
+    // (der bei einer frischen Nachricht noch fehlen kann) - Ersteller sieht
+    // die Karte als ausgehend, jeder andere als eingehend.
+    // ========================================================================
+    val isOwnPayment = role is GroupCardRole.Creator
+    val directionIn = !isOwnPayment
+    val arrow = if (directionIn) context.getString(R.string.TalerFork_direction_in) else context.getString(R.string.TalerFork_direction_out)
+    val partyText = if (directionIn) context.getString(R.string.TalerFork_party_to_you) else context.getString(R.string.TalerFork_party_from_you)
+
+    kindView.text = kindLabel(context, record?.uriKind)
+    previewBadge.visibility = View.GONE
+
+    val formattedAmount = record?.amount?.replace(".", ",") ?: "0"
+    directionView.text = arrow
+    amountView.text = formattedAmount
+    currencyView.text = getCurrencySymbol(record?.currency)
+
+    partyView.text = partyText
+
+    // Split Note: kein aus dem JSON-Body ableitbarer Personenzaehler ist ohne
+    // Rueckgriff auf taler-android-interne Divisor-Logik (Ausgangslage,
+    // PROMPT_parallel_group_split.md) verlaesslich herleitbar - lieber gar
+    // nichts zeigen als eine falsche Zahl (Regel 4, PROMPT.md).
+    splitNoteView.visibility = View.GONE
+
+    summaryView.text = record?.summary
+    summaryView.visible = !record?.summary.isNullOrBlank()
+
+    val host = displayHost(record?.exchangeBaseUrl)
+    if (!host.isNullOrBlank()) {
+      exchangeTextView.text = host
+      exchangeChip.visibility = View.VISIBLE
+    } else {
+      exchangeChip.visibility = View.GONE
+    }
+
+    // ========================================================================
+    // Fortschrittsbalken statt Einzel-Status (Alternative laut XML-Kommentar)
+    // ========================================================================
+    statusLayout.visibility = View.GONE
+    splitProgressContainer.visibility = View.VISIBLE
+    val accepted = countAccepted(statuses)
+    splitProgressBar.progress = if (uris.isEmpty()) 0 else 100 * accepted / uris.size
+    splitProgressText.text = context.getString(
+      R.string.TalerFork_split_progress,
+      accepted,
+      uris.size,
+      context.getString(R.string.TalerFork_split_warning_accepted)
+    )
+
+    // ========================================================================
+    // Split Warning: bewusst nicht befuellt - der einzige vorhandene Text
+    // dafuer ("...trotzdem nochmal moeglich") widerspricht dem Blockieren
+    // durch GroupClaimTracker unten, ein neuer String waere hier Ratewerk
+    // ohne Vorgabe (siehe Bericht).
+    // ========================================================================
+    splitWarningView.visibility = View.GONE
+
+    // ========================================================================
+    // Aktionen: EIN Annehmen/Ablehnen-Paar fuer die ganze Karte, gebunden an
+    // den naechsten noch offenen Anteil ab dem eigenen Index - nicht an eine
+    // feste eigene URI (siehe GroupSplitCard.kt-Doc: "mein Anteil" ist nur
+    // ein Startpunkt). GroupClaimTracker verhindert, dass dieser Betrachter
+    // ueber DIESE Karte einen zweiten Anteil annimmt, nachdem er bereits
+    // einen beansprucht hat.
+    // ========================================================================
+    val actionsRow = view.findViewById<View>(R.id.taler_card_actions)
+    val acceptButton = view.findViewById<Button>(R.id.taler_card_accept)
+    val rejectButton = view.findViewById<Button>(R.id.taler_card_reject)
+    val cancelButton = view.findViewById<Button>(R.id.taler_card_cancel)
+    val refreshButton = view.findViewById<Button>(R.id.taler_card_refresh)
+    val refundButton = view.findViewById<Button>(R.id.taler_card_refund)
+    // Cancel/Refresh/Refund gehoeren zum Einzel-URI-Pfad (eigene ausgehende
+    // Zahlung abbrechen bzw. eine angenommene Zahlung erstatten) - fuer die
+    // Sammelkarte bislang nicht verdrahtet, siehe Bericht.
+    cancelButton.visibility = View.GONE
+    refreshButton.visibility = View.GONE
+    refundButton.visibility = View.GONE
+
+    val claimTracker = GroupClaimTracker(context)
+    val alreadyClaimed = claimTracker.hasClaimedAny(uris)
+    val targetUri = if (role is GroupCardRole.Recipient && !alreadyClaimed) {
+      resolveTargetUri(uris, statuses, role.myIndex)
+    } else {
+      null
+    }
+
+    if (targetUri != null) {
+      actionsRow.visibility = View.VISIBLE
+      acceptButton.visibility = View.VISIBLE
+      rejectButton.visibility = View.VISIBLE
+      acceptButton.setOnClickListener {
+        // Vor dem Callback tracken, nicht danach - onAccept startet einen
+        // expliziten Deep-Link zu Talers UI und kehrt zu dieser Activity
+        // nicht synchron zurueck (siehe TalerAcceptRejectActions), ein
+        // Tracking "danach" wuerde nie ausgefuehrt.
+        claimTracker.track(targetUri)
+        onAccept(targetUri, threadId)
+      }
+      rejectButton.setOnClickListener { onReject(targetUri, threadId) }
+    } else {
+      actionsRow.visibility = View.GONE
+      acceptButton.visibility = View.GONE
+      rejectButton.visibility = View.GONE
+    }
+  }
+
+  /**
+   * Wie [urisFromMessageBody] intern - defensiv, weil [messageBody] bei
+   * aelteren Nachrichten oder Fremd-Clients reiner Klartext ohne JSON sein
+   * kann (siehe TalerPaymentData.kt).
+   */
+  private fun parsePaymentDataOrNull(messageBody: String): TalerPaymentData? = try {
+    Json.decodeFromString<TalerPaymentData>(messageBody)
+  } catch (e: SerializationException) {
+    null
+  } catch (e: IllegalArgumentException) {
+    null
   }
 
   fun kindLabel(context: Context, kind: String?): String = context.getString(

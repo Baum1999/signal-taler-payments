@@ -16,7 +16,7 @@ object TalerPaymentTracker {
   @JvmStatic
   fun trackUrisInBody(body: String?, threadId: Long) {
     if (body.isNullOrBlank()) return
-    val uris = TalerUriDetector.findUris(body)
+    val uris = urisFromMessageBody(body)
     if (uris.isEmpty()) return
 
     TalerPollingCoordinator.ensureStarted()
