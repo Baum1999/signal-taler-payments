@@ -1,7 +1,9 @@
 package org.thoughtcrime.securesms.taler
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -134,5 +136,33 @@ class GroupSplitCardTest {
   @Test
   fun `countAccepted is zero for an empty list`() {
     assertEquals(0, countAccepted(emptyList()))
+  }
+
+  // ---- anyOpen ----
+
+  @Test
+  fun `anyOpen is true when at least one share is still OFFEN`() {
+    assertTrue(
+      anyOpen(
+        listOf(TalerPaymentStatus.ANGENOMMEN, TalerPaymentStatus.OFFEN, TalerPaymentStatus.LOKAL_ABGELEHNT)
+      )
+    )
+  }
+
+  @Test
+  fun `anyOpen is false when no share is OFFEN`() {
+    assertFalse(
+      anyOpen(listOf(TalerPaymentStatus.ANGENOMMEN, TalerPaymentStatus.LOKAL_ABGELEHNT, null))
+    )
+  }
+
+  @Test
+  fun `anyOpen is false for an empty list`() {
+    assertFalse(anyOpen(emptyList()))
+  }
+
+  @Test
+  fun `anyOpen treats a single unresolved status the same as before - null is not OFFEN`() {
+    assertFalse(anyOpen(listOf(null)))
   }
 }

@@ -123,6 +123,27 @@ object TalerPaymentCardPresenter {
     return view
   }
 
+  /**
+   * Wie [renderStandalone], aber fuer eine Gruppen-Split-Nachricht (mehrere
+   * URIs) - fuer den "Als Bild"-Weiterleiten-Snapshot einer Sammelnachricht
+   * (siehe TalerForwardGate). Nutzt dieselbe [bindGroupCard]-Logik wie
+   * present(), blendet die Aktionsreihe aber immer aus, aus demselben Grund
+   * wie [renderStandalone]: ein statisches PNG kann Annehmen/Ablehnen nicht
+   * ausfuehren.
+   */
+  fun renderStandaloneGroup(
+    context: Context,
+    uris: List<String>,
+    threadId: Long,
+    sender: Recipient,
+    messageBody: String,
+  ): View {
+    val view = LayoutInflater.from(context).inflate(R.layout.taler_payment_card, null, false)
+    bindGroupCard(view, uris, threadId, sender, messageBody, { _, _ -> }, { _, _ -> })
+    view.findViewById<View>(R.id.taler_card_actions).visibility = View.GONE
+    return view
+  }
+
   private fun bind(
     view: View,
     record: TalerPaymentRecord?,

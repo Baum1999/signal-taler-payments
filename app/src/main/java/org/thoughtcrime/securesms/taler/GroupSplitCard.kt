@@ -70,3 +70,14 @@ fun resolveTargetUri(
 
 fun countAccepted(statuses: List<TalerPaymentStatus?>): Int =
   statuses.count { it == TalerPaymentStatus.ANGENOMMEN }
+
+/**
+ * Fuer den Weiterleiten-Wahl-Dialog (TalerForwardGate): true, wenn mindestens
+ * einer der Anteile noch OFFEN ist - dann ist "als Text" weiterleiten immer
+ * noch ein Inhaberpapier-Risiko (wer den Link zuerst oeffnet, kann DIESEN
+ * Anteil einloesen), auch wenn andere Anteile derselben Sammelnachricht
+ * bereits entschieden sind. Bei einer einzelnen Zahlung (Liste der Laenge 1)
+ * verhaelt sich dies wie der bisherige Einzel-URI-Check.
+ */
+fun anyOpen(statuses: List<TalerPaymentStatus?>): Boolean =
+  statuses.any { it == TalerPaymentStatus.OFFEN }

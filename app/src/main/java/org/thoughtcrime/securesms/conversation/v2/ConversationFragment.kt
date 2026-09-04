@@ -3079,14 +3079,15 @@ class ConversationFragment :
     inputPanel.clearQuote()
 
     // GNU-Fork (Signal-Taler-Integration, Meilenstein 6; REVIEW.md H4-Muster):
-    // Interstitial nur, wenn die Auswahl genau eine Nachricht mit genau einer
-    // Taler-URI ist - siehe TalerForwardGate fuer die Begruendung und alle
-    // anderen Faelle bleiben unveraendert.
-    val talerUri = TalerForwardGate.detectSingleTalerUri(messageParts)
-    if (talerUri != null) {
+    // Interstitial nur, wenn die Auswahl genau eine Nachricht mit mindestens
+    // einer Taler-URI ist (das schliesst Gruppen-Split-Nachrichten mit
+    // mehreren URIs ein) - siehe TalerForwardGate fuer die Begruendung und
+    // alle anderen Faelle bleiben unveraendert.
+    val talerForward = TalerForwardGate.detectTalerForward(messageParts)
+    if (talerForward != null) {
       TalerForwardGate.showChoiceDialog(
         context = requireContext(),
-        uri = talerUri,
+        uris = talerForward.uris,
         onForwardAsText = {
           MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
             MultiselectForwardFragment.showBottomSheet(childFragmentManager, args)
@@ -3094,7 +3095,7 @@ class ConversationFragment :
         },
         onForwardAsImage = {
           MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
-            TalerForwardGate.attachPaymentSnapshot(requireContext(), viewLifecycleOwner, talerUri, args) { imaged ->
+            TalerForwardGate.attachPaymentSnapshot(requireContext(), viewLifecycleOwner, talerForward, args) { imaged ->
               MultiselectForwardFragment.showBottomSheet(childFragmentManager, imaged)
             }
           }
