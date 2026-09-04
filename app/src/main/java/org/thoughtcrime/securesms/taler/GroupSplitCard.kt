@@ -16,6 +16,8 @@
 
 package org.thoughtcrime.securesms.taler
 
+import java.math.BigDecimal
+
 /**
  * Reine Entscheidungslogik fuer die Gruppen-Split-Sammelkarte: eine Karte pro
  * Nachricht statt eine pro URI. Bestimmt, welche Rolle der Betrachter hat
@@ -81,3 +83,46 @@ fun countAccepted(statuses: List<TalerPaymentStatus?>): Int =
  */
 fun anyOpen(statuses: List<TalerPaymentStatus?>): Boolean =
   statuses.any { it == TalerPaymentStatus.OFFEN }
+
+/**
+ * Rein rechnerische Plausibilitaetspruefung des von Taler mitgelieferten
+ * [totalAmount] gegen den tatsaechlich bekannten Pro-Anteil-Betrag
+ * [perShareAmount] (alle Anteile derselben Sammelnachricht tragen denselben
+ * Betrag, siehe TalerPaymentCardPresenter.bindGroupCard) - schuetzt davor,
+ * eine falsche/manipulierte Summe anzuzeigen (Regel: nie eine ungeprueften
+ * Zahl anzeigen).
+ *
+ * [uriCount] (= [totalAmount].uri.size) ist immer die Empfaengerzahl OHNE den
+ * Sender (dieser bekommt nie einen eigenen Link, siehe
+ * OutgoingPushComposable.kt/AmountSplit.kt in taler-android). Der Divisor,
+ * durch den der Gesamtbetrag tatsaechlich geteilt wurde, ist deshalb
+ * [uriCount] + 1, wenn der Sender seinen eigenen Anteil mitgezaehlt hat
+ * ([includeSelf] true), sonst [uriCount] (splitDivisor in AmountSplit.kt).
+ *
+ * Toleranz 1e-6: [perShareAmount] entsteht sender-seitig durch Abrunden auf
+ * 8 Nachkommastellen (RoundingMode.FLOOR), Divisor*Anteil liegt also immer
+ * leicht UNTER dem echten Gesamtbetrag, nie darueber - der Fehler bleibt bei
+ * maximal erlaubten 10 Mitgliedern (MAX_SPLIT_MEMBERS) weit unter 1e-6.
+ *
+ * Liefert den verifizierten Gesamtbetrag zur Anzeige, oder null, wenn eine
+ * der Angaben fehlt, nicht parsbar ist oder nicht zusammenpasst - der
+ * Aufrufer zeigt in diesem Fall keine Summe an (fail-safe statt Absturz: die
+ * Nachricht kann von jedem Gruppenmitglied stammen, angreiferkontrollierte
+ * Daten duerfen die Kartenansicht nicht crashen lassen).
+ */
+fun computeVerifiedTotal(
+  totalAmount: String?,
+  includeSelf: Boolean?,
+  uriCount: Int,
+  perShareAmount: String?
+): BigDecimal? {
+  if (totalAmount == null || includeSelf == null || perShareAmount == null || uriCount <= 0) {
+    return null
+  }
+  val total = totalAmount.toBigDecimalOrNull() ?: return null
+  val perShare = perShareAmount.toBigDecimalOrNull() ?: return null
+  val divisor = if (includeSelf) uriCount + 1 else uriCount
+  val expected = perShare.multiply(BigDecimal(divisor))
+  val tolerance = BigDecimal("0.000001")
+  return if ((expected - total).abs() <= tolerance) total else null
+}

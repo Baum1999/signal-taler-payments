@@ -13,6 +13,7 @@ import android.widget.TextView
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import net.taler.wallet.link.TalerUriKind
+import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.TalerPaymentRecord
@@ -35,6 +36,8 @@ import java.net.IDN
  * - Taler-Branding als SVG-Logo statt Text
  */
 object TalerPaymentCardPresenter {
+
+  private val TAG = Log.tag(TalerPaymentCardPresenter::class.java)
 
   /**
    * Währungssymbole wie von der echten Taler-Wallet-App angezeigt.
@@ -408,11 +411,46 @@ object TalerPaymentCardPresenter {
 
     partyView.text = partyText
 
-    // Split Note: kein aus dem JSON-Body ableitbarer Personenzaehler ist ohne
-    // Rueckgriff auf taler-android-interne Divisor-Logik (Ausgangslage,
-    // PROMPT_parallel_group_split.md) verlaesslich herleitbar - lieber gar
-    // nichts zeigen als eine falsche Zahl (Regel 4, PROMPT.md).
-    splitNoteView.visibility = View.GONE
+    // Split Note: jetzt herleitbar, seit paymentData.totalAmount/includeSelf
+    // mitgeliefert werden - aber nur anzeigen, nachdem computeVerifiedTotal
+    // (GroupSplitCard.kt) bestaetigt hat, dass Divisor * Pro-Anteil-Betrag
+    // zum gelieferten totalAmount passt. Weicht das ab (manipulierte oder
+    // inkonsistente Nachricht), lieber gar nichts zeigen als eine falsche
+    // Zahl (Regel 4, PROMPT.md) - kein Crash, die Karte bleibt sonst
+    // unveraendert nutzbar (fail-safe, da die Nachricht von jedem
+    // Gruppenmitglied stammen kann).
+    val verifiedTotal = computeVerifiedTotal(
+      totalAmount = paymentData?.totalAmount,
+      includeSelf = paymentData?.includeSelf,
+      uriCount = uris.size,
+      perShareAmount = record?.amount
+    )
+    if (verifiedTotal != null) {
+      val totalFormatted = verifiedTotal.toPlainString().replace(".", ",")
+      val currencySymbol = getCurrencySymbol(record?.currency)
+      splitNoteView.text = if (paymentData?.includeSelf == true) {
+        context.getString(
+          R.string.TalerFork_split_note_with_self,
+          totalFormatted,
+          currencySymbol,
+          uris.size + 1,
+          uris.size
+        )
+      } else {
+        context.getString(
+          R.string.TalerFork_split_note_without_self,
+          totalFormatted,
+          currencySymbol,
+          uris.size
+        )
+      }
+      splitNoteView.visibility = View.VISIBLE
+    } else {
+      if (paymentData?.totalAmount != null) {
+        Log.w(TAG, "Gruppen-Split: totalAmount passt nicht zu Anteilsbetrag/URI-Anzahl - zeige keine Summe")
+      }
+      splitNoteView.visibility = View.GONE
+    }
 
     summaryView.text = record?.summary
     summaryView.visible = !record?.summary.isNullOrBlank()

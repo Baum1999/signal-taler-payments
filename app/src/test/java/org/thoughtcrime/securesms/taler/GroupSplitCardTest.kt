@@ -5,6 +5,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.math.BigDecimal
 
 /**
  * Reine Entscheidungslogik fuer die Gruppen-Split-Sammelkarte (ein Karte pro
@@ -164,5 +165,114 @@ class GroupSplitCardTest {
   @Test
   fun `anyOpen treats a single unresolved status the same as before - null is not OFFEN`() {
     assertFalse(anyOpen(listOf(null)))
+  }
+
+  // ---- computeVerifiedTotal ----
+
+  @Test
+  fun `includeSelf true means the sender's own share counts toward the divisor`() {
+    // 2 uris (recipients) + 1 self = 3-way split of 15
+    val total = computeVerifiedTotal(
+      totalAmount = "15.00",
+      includeSelf = true,
+      uriCount = 2,
+      perShareAmount = "5.00",
+    )
+    assertEquals(BigDecimal("15.00"), total)
+  }
+
+  @Test
+  fun `includeSelf false means only the uris themselves make up the divisor`() {
+    // 3 uris, sender excluded from the split entirely
+    val total = computeVerifiedTotal(
+      totalAmount = "15.00",
+      includeSelf = false,
+      uriCount = 3,
+      perShareAmount = "5.00",
+    )
+    assertEquals(BigDecimal("15.00"), total)
+  }
+
+  @Test
+  fun `mismatch between total and per-share times divisor is rejected`() {
+    val total = computeVerifiedTotal(
+      totalAmount = "20.00",
+      includeSelf = true,
+      uriCount = 2,
+      perShareAmount = "5.00",
+    )
+    assertNull(total)
+  }
+
+  @Test
+  fun `tiny floor-rounding remainder from an 8-decimal split is still accepted`() {
+    // 15 / 3 rounded down to 8 decimals loses a hair under the true value
+    val total = computeVerifiedTotal(
+      totalAmount = "15.00",
+      includeSelf = true,
+      uriCount = 2,
+      perShareAmount = "4.99999999",
+    )
+    assertEquals(BigDecimal("15.00"), total)
+  }
+
+  @Test
+  fun `missing totalAmount means no split info was sent - not an error`() {
+    assertNull(
+      computeVerifiedTotal(
+        totalAmount = null,
+        includeSelf = true,
+        uriCount = 2,
+        perShareAmount = "5.00",
+      )
+    )
+  }
+
+  @Test
+  fun `missing includeSelf alongside a present totalAmount is rejected`() {
+    assertNull(
+      computeVerifiedTotal(
+        totalAmount = "15.00",
+        includeSelf = null,
+        uriCount = 2,
+        perShareAmount = "5.00",
+      )
+    )
+  }
+
+  @Test
+  fun `missing per-share amount is rejected`() {
+    assertNull(
+      computeVerifiedTotal(
+        totalAmount = "15.00",
+        includeSelf = true,
+        uriCount = 2,
+        perShareAmount = null,
+      )
+    )
+  }
+
+  @Test
+  fun `unparseable amount strings are rejected instead of throwing`() {
+    assertNull(
+      computeVerifiedTotal(
+        totalAmount = "15,00 EUR",
+        includeSelf = true,
+        uriCount = 2,
+        perShareAmount = "5.00",
+      )
+    )
+  }
+
+  @Test
+  fun `zero uris is rejected`() {
+    assertNull(
+      computeVerifiedTotal(
+        totalAmount = "15.00",
+        includeSelf = true,
+        uriCount = 0,
+        perShareAmount = "5.00",
+      )
+    )
   }
 }
