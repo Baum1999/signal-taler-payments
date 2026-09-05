@@ -358,7 +358,6 @@ import org.thoughtcrime.securesms.taler.TalerMenuState
 import org.thoughtcrime.securesms.taler.TalerRefundActions
 import org.thoughtcrime.securesms.taler.TalerSendActions
 import org.thoughtcrime.securesms.taler.TalerUriDetector
-import net.taler.wallet.link.TalerUriKind
 import org.thoughtcrime.securesms.util.BubbleUtil
 import org.thoughtcrime.securesms.util.CommunicationActions
 import org.thoughtcrime.securesms.util.ConversationUtil
@@ -5309,9 +5308,7 @@ class ConversationFragment :
 
           AttachmentKeyboardButton.PAYMENT -> AttachmentManager.selectPayment(this@ConversationFragment, recipient)
 
-          AttachmentKeyboardButton.TALER_SEND -> TalerSendActions.onSendClicked(requireContext(), recipient, viewModel.threadId, TalerUriKind.PAY_PUSH)
-
-          AttachmentKeyboardButton.TALER_REQUEST -> TalerSendActions.onSendClicked(requireContext(), recipient, viewModel.threadId, TalerUriKind.PAY_PULL)
+          AttachmentKeyboardButton.TALER_SEND -> TalerSendActions.onSendClicked(requireContext(), recipient, viewModel.threadId)
 
           AttachmentKeyboardButton.FILE -> {
             if (!conversationActivityResultContracts.launchSelectFile()) {

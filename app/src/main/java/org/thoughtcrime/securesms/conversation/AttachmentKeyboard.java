@@ -40,8 +40,7 @@ public class AttachmentKeyboard extends FrameLayout implements InputAwareLayout.
       AttachmentKeyboardButton.CONTACT,
       AttachmentKeyboardButton.LOCATION,
       AttachmentKeyboardButton.PAYMENT,
-      AttachmentKeyboardButton.TALER_SEND,
-      AttachmentKeyboardButton.TALER_REQUEST
+      AttachmentKeyboardButton.TALER_SEND
   );
 
   private View                            container;

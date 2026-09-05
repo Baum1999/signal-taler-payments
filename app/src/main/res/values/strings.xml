@@ -10110,7 +10110,6 @@
 
     <!-- Attachment menu entry that opens Taler directly to start an outgoing payment (1:1 or group); Taler itself asks for the amount -->
     <string name="AttachmentKeyboard_taler_send">Send with Taler</string>
-    <string name="AttachmentKeyboard_taler_request">Request with Taler</string>
     <!-- Generic "Cancel" label reused across Taler dialogs (e.g. the forward-choice dialog in TalerForwardGate) -->
     <string name="TalerFork_send_dialog_cancel">Cancel</string>
 

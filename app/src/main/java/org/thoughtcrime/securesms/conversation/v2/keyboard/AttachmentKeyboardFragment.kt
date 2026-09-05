@@ -60,10 +60,7 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
   private fun applyButtonFilters(paymentsAvailable: Boolean, talerAvailable: Boolean) {
     val hidden = buildSet {
       if (!paymentsAvailable) add(AttachmentKeyboardButton.PAYMENT)
-      if (!talerAvailable) {
-        add(AttachmentKeyboardButton.TALER_SEND)
-        add(AttachmentKeyboardButton.TALER_REQUEST)
-      }
+      if (!talerAvailable) add(AttachmentKeyboardButton.TALER_SEND)
     }
     if (hidden.isEmpty()) {
       attachmentKeyboardView.filterAttachmentKeyboardButtons(null)

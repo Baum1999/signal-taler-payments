@@ -35,10 +35,11 @@ data class PrepareSendRequest(
     val disappearingMessagesSeconds: Int, // 0 = aus, sonst Sekunden (Recipient.expiresInSeconds)
     val correlationId: String,            // von Signal erzeugt, docs/API.md 2.7
     val returnUri: String,                // Signal-Deep-Link fuer den Ruecksprung, docs/API.md 2.7
-    // Richtung der vom Nutzer in Signal gewaehlten Aktion - nur PAY_PUSH (Geld
-    // senden) und PAY_PULL (Geld anfordern/Rechnung stellen) sind hier gueltig,
-    // die drei anderen TalerUriKind-Werte klassifizieren nur EMPFANGENE URIs
-    // und werden hier nie gesetzt. ComposeSendScreen waehlt anhand dieses Felds
-    // zwischen OutgoingPushComposable und OutgoingPullComposable.
+    // Anfangszustand des Richtungs-Toggles in ComposeSendScreen (Nutzer-
+    // Vorgabe 2026-09-05: nur EIN Button in Signal, die eigentliche Wahl
+    // zwischen Senden/Anfordern trifft der Nutzer dort per Toggle, nicht
+    // hier). Signal setzt hier immer PAY_PUSH (siehe TalerSendActions.kt).
+    // Nur PAY_PUSH/PAY_PULL sind gueltig - die drei anderen TalerUriKind-
+    // Werte klassifizieren nur EMPFANGENE URIs und werden hier nie gesetzt.
     val direction: TalerUriKind,
 ) : Parcelable

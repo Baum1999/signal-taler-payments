@@ -23,11 +23,12 @@ import org.thoughtcrime.securesms.recipients.Recipient
  */
 object TalerSendActions {
 
-  // direction: PAY_PUSH (Geld senden) oder PAY_PULL (Geld anfordern) - die
-  // beiden vom Anhang-Menue aus erreichbaren Taler-Aktionen (TALER_SEND/
-  // TALER_REQUEST in AttachmentKeyboardButton). Andere TalerUriKind-Werte
-  // sind hier nicht sinnvoll (siehe PrepareSendRequest.direction).
-  fun onSendClicked(context: Context, recipient: Recipient, threadId: Long, direction: TalerUriKind) {
+  // Nur EIN Button in Signal (Nutzer-Vorgabe 2026-09-05: "in Signal nur ein
+  // Button") - die Richtung (Senden/Anfordern) waehlt der Nutzer stattdessen
+  // ueber ein Toggle ganz oben in Talers eigenem Compose-Screen. direction
+  // hier ist deshalb nur der Anfangszustand dieses Toggles, keine feste
+  // Vorgabe.
+  fun onSendClicked(context: Context, recipient: Recipient, threadId: Long) {
     val correlationId = java.util.UUID.randomUUID().toString()
     TalerCorrelationStore.put(correlationId, TalerCorrelationIntent.SEND, uri = null, threadId = threadId)
     val returnUri = "signalfuergnu://taler-return"
@@ -39,7 +40,7 @@ object TalerSendActions {
       disappearingMessagesSeconds = recipient.expiresInSeconds,
       correlationId = correlationId,
       returnUri = returnUri,
-      direction = direction,
+      direction = TalerUriKind.PAY_PUSH,
     )
 
     // Kein Fragment/Activity-Referenz mit eigenem lifecycleScope hier
