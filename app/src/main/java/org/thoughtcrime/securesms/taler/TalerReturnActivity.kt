@@ -227,7 +227,8 @@ class TalerReturnActivity : Activity() {
         body = body,
         sentTimeMillis = System.currentTimeMillis(),
         expiresIn = recipient.expiresInSeconds.seconds.inWholeMilliseconds,
-        isSecure = true
+        isSecure = true,
+        talerPayment = TalerPaymentPayload(uris = listOf(uri))
       )
       MessageSender.send(appContext, message, threadId, MessageSender.SendType.SIGNAL, null, null)
     }
