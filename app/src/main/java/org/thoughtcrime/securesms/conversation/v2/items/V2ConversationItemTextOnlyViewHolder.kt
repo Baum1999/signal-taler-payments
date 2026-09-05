@@ -51,7 +51,6 @@ import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.taler.TalerAcceptRejectActions
 import org.thoughtcrime.securesms.taler.TalerConfirmationIconPresenter
 import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
-import org.thoughtcrime.securesms.taler.TalerRefundActions
 import org.thoughtcrime.securesms.util.InterceptableLongClickCopyLinkSpan
 import org.thoughtcrime.securesms.util.LongClickMovementMethod
 import org.thoughtcrime.securesms.util.MAX_BODY_DISPLAY_LENGTH
@@ -465,13 +464,10 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
       root,
       binding.talerCardStub,
       conversationMessage.messageRecord.body,
+      messageId = conversationMessage.messageRecord.id,
       threadId = conversationMessage.messageRecord.threadId,
       sender = conversationMessage.messageRecord.fromRecipient,
       onAccept = { uri, threadId -> TalerAcceptRejectActions.onAcceptClicked(root.context, uri, threadId) },
-      onReject = { uri, threadId -> TalerAcceptRejectActions.onRejectClicked(root.context, uri, threadId) },
-      onCancel = { uri, threadId -> TalerAcceptRejectActions.onCancelClicked(root.context, uri, threadId) },
-      onRefresh = { uri, threadId -> TalerAcceptRejectActions.onRefreshClicked(root.context, uri, threadId) },
-      onRefund = { uri, threadId -> TalerRefundActions.onRefundClicked(root.context, uri, threadId) },
     )
   }
 

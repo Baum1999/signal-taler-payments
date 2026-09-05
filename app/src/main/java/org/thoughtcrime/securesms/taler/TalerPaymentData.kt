@@ -30,10 +30,12 @@ import kotlinx.serialization.json.Json
  * - totalAmount: Bei Gruppen-Split: der ursprüngliche Gesamtbetrag vor dem Split (null = keine Split-Info)
  * - uri: Liste der Taler-URIs (bei einem Gruppen-Split-Versand eine pro Empfaenger-Anteil,
  *   siehe PROMPT_parallel_group_split.md; bei einer regulaeren Einzelzahlung genau 1 Element)
- * - recipientAcis: Bei Gruppen-Split: sortierte Liste der ACIs (als String) der
- *   Empfaenger, nur bei Gruppen-Split-Versand gesetzt (null = keine Split-Info).
- *   Jeder Empfaenger-Client nutzt diese Liste, um die eigene Rolle/den eigenen
- *   Index zu bestimmen (siehe GroupSplitCard.kt)
+ *
+ * Kein recipientAcis-Feld (mehr): die Empfaenger-Rolle/der eigene Index bei
+ * einem Gruppen-Split wird nicht mehr aus der Nachricht gelesen, sondern
+ * lokal aus der bereits bekannten Gruppenmitgliedschaft hergeleitet (siehe
+ * GroupSplitRecipients.kt) - unabhaengig davon, ob die Nachricht dieses
+ * Legacy-JSON-Format oder das neuere TalerPaymentPayload traegt.
  */
 @Serializable
 data class TalerPaymentData(
@@ -41,8 +43,22 @@ data class TalerPaymentData(
     val version: Int = 1,
     val includeSelf: Boolean? = null,
     val totalAmount: String? = null,
-    val uri: List<String>,
-    val recipientAcis: List<String>? = null
+    val uri: List<String>
+)
+
+/**
+ * Strukturierte Zahlungsdaten fuer das Proto-Feld DataMessage.talerPayment
+ * (Feld 9000, SignalService.proto) - ersetzt TalerPaymentData als
+ * Transportformat fuer neu gesendete Nachrichten. legacyText ist hier
+ * bewusst nicht enthalten: dieser Text existiert nur noch als Klartext im
+ * `body`, fuer Clients ohne Kenntnis dieses Feldes.
+ */
+data class TalerPaymentPayload(
+    val uris: List<String>,
+    val version: Int = 1,
+    val isGroupSplit: Boolean = false,
+    val includeSelf: Boolean? = null,
+    val totalAmount: String? = null
 )
 
 /**
@@ -65,6 +81,21 @@ data class TalerPaymentData(
  * selben JSON-Array wuerde die fehlende Trennung durch Leerzeichen sie sogar
  * zu einem einzigen, komplett unbrauchbaren "Treffer" verschmelzen.
  */
+/**
+ * Wie [urisFromMessageBody] intern - defensiv, weil [body] bei aelteren
+ * Nachrichten oder Fremd-Clients reiner Klartext ohne JSON sein kann.
+ * Oeffentlich (statt in TalerPaymentCardPresenter privat), damit auch
+ * TalerMenuState (Long-Press-Menue der Gruppenkarte) dieselbe Parse-Logik
+ * nutzen kann, ohne sie zu duplizieren.
+ */
+fun parsePaymentDataOrNull(body: String): TalerPaymentData? = try {
+    Json.decodeFromString<TalerPaymentData>(body)
+} catch (e: SerializationException) {
+    null
+} catch (e: IllegalArgumentException) {
+    null
+}
+
 fun urisFromMessageBody(body: String): List<String> {
     val paymentData = try {
         Json.decodeFromString<TalerPaymentData>(body)

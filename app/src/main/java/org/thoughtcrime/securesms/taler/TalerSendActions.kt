@@ -6,6 +6,7 @@ import android.net.Uri
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import net.taler.wallet.link.PrepareSendRequest
+import net.taler.wallet.link.TalerUriKind
 import org.thoughtcrime.securesms.recipients.Recipient
 
 /**
@@ -22,7 +23,11 @@ import org.thoughtcrime.securesms.recipients.Recipient
  */
 object TalerSendActions {
 
-  fun onSendClicked(context: Context, recipient: Recipient, threadId: Long) {
+  // direction: PAY_PUSH (Geld senden) oder PAY_PULL (Geld anfordern) - die
+  // beiden vom Anhang-Menue aus erreichbaren Taler-Aktionen (TALER_SEND/
+  // TALER_REQUEST in AttachmentKeyboardButton). Andere TalerUriKind-Werte
+  // sind hier nicht sinnvoll (siehe PrepareSendRequest.direction).
+  fun onSendClicked(context: Context, recipient: Recipient, threadId: Long, direction: TalerUriKind) {
     val correlationId = java.util.UUID.randomUUID().toString()
     TalerCorrelationStore.put(correlationId, TalerCorrelationIntent.SEND, uri = null, threadId = threadId)
     val returnUri = "signalfuergnu://taler-return"
@@ -34,6 +39,7 @@ object TalerSendActions {
       disappearingMessagesSeconds = recipient.expiresInSeconds,
       correlationId = correlationId,
       returnUri = returnUri,
+      direction = direction,
     )
 
     // Kein Fragment/Activity-Referenz mit eigenem lifecycleScope hier

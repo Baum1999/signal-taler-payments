@@ -75,6 +75,7 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
   val attachmentMetadataTable: AttachmentMetadataTable = AttachmentMetadataTable(context, this)
   val talerPaymentTable: TalerPaymentTable = TalerPaymentTable(context, this)
   val talerConfirmationMessageTable: TalerConfirmationMessageTable = TalerConfirmationMessageTable(context, this)
+  val talerPaymentMessageTable: TalerPaymentMessageTable = TalerPaymentMessageTable(context, this)
   val paymentHistory: PaymentHistoryTable = PaymentHistoryTable(context, this)
 
   override fun onOpen(db: net.zetetic.database.sqlcipher.SQLiteDatabase) {
@@ -138,6 +139,8 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     db.execSQL(TalerPaymentTable.CREATE_INDEX)
     db.execSQL(TalerConfirmationMessageTable.CREATE_TABLE)
     db.execSQL(TalerConfirmationMessageTable.CREATE_INDEX)
+    db.execSQL(TalerPaymentMessageTable.CREATE_TABLE)
+    db.execSQL(TalerPaymentMessageTable.CREATE_INDEX)
     db.execSQL(PaymentHistoryTable.CREATE_TABLE)
     db.execSQL(PaymentHistoryTable.CREATE_INDEX_PAYMENT_ID)
     db.execSQL(PaymentHistoryTable.CREATE_INDEX_CHAT_ID)
@@ -590,6 +593,11 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     @get:JvmName("talerConfirmationMessages")
     val talerConfirmationMessages: TalerConfirmationMessageTable
       get() = instance!!.talerConfirmationMessageTable
+
+    @get:JvmStatic
+    @get:JvmName("talerPaymentMessages")
+    val talerPaymentMessages: TalerPaymentMessageTable
+      get() = instance!!.talerPaymentMessageTable
 
     @get:JvmStatic
     @get:JvmName("paymentHistory")

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- GNU-Fork (Signal-Taler-Integration): Zeigt pro Taler-URI der Nachricht
+     kurze URI/Status/Betrag/Erkennungszeit-Zeilen sowie optional eine
+     verifizierte Gesamtsumme (Gruppen-Split) im Nachrichtendetails-Screen. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="12dp">
+
+    <TextView
+        android:id="@+id/taler_details_total"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="6dp"
+        android:textStyle="bold"
+        android:textSize="14sp"
+        android:visibility="gone"
+        tools:text="Gesamtbetrag: 12,34 €"
+        tools:visibility="visible" />
+
+    <LinearLayout
+        android:id="@+id/taler_details_entries"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" />
+
+</LinearLayout>

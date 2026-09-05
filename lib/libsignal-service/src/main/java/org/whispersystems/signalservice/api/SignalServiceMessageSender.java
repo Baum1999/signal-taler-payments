@@ -1289,6 +1289,21 @@ public class SignalServiceMessageSender {
                                .build());
     }
 
+    if (message.getTalerPayment().isPresent()) {
+      SignalServiceDataMessage.TalerPayment talerPayment = message.getTalerPayment().get();
+      DataMessage.TalerPayment.Builder talerPaymentBuilder = new DataMessage.TalerPayment.Builder()
+                                                                     .uris(talerPayment.getUris())
+                                                                     .version(talerPayment.getVersion())
+                                                                     .isGroupSplit(talerPayment.isGroupSplit());
+      if (talerPayment.getIncludeSelf() != null) {
+        talerPaymentBuilder.includeSelf(talerPayment.getIncludeSelf());
+      }
+      if (talerPayment.getTotalAmount() != null) {
+        talerPaymentBuilder.totalAmount(talerPayment.getTotalAmount());
+      }
+      builder.talerPayment(talerPaymentBuilder.build());
+    }
+
     builder.timestamp(message.getTimestamp());
 
     return builder;

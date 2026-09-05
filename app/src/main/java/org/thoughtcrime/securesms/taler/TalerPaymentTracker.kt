@@ -4,6 +4,7 @@ import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob
 import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob.TriggerType
+import org.whispersystems.signalservice.internal.push.DataMessage
 
 /**
  * Gemeinsame Erkennung+Nachverfolgung fuer Taler-URIs in Nachrichtentexten -
@@ -19,6 +20,33 @@ object TalerPaymentTracker {
     val uris = urisFromMessageBody(body)
     if (uris.isEmpty()) return
 
+    trackUris(uris, threadId)
+  }
+
+  /**
+   * Wie [trackUrisInBody], aber fuer Nachrichten mit dem strukturierten
+   * DataMessage.talerPayment-Feld (Feld 9000) statt JSON in `body`.
+   * Persistiert zusaetzlich die Struktur-Metadaten (Gruppen-Split etc.) pro
+   * Nachricht, damit das Rendern sie nicht mehr aus `body` herleiten muss.
+   */
+  @JvmStatic
+  fun trackStructuredPayment(talerPayment: DataMessage.TalerPayment, messageId: Long, threadId: Long) {
+    val uris = talerPayment.uris
+    if (uris.isEmpty()) return
+
+    SignalDatabase.talerPaymentMessages.insert(
+      messageId = messageId,
+      uris = uris,
+      version = talerPayment.version ?: 1,
+      isGroupSplit = talerPayment.isGroupSplit ?: false,
+      includeSelf = talerPayment.includeSelf,
+      totalAmount = talerPayment.totalAmount,
+    )
+
+    trackUris(uris, threadId)
+  }
+
+  private fun trackUris(uris: List<String>, threadId: Long) {
     TalerPollingCoordinator.ensureStarted()
     for (uri in uris) {
       val isNew = SignalDatabase.talerPayments.upsertDetected(uri, threadId)

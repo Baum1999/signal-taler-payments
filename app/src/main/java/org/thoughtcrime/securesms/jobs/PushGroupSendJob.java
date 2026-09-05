@@ -287,6 +287,7 @@ public final class PushGroupSendJob extends PushSendJob {
       SignalServiceDataMessage.PollCreate        pollCreate                       = getPollCreate(message);
       SignalServiceDataMessage.PollTerminate     pollTerminate                    = getPollTerminate(message);
       SignalServiceDataMessage.PinnedMessage     pinnedMessage                    = getPinnedMessage(message);
+      SignalServiceDataMessage.TalerPayment      talerPayment                     = getTalerPayment(message);
       List<Attachment>                           attachments                      = message.getAttachments().stream().filter(attachment -> !attachment.isSticker()).collect(Collectors.toList());
       List<SignalServiceAttachment>              attachmentPointers               = getAttachmentPointersFor(attachments);
       boolean                                    hasPreviouslyDeliveredRecipients = SignalDatabase.groupReceipts()
@@ -380,7 +381,8 @@ public final class PushGroupSendJob extends PushSendJob {
                                                                       .withBodyRanges(bodyRanges)
                                                                       .withPollCreate(pollCreate)
                                                                       .withPollTerminate(pollTerminate)
-                                                                      .withPinnedMessage(pinnedMessage);
+                                                                      .withPinnedMessage(pinnedMessage)
+                                                                      .withTalerPayment(talerPayment);
 
         if (message.getParentStoryId() != null) {
           try {

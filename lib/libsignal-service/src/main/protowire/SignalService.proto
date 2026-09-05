@@ -236,13 +236,20 @@ message DataMessage {
     reserved /*cancellation*/ 1003;
   }
 
-  // GNU-Fork (Signal-Taler-Integration): rohe Taler-URIs (taler://, ext+taler://,
-  // payto://) aus dem `body` dieser Nachricht. Dient nur als Recall-Hilfe beim
-  // Rendern - der Empfaenger validiert jede URI beim Anzeigen erneut ueber die
-  // lokale Taler-Schnittstelle (siehe docs/API.md), bevor sie als Zahlungskarte
-  // statt als Klartext gerendert wird. Dieses Feld ist keine Vertrauensquelle.
+  // GNU-Fork (Signal-Taler-Integration): strukturierte Taler-Zahlungsdaten
+  // (taler://, ext+taler://, payto:// URIs plus Gruppen-Split-Metadaten).
+  // Dient nur als Recall-Hilfe beim Rendern - der Empfaenger validiert jede
+  // URI beim Anzeigen erneut ueber die lokale Taler-Schnittstelle (siehe
+  // docs/API.md), bevor sie als Zahlungskarte statt als Klartext gerendert
+  // wird. Dieses Feld ist keine Vertrauensquelle. `body` traegt weiterhin die
+  // rohen URIs plus einen Legacy-Text in Klartext, fuer Clients ohne
+  // Taler-Patch bzw. ohne Kenntnis dieses Feldes.
   message TalerPayment {
     repeated string uris = 1;
+    optional uint32 version = 2;
+    optional bool isGroupSplit = 3;
+    optional bool includeSelf = 4;
+    optional string totalAmount = 5;
   }
 
   message Quote {

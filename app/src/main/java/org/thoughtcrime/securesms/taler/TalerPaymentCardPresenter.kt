@@ -10,8 +10,6 @@ import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
-import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.Json
 import net.taler.wallet.link.TalerUriKind
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
@@ -60,13 +58,10 @@ object TalerPaymentCardPresenter {
     root: ViewGroup,
     stub: ViewStub?,
     messageBody: String,
+    messageId: Long,
     threadId: Long,
     sender: Recipient,
     onAccept: (uri: String, threadId: Long) -> Unit = { _, _ -> },
-    onReject: (uri: String, threadId: Long) -> Unit = { _, _ -> },
-    onCancel: (uri: String, threadId: Long) -> Unit = { _, _ -> },
-    onRefresh: (uri: String, threadId: Long) -> Unit = { _, _ -> },
-    onRefund: (uri: String, threadId: Long) -> Unit = { _, _ -> },
   ) {
     if (stub == null) return
     val uris = urisFromMessageBody(messageBody)
@@ -99,7 +94,7 @@ object TalerPaymentCardPresenter {
     // bleibt unten unveraendert.
     if (uris.size > 1) {
       val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
-      bindGroupCard(cardView, uris, threadId, sender, messageBody, onAccept, onReject)
+      bindGroupCard(cardView, uris, threadId, sender, messageBody, messageId, onAccept)
       container.addView(cardView)
       return
     }
@@ -107,7 +102,7 @@ object TalerPaymentCardPresenter {
     for (uri in uris) {
       val record = SignalDatabase.talerPayments.getByUri(uri)
       val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
-      bind(cardView, record, onAccept, onReject, onCancel, onRefresh, onRefund)
+      bind(cardView, record, onAccept)
       container.addView(cardView)
     }
   }
@@ -121,7 +116,7 @@ object TalerPaymentCardPresenter {
    */
   fun renderStandalone(context: Context, record: TalerPaymentRecord?): View {
     val view = LayoutInflater.from(context).inflate(R.layout.taler_payment_card, null, false)
-    bind(view, record, { _, _ -> }, { _, _ -> }, { _, _ -> }, { _, _ -> }, { _, _ -> })
+    bind(view, record, { _, _ -> })
     view.findViewById<View>(R.id.taler_card_actions).visibility = View.GONE
     return view
   }
@@ -140,9 +135,10 @@ object TalerPaymentCardPresenter {
     threadId: Long,
     sender: Recipient,
     messageBody: String,
+    messageId: Long,
   ): View {
     val view = LayoutInflater.from(context).inflate(R.layout.taler_payment_card, null, false)
-    bindGroupCard(view, uris, threadId, sender, messageBody, { _, _ -> }, { _, _ -> })
+    bindGroupCard(view, uris, threadId, sender, messageBody, messageId, { _, _ -> })
     view.findViewById<View>(R.id.taler_card_actions).visibility = View.GONE
     return view
   }
@@ -151,10 +147,6 @@ object TalerPaymentCardPresenter {
     view: View,
     record: TalerPaymentRecord?,
     onAccept: (uri: String, threadId: Long) -> Unit,
-    onReject: (uri: String, threadId: Long) -> Unit,
-    onCancel: (uri: String, threadId: Long) -> Unit,
-    onRefresh: (uri: String, threadId: Long) -> Unit,
-    onRefund: (uri: String, threadId: Long) -> Unit,
   ) {
     val context = view.context
 
@@ -286,50 +278,22 @@ object TalerPaymentCardPresenter {
     splitWarningView.visibility = View.GONE
 
     // ========================================================================
-    // Aktionen (unveraendert)
+    // Aktionen: nur noch Annehmen bleibt direkt auf der Karte - Ablehnen/
+    // Abbrechen/Aktualisieren/Rueckerstatten leben jetzt im Long-Press-Menue
+    // (TalerMenuState.kt/TalerMenuActions.kt), dieselbe Gating-Bedingung wie
+    // hier (TalerCardActionGate) wird dort wiederverwendet, damit beide Stellen
+    // nicht auseinanderlaufen koennen.
     // ========================================================================
     val actionsRow = view.findViewById<View>(R.id.taler_card_actions)
     val acceptButton = view.findViewById<Button>(R.id.taler_card_accept)
-    val rejectButton = view.findViewById<Button>(R.id.taler_card_reject)
-    val cancelButton = view.findViewById<Button>(R.id.taler_card_cancel)
-    val refreshButton = view.findViewById<Button>(R.id.taler_card_refresh)
-    val refundButton = view.findViewById<Button>(R.id.taler_card_refund)
 
-    // Annehmen/Ablehnen nur bei einer Karte mit konkretem DB-Eintrag im
-    // Zustand OFFEN - bei einer noch unbekannten (record == null) oder
-    // bereits entschiedenen Karte gibt es nichts mehr zu entscheiden
-    // (siehe docs/API.md 3.6, "Bewusst noch nicht enthalten").
-    //
-    // Zusaetzlich auf PAY_PUSH beschraenkt: der Taler-seitige Ruecksprung-
-    // Mechanismus (TalerReturnActivity/TalerCorrelationStore) ist bisher nur
-    // fuer pay-push-Vorgaenge Ende-zu-Ende verdrahtet.
-    
-    val showAcceptReject = record?.status == TalerPaymentStatus.OFFEN &&
-      uriKind == TalerUriKind.PAY_PUSH.name &&
-      !isOwnPayment
-    val showCancelRefresh = record?.status == TalerPaymentStatus.OFFEN &&
-      uriKind == TalerUriKind.PAY_PUSH.name &&
-      isOwnPayment
-    val showRefund = record?.status == TalerPaymentStatus.ANGENOMMEN &&
-      !isOwnPayment
+    val showAccept = TalerCardActionGate.showAccept(record)
 
-    actionsRow.visibility = if (showAcceptReject || showCancelRefresh || showRefund) View.VISIBLE else View.GONE
-    acceptButton.visibility = if (showAcceptReject) View.VISIBLE else View.GONE
-    rejectButton.visibility = if (showAcceptReject) View.VISIBLE else View.GONE
-    cancelButton.visibility = if (showCancelRefresh) View.VISIBLE else View.GONE
-    refreshButton.visibility = if (showCancelRefresh) View.VISIBLE else View.GONE
-    refundButton.visibility = if (showRefund) View.VISIBLE else View.GONE
+    actionsRow.visibility = if (showAccept) View.VISIBLE else View.GONE
+    acceptButton.visibility = if (showAccept) View.VISIBLE else View.GONE
 
-    if (showAcceptReject && record != null) {
+    if (showAccept && record != null) {
       acceptButton.setOnClickListener { onAccept(record.uri, record.threadId) }
-      rejectButton.setOnClickListener { onReject(record.uri, record.threadId) }
-    }
-    if (showCancelRefresh && record != null) {
-      cancelButton.setOnClickListener { onCancel(record.uri, record.threadId) }
-      refreshButton.setOnClickListener { onRefresh(record.uri, record.threadId) }
-    }
-    if (showRefund && record != null) {
-      refundButton.setOnClickListener { onRefund(record.uri, record.threadId) }
     }
   }
 
@@ -348,8 +312,8 @@ object TalerPaymentCardPresenter {
     threadId: Long,
     sender: Recipient,
     messageBody: String,
+    messageId: Long,
     onAccept: (uri: String, threadId: Long) -> Unit,
-    onReject: (uri: String, threadId: Long) -> Unit,
   ) {
     val context = view.context
 
@@ -361,10 +325,26 @@ object TalerPaymentCardPresenter {
     val record = uris.firstNotNullOfOrNull { SignalDatabase.talerPayments.getByUri(it) }
     val statuses = uris.map { SignalDatabase.talerPayments.getByUri(it)?.status }
 
-    val paymentData = parsePaymentDataOrNull(messageBody)
+    // Bevorzuge die strukturierten Daten aus DataMessage.talerPayment (Feld
+    // 9000, ueber TalerPaymentMessageTable persistiert) - `body` ist bei neu
+    // gesendeten Nachrichten kein JSON mehr. parsePaymentDataOrNull bleibt
+    // als Fallback fuer aeltere, vor der Umstellung gesendete Nachrichten.
+    val structuredPayment = SignalDatabase.talerPaymentMessages.getByMessageId(messageId)
+    val legacyPaymentData = parsePaymentDataOrNull(messageBody)
+    val totalAmount = structuredPayment?.totalAmount ?: legacyPaymentData?.totalAmount
+    val includeSelf = structuredPayment?.includeSelf ?: legacyPaymentData?.includeSelf
+
     val myAci = SignalStore.account.requireAci().toString()
     val role = if (sender.aci.isPresent) {
-      resolveGroupCardRole(paymentData?.recipientAcis, sender.aci.get().toString(), myAci)
+      // recipientAcis kommt weder aus dem Legacy-JSON noch aus
+      // TalerPaymentPayload (siehe TalerPaymentData.kt) - stattdessen lokal
+      // aus der bereits bekannten Gruppenmitgliedschaft hergeleitet
+      // (GroupSplitRecipients.kt), damit diese Rollenaufloesung von keinem
+      // Nachrichtenformat abhaengt.
+      val senderAci = sender.aci.get().toString()
+      val groupRecipient = SignalDatabase.threads.getRecipientForThreadId(threadId)
+      val recipientAcis = groupRecipient?.let { groupSplitRecipientAcis(it, senderAci) }
+      resolveGroupCardRole(recipientAcis, senderAci, myAci)
     } else {
       // Ohne bekannte Absender-ACI laesst sich weder Ersteller- noch
       // Empfaenger-Rolle feststellen - read-only, wie ein spaeter
@@ -420,15 +400,15 @@ object TalerPaymentCardPresenter {
     // unveraendert nutzbar (fail-safe, da die Nachricht von jedem
     // Gruppenmitglied stammen kann).
     val verifiedTotal = computeVerifiedTotal(
-      totalAmount = paymentData?.totalAmount,
-      includeSelf = paymentData?.includeSelf,
+      totalAmount = totalAmount,
+      includeSelf = includeSelf,
       uriCount = uris.size,
       perShareAmount = record?.amount
     )
     if (verifiedTotal != null) {
       val totalFormatted = verifiedTotal.toPlainString().replace(".", ",")
       val currencySymbol = getCurrencySymbol(record?.currency)
-      splitNoteView.text = if (paymentData?.includeSelf == true) {
+      splitNoteView.text = if (includeSelf == true) {
         context.getString(
           R.string.TalerFork_split_note_with_self,
           totalFormatted,
@@ -446,7 +426,7 @@ object TalerPaymentCardPresenter {
       }
       splitNoteView.visibility = View.VISIBLE
     } else {
-      if (paymentData?.totalAmount != null) {
+      if (totalAmount != null) {
         Log.w(TAG, "Gruppen-Split: totalAmount passt nicht zu Anteilsbetrag/URI-Anzahl - zeige keine Summe")
       }
       splitNoteView.visibility = View.GONE
@@ -486,25 +466,20 @@ object TalerPaymentCardPresenter {
     splitWarningView.visibility = View.GONE
 
     // ========================================================================
-    // Aktionen: EIN Annehmen/Ablehnen-Paar fuer die ganze Karte, gebunden an
-    // den naechsten noch offenen Anteil ab dem eigenen Index - nicht an eine
-    // feste eigene URI (siehe GroupSplitCard.kt-Doc: "mein Anteil" ist nur
-    // ein Startpunkt). GroupClaimTracker verhindert, dass dieser Betrachter
-    // ueber DIESE Karte einen zweiten Anteil annimmt, nachdem er bereits
-    // einen beansprucht hat.
+    // Aktionen: nur noch Annehmen bleibt direkt auf der Karte, gebunden an den
+    // naechsten noch offenen Anteil ab dem eigenen Index - nicht an eine feste
+    // eigene URI (siehe GroupSplitCard.kt-Doc: "mein Anteil" ist nur ein
+    // Startpunkt). GroupClaimTracker verhindert, dass dieser Betrachter ueber
+    // DIESE Karte einen zweiten Anteil annimmt, nachdem er bereits einen
+    // beansprucht hat. Ablehnen/Abbrechen/Aktualisieren/Rueckerstatten leben
+    // jetzt im Long-Press-Menue (TalerMenuState.kt/TalerMenuActions.kt,
+    // GroupSplitCard.resolveCancelableUris/resolveRefundableUris) - das macht
+    // die zuvor hier hart auf GONE gesetzten Aktionen fuer die Ersteller-Rolle
+    // erstmals ueber das Menue erreichbar (Nebeneffekt der Neustrukturierung,
+    // siehe Plan).
     // ========================================================================
     val actionsRow = view.findViewById<View>(R.id.taler_card_actions)
     val acceptButton = view.findViewById<Button>(R.id.taler_card_accept)
-    val rejectButton = view.findViewById<Button>(R.id.taler_card_reject)
-    val cancelButton = view.findViewById<Button>(R.id.taler_card_cancel)
-    val refreshButton = view.findViewById<Button>(R.id.taler_card_refresh)
-    val refundButton = view.findViewById<Button>(R.id.taler_card_refund)
-    // Cancel/Refresh/Refund gehoeren zum Einzel-URI-Pfad (eigene ausgehende
-    // Zahlung abbrechen bzw. eine angenommene Zahlung erstatten) - fuer die
-    // Sammelkarte bislang nicht verdrahtet, siehe Bericht.
-    cancelButton.visibility = View.GONE
-    refreshButton.visibility = View.GONE
-    refundButton.visibility = View.GONE
 
     val claimTracker = GroupClaimTracker(context)
     val alreadyClaimed = claimTracker.hasClaimedAny(uris)
@@ -517,7 +492,6 @@ object TalerPaymentCardPresenter {
     if (targetUri != null) {
       actionsRow.visibility = View.VISIBLE
       acceptButton.visibility = View.VISIBLE
-      rejectButton.visibility = View.VISIBLE
       acceptButton.setOnClickListener {
         // Vor dem Callback tracken, nicht danach - onAccept startet einen
         // expliziten Deep-Link zu Talers UI und kehrt zu dieser Activity
@@ -526,25 +500,10 @@ object TalerPaymentCardPresenter {
         claimTracker.track(targetUri)
         onAccept(targetUri, threadId)
       }
-      rejectButton.setOnClickListener { onReject(targetUri, threadId) }
     } else {
       actionsRow.visibility = View.GONE
       acceptButton.visibility = View.GONE
-      rejectButton.visibility = View.GONE
     }
-  }
-
-  /**
-   * Wie [urisFromMessageBody] intern - defensiv, weil [messageBody] bei
-   * aelteren Nachrichten oder Fremd-Clients reiner Klartext ohne JSON sein
-   * kann (siehe TalerPaymentData.kt).
-   */
-  private fun parsePaymentDataOrNull(messageBody: String): TalerPaymentData? = try {
-    Json.decodeFromString<TalerPaymentData>(messageBody)
-  } catch (e: SerializationException) {
-    null
-  } catch (e: IllegalArgumentException) {
-    null
   }
 
   fun kindLabel(context: Context, kind: String?): String = context.getString(
@@ -557,6 +516,28 @@ object TalerPaymentCardPresenter {
       else -> R.string.TalerFork_kind_unknown
     }
   )
+
+  /**
+   * Reines Status-Label ohne Icon/Farbe/Empfaenger-Namen - fuer Stellen, die
+   * nur einen kurzen, sicheren Text brauchen (Nachrichtendetails-Screen,
+   * Zitat-Kurzversion), nicht die volle Karte. Nutzt dieselben
+   * TalerFork_status_compact_*-Strings wie [getCompactStatus]s Standardfall,
+   * damit der Wortlaut an allen Stellen konsistent bleibt.
+   */
+  fun plainStatusLabel(context: Context, status: TalerPaymentStatus): String {
+    val textRes = when (status) {
+      TalerPaymentStatus.OFFEN -> R.string.TalerFork_status_compact_open
+      TalerPaymentStatus.ANGENOMMEN -> R.string.TalerFork_status_compact_accepted
+      TalerPaymentStatus.LOKAL_ABGELEHNT -> R.string.TalerFork_status_compact_declined
+      TalerPaymentStatus.ABGELAUFEN -> R.string.TalerFork_status_compact_expired
+      TalerPaymentStatus.UNBEKANNT_OFFLINE -> R.string.TalerFork_status_compact_checking
+      TalerPaymentStatus.UNGUELTIG -> R.string.TalerFork_status_compact_invalid
+      TalerPaymentStatus.TALER_NICHT_VERBUNDEN -> R.string.TalerFork_status_compact_not_connected
+      TalerPaymentStatus.NICHT_INSTALLIERT -> R.string.TalerFork_status_compact_not_installed
+      TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> R.string.TalerFork_status_compact_untrusted
+    }
+    return context.getString(textRes)
+  }
 
   /**
    * Liefert kompakte Status-Information: Icon, Text, Icon-Farbe, Text-Farbe

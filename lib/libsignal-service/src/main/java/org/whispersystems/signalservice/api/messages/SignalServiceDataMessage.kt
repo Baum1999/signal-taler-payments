@@ -54,7 +54,8 @@ class SignalServiceDataMessage private constructor(
   val pollTerminate: Optional<PollTerminate>,
   val pinnedMessage: Optional<PinnedMessage>,
   val unpinnedMessage: Optional<UnpinnedMessage>,
-  val adminDelete: Optional<AdminDelete>
+  val adminDelete: Optional<AdminDelete>,
+  val talerPayment: Optional<TalerPayment>
 ) {
   val isActivatePaymentsRequest: Boolean = payment.map { it.isActivationRequest }.orElse(false)
   val isPaymentsActivated: Boolean = payment.map { it.isActivation }.orElse(false)
@@ -111,6 +112,7 @@ class SignalServiceDataMessage private constructor(
     private var pinnedMessage: PinnedMessage? = null
     private var unpinnedMessage: UnpinnedMessage? = null
     private var adminDelete: AdminDelete? = null
+    private var talerPayment: TalerPayment? = null
 
     fun withTimestamp(timestamp: Long): Builder {
       this.timestamp = timestamp
@@ -258,6 +260,11 @@ class SignalServiceDataMessage private constructor(
       return this
     }
 
+    fun withTalerPayment(talerPayment: TalerPayment?): Builder {
+      this.talerPayment = talerPayment
+      return this
+    }
+
     fun build(): SignalServiceDataMessage {
       if (timestamp == 0L) {
         timestamp = System.currentTimeMillis()
@@ -291,7 +298,8 @@ class SignalServiceDataMessage private constructor(
         pollTerminate = pollTerminate.asOptional(),
         pinnedMessage = pinnedMessage.asOptional(),
         unpinnedMessage = unpinnedMessage.asOptional(),
-        adminDelete = adminDelete.asOptional()
+        adminDelete = adminDelete.asOptional(),
+        talerPayment = talerPayment.asOptional()
       )
     }
   }
@@ -341,6 +349,20 @@ class SignalServiceDataMessage private constructor(
   data class PinnedMessage(val targetAuthor: ServiceId, val targetSentTimestamp: Long, val pinDurationInSeconds: Int?, val forever: Boolean?)
   data class UnpinnedMessage(val targetAuthor: ServiceId, val targetSentTimestamp: Long)
   data class AdminDelete(val targetAuthor: ServiceId, val targetSentTimestamp: Long)
+
+  /**
+   * GNU-Fork (Signal-Taler-Integration): structured Taler payment data sent
+   * in `DataMessage.talerPayment` instead of being encoded as JSON in `body`.
+   * Not a trust source - the receiver re-validates every URI via the local
+   * Taler interface before rendering it as a payment card (see docs/API.md).
+   */
+  data class TalerPayment(
+    val uris: List<String>,
+    val version: Int,
+    val isGroupSplit: Boolean,
+    val includeSelf: Boolean?,
+    val totalAmount: String?
+  )
 
   companion object {
     @JvmStatic

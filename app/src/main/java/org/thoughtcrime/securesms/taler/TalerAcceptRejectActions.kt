@@ -6,6 +6,7 @@ import android.content.Intent
 import android.net.Uri
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.database.model.MessageRecord
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob
 
@@ -92,5 +93,25 @@ object TalerAcceptRejectActions {
     TalerPollingCoordinator.ensureStarted()
     // Enqueue a fresh job with RETURN priority for immediate processing
     AppDependencies.jobManager.add(TalerUriRefreshJob(uri, TalerUriRefreshJob.TriggerType.MANUAL))
+  }
+
+  /**
+   * Beim Loeschen einer Taler-Nachricht (ConversationFragment.handleDeleteMessages)
+   * zusaetzlich jede eigene, noch abbrechbare ausgehende Zahlung im geloeschten
+   * Nachrichtenkorpus abbrechen - dieselbe Bedingung wie der bisherige
+   * Abbrechen-Button (TalerCardActionGate.showCancel), damit weder fremde noch
+   * bereits entschiedene Zahlungen angefasst werden. Wirkt automatisch auch
+   * fuer Gruppen-Split-Nachrichten (mehrere URIs im Body -> mehrere
+   * unabhaengig geprueft Abbrueche).
+   */
+  fun cancelCancelablePaymentsForDeletedMessages(context: Context, records: Set<MessageRecord>) {
+    records.forEach { record ->
+      urisFromMessageBody(record.body).forEach { uri ->
+        val paymentRecord = SignalDatabase.talerPayments.getByUri(uri)
+        if (TalerCardActionGate.showCancel(paymentRecord)) {
+          onCancelClicked(context, uri, record.threadId)
+        }
+      }
+    }
   }
 }

@@ -46,6 +46,7 @@ import org.thoughtcrime.securesms.recipients.LiveRecipient;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.recipients.RecipientForeverObserver;
 import org.thoughtcrime.securesms.stories.StoryTextPostModel;
+import org.thoughtcrime.securesms.taler.TalerQuoteSummary;
 import org.thoughtcrime.securesms.util.MediaUtil;
 import org.thoughtcrime.securesms.util.Projection;
 
@@ -244,6 +245,18 @@ public class QuoteView extends ConstraintLayout implements RecipientForeverObser
       case POLL:
         return getContext().getString(R.string.Poll__poll_question, body);
       default:
+        // GNU-Fork (Signal-Taler-Integration): eine Taler-Zahlungsnachricht
+        // ist ein normaler Text-Body ohne eigenen QuoteModel.Type (siehe
+        // Plan, einfachere Variante ohne Wire-/Backup-Format-Aenderung) -
+        // TalerQuoteSummary ersetzt die rohe(n) URI(s) hier durch eine kurze,
+        // sichere Zusammenfassung, sowohl in der Compose-Vorschau als auch
+        // in der Chat-Zitat-Blase (beide rufen setQuote()/resolveBody() auf).
+        if (body != null) {
+          String talerSummary = TalerQuoteSummary.INSTANCE.buildOrNull(getContext(), body.toString());
+          if (talerSummary != null) {
+            return talerSummary;
+          }
+        }
         return body;
     }
   }

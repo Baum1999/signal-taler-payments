@@ -7,6 +7,7 @@ import org.thoughtcrime.securesms.conversation.mutiselect.MultiselectPart;
 import org.thoughtcrime.securesms.database.model.MmsMessageRecord;
 import org.thoughtcrime.securesms.database.model.MessageRecord;
 import org.thoughtcrime.securesms.recipients.Recipient;
+import org.thoughtcrime.securesms.taler.TalerMenuGate;
 import org.thoughtcrime.securesms.keyvalue.SignalStore;
 import org.thoughtcrime.securesms.util.MessageRecordUtil;
 import org.thoughtcrime.securesms.util.MessageConstraintsUtil;
@@ -130,6 +131,7 @@ public final class MenuState {
     boolean mediaIsSelected  = false;
     boolean hasGift          = false;
     boolean hasPayment       = false;
+    boolean hasTalerPayment  = false;
     boolean hasPoll          = false;
     boolean hasPollTerminate = false;
     boolean canPinMessage    = false;
@@ -178,6 +180,15 @@ public final class MenuState {
         hasPayment = true;
       }
 
+      // GNU-Fork (Signal-Taler-Integration, REVIEW.md H4-Muster): eine
+      // Taler-Zahlungsnachricht ist ein normaler Text-MessageRecord (kein
+      // eigener hasPayment-Fall) - Weiterleiten/Kopieren/Bearbeiten laufen
+      // fuer sie stattdessen ueber die eigenen Taler-Menueeintraege
+      // (ConversationReactionOverlay/TalerMenuState), siehe Plan.
+      if (TalerMenuGate.messageHasTalerUris(messageRecord)) {
+        hasTalerPayment = true;
+      }
+
       if (MessageRecordUtil.hasPoll(messageRecord)) {
         hasPoll = true;
       }
@@ -209,6 +220,7 @@ public final class MenuState {
                                       !hasPendingMedia  &&
                                       !hasGift          &&
                                       !hasPayment       &&
+                                      !hasTalerPayment  &&
                                       !hasPoll          &&
                                       !hasPollTerminate &&
                                       selectedParts.size() <= MAX_FORWARDABLE_COUNT;
@@ -251,13 +263,14 @@ public final class MenuState {
 
       builder.shouldShowEdit(!actionMessage &&
                              hasText &&
+                             !hasTalerPayment &&
                              !multiSelectRecord.getConversationMessage().getOriginalMessage().isFailed() &&
                              !hasPoll &&
                              !MessageRecordUtil.hasUndownloadedTextSlide(multiSelectRecord.getConversationMessage().getOriginalMessage()) &&
                              MessageConstraintsUtil.isValidEditMessageSend(multiSelectRecord.getConversationMessage().getOriginalMessage(), System.currentTimeMillis()));
     }
 
-    return builder.shouldShowCopyAction(!actionMessage && !remoteDelete && hasText && !hasGift && !hasPayment && !hasPoll)
+    return builder.shouldShowCopyAction(!actionMessage && !remoteDelete && hasText && !hasGift && !hasPayment && !hasTalerPayment && !hasPoll)
                   .shouldShowDeleteAction(!hasInMemory && onlyContainsCompleteMessages(selectedParts))
                   .shouldShowReactions(!conversationRecipient.isReleaseNotes() && !conversationRecipient.isInactiveGroup())
                   .shouldShowPaymentDetails(hasPayment && SignalStore.account().isPrimaryDevice())

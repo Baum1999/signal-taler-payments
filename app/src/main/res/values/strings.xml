@@ -10103,12 +10103,14 @@
 
     <!-- Real outgoing 1:1 chat message sent after this device composed a new outgoing Taler payment via the attachment menu and Taler confirmed creation; %1$s is the link kind label (e.g. TalerFork_kind_pay_push), %2$s is the new Taler URI -->
     <string name="TalerFork_send_message">Payment sent: %1$s (%2$s)</string>
+    <string name="TalerFork_request_message">Payment requested: %1$s (%2$s)</string>
 
     <!-- Accessibility label for the small icon shown instead of the raw text on a recognized accept-confirmation message; gray while unconfirmed, blue once Taler confirms the payment as accepted -->
     <string name="TalerFork_confirmation_icon_content_description">GNU Taler payment confirmation</string>
 
     <!-- Attachment menu entry that opens Taler directly to start an outgoing payment (1:1 or group); Taler itself asks for the amount -->
     <string name="AttachmentKeyboard_taler_send">Send with Taler</string>
+    <string name="AttachmentKeyboard_taler_request">Request with Taler</string>
     <!-- Generic "Cancel" label reused across Taler dialogs (e.g. the forward-choice dialog in TalerForwardGate) -->
     <string name="TalerFork_send_dialog_cancel">Cancel</string>
 
@@ -10122,6 +10124,23 @@
     <string name="TalerFork_forward_as_image">Forward as image</string>
     <!-- Warning shown before forwarding a still-open (unclaimed) payment link as text, since whoever opens it first can claim the money -->
     <string name="TalerFork_forward_payment_warning">This forwards an unclaimed payment. Whoever opens it first can claim the money.</string>
+
+    <!-- Long-press menu entry on a Taler payment message: copy a static image snapshot of the payment card to the clipboard -->
+    <string name="TalerFork_copy_as_image">Copy as image</string>
+    <!-- Long-press menu entry on a Taler payment message: copy the message text (including the live, redeemable payment link) to the clipboard -->
+    <string name="TalerFork_copy_as_text">Copy as transcript</string>
+
+    <!-- Message-details screen: short label preceding a Taler payment link's shortened URI -->
+    <string name="TalerFork_details_uri_label">Payment link</string>
+    <!-- Message-details screen: label for the total amount of a group-split payment, shown only once verified against the per-share amounts -->
+    <string name="TalerFork_details_total_label">Total</string>
+    <!-- Message-details screen: label for when this device first locally detected the payment link - NOT when Taler itself created or settled the payment, since that timestamp isn't available locally -->
+    <string name="TalerFork_details_detected_at">Detected on this device</string>
+    <!-- Message-details screen: placeholder shown for a Taler payment link whose status hasn't been resolved by Taler yet -->
+    <string name="TalerFork_details_status_pending">Checking status…</string>
+
+    <!-- Quote/reply preview (compose bar and in-chat quote bubble) for a group-split Taler payment message, replacing the raw payment links; %1$d is the number of shares -->
+    <string name="TalerFork_quote_group_summary">Split payment · %1$d shares</string>
 
     <!-- Payment History -->
     <string name="payment_history">Zahlungshistorie</string>

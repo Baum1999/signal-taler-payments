@@ -16,6 +16,7 @@
 
 package org.thoughtcrime.securesms.taler
 
+import org.thoughtcrime.securesms.database.TalerPaymentRecord
 import java.math.BigDecimal
 
 /**
@@ -72,6 +73,39 @@ fun resolveTargetUri(
 
 fun countAccepted(statuses: List<TalerPaymentStatus?>): Int =
   statuses.count { it == TalerPaymentStatus.ANGENOMMEN }
+
+/**
+ * Eigene, noch offene Anteile der Sammelkarte, fuer die "Abbrechen"/
+ * "Aktualisieren" Sinn ergeben (siehe TalerCardActionGate.showCancel, dieselbe
+ * Bedingung wie beim Einzel-URI-Pfad, nur pro Anteil angewendet). Liefert nur
+ * fuer [GroupCardRole.Creator] etwas - Empfaenger und Nicht-Teilnehmer haben
+ * nie eigene ausgehende Anteile in dieser Karte.
+ */
+fun resolveCancelableUris(
+  uris: List<String>,
+  records: List<TalerPaymentRecord?>,
+  role: GroupCardRole
+): List<String> {
+  if (role !is GroupCardRole.Creator) return emptyList()
+  return uris.zip(records)
+    .filter { (_, record) -> TalerCardActionGate.showCancel(record) }
+    .map { it.first }
+}
+
+/**
+ * Anteile, die DIESES Geraet ueber [claimedUris] (GroupClaimTracker) selbst
+ * beansprucht hat und die mittlerweile angenommen wurden - fuer "Rueckerstatten"
+ * (TalerCardActionGate.showRefund, dieselbe Bedingung wie beim Einzel-URI-Pfad).
+ */
+fun resolveRefundableUris(
+  uris: List<String>,
+  records: List<TalerPaymentRecord?>,
+  claimedUris: Set<String>
+): List<String> {
+  return uris.zip(records)
+    .filter { (uri, record) -> uri in claimedUris && TalerCardActionGate.showRefund(record) }
+    .map { it.first }
+}
 
 /**
  * Fuer den Weiterleiten-Wahl-Dialog (TalerForwardGate): true, wenn mindestens

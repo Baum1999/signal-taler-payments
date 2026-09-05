@@ -489,6 +489,17 @@ abstract class PushSendJob protected constructor(parameters: Parameters) : BaseJ
     return SignalServiceDataMessage.PollTerminate(pollTerminate.targetTimestamp)
   }
 
+  protected fun getTalerPayment(message: OutgoingMessage): SignalServiceDataMessage.TalerPayment? {
+    val talerPayment = message.talerPayment ?: return null
+    return SignalServiceDataMessage.TalerPayment(
+      uris = talerPayment.uris,
+      version = talerPayment.version,
+      isGroupSplit = talerPayment.isGroupSplit,
+      includeSelf = talerPayment.includeSelf,
+      totalAmount = talerPayment.totalAmount
+    )
+  }
+
   protected fun getBodyRanges(bodyRanges: BodyRangeList?): List<BodyRange>? {
     if (bodyRanges == null || bodyRanges.ranges.isEmpty()) {
       return null

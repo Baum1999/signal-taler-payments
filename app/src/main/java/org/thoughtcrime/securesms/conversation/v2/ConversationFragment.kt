@@ -349,11 +349,16 @@ import org.thoughtcrime.securesms.stickers.manage.StickerManagementScreen
 import org.thoughtcrime.securesms.stickers.preview.StickerPackPreviewActivity
 import org.thoughtcrime.securesms.stories.StoryViewerArgs
 import org.thoughtcrime.securesms.stories.viewer.StoryViewerActivity
+import org.thoughtcrime.securesms.taler.TalerAcceptRejectActions
 import org.thoughtcrime.securesms.taler.TalerAllowlist
 import org.thoughtcrime.securesms.taler.TalerForwardGate
+import org.thoughtcrime.securesms.taler.TalerMenuActions
+import org.thoughtcrime.securesms.taler.TalerMenuGate
+import org.thoughtcrime.securesms.taler.TalerMenuState
 import org.thoughtcrime.securesms.taler.TalerRefundActions
 import org.thoughtcrime.securesms.taler.TalerSendActions
 import org.thoughtcrime.securesms.taler.TalerUriDetector
+import net.taler.wallet.link.TalerUriKind
 import org.thoughtcrime.securesms.util.BubbleUtil
 import org.thoughtcrime.securesms.util.CommunicationActions
 import org.thoughtcrime.securesms.util.ConversationUtil
@@ -2732,6 +2737,14 @@ class ConversationFragment :
 
     val items = arrayListOf<ActionItem>()
 
+    // GNU-Fork (Signal-Taler-Integration): Taler-Aktionen nur bei genau einer
+    // ausgewaehlten Nachricht (analog zu Bearbeiten/Details oben), dieselben
+    // Ziel-Berechnungen wie im Long-Press-Menue (ConversationReactionOverlay).
+    val talerSelectedRecords = selectedParts.map { it.conversationMessage.messageRecord }.distinct()
+    val talerMessageRecord = talerSelectedRecords.singleOrNull()
+    val isTalerMessage = talerMessageRecord != null && TalerMenuGate.messageHasTalerUris(talerMessageRecord)
+    val talerMenuTargets = if (talerMessageRecord != null && isTalerMessage) TalerMenuState.compute(requireContext(), talerMessageRecord) else null
+
     if (menuState.shouldShowReplyAction()) {
       items.add(
         ActionItem(R.drawable.symbol_reply_24, resources.getString(R.string.conversation_selection__menu_reply)) {
@@ -2759,6 +2772,21 @@ class ConversationFragment :
       )
     }
 
+    if (isTalerMessage) {
+      items.add(
+        ActionItem(CoreUiR.drawable.symbol_forward_24, resources.getString(R.string.TalerFork_forward_as_image)) {
+          handleTalerForwardAsImage(getSelectedConversationMessage())
+          finishActionMode()
+        }
+      )
+      items.add(
+        ActionItem(CoreUiR.drawable.symbol_forward_24, resources.getString(R.string.TalerFork_forward_as_text)) {
+          handleTalerForwardAsText(getSelectedConversationMessage())
+          finishActionMode()
+        }
+      )
+    }
+
     if (menuState.shouldShowSaveAttachmentAction()) {
       items.add(
         ActionItem(CoreUiR.drawable.symbol_save_android_24, resources.getString(R.string.conversation_selection__menu_save)) {
@@ -2775,6 +2803,56 @@ class ConversationFragment :
           finishActionMode()
         }
       )
+    }
+
+    if (isTalerMessage && talerMessageRecord != null) {
+      items.add(
+        ActionItem(CoreUiR.drawable.symbol_copy_android_24, resources.getString(R.string.TalerFork_copy_as_image)) {
+          TalerMenuActions.onCopyAsImageFromMenu(requireContext(), viewLifecycleOwner, talerMessageRecord)
+          finishActionMode()
+        }
+      )
+      items.add(
+        ActionItem(CoreUiR.drawable.symbol_copy_android_24, resources.getString(R.string.TalerFork_copy_as_text)) {
+          TalerMenuActions.onCopyAsTextFromMenu(requireContext(), talerMessageRecord)
+          finishActionMode()
+        }
+      )
+    }
+
+    if (talerMenuTargets != null && talerMessageRecord != null) {
+      if (talerMenuTargets.showReject) {
+        items.add(
+          ActionItem(CoreUiR.drawable.symbol_x_24, resources.getString(R.string.TalerFork_action_reject)) {
+            TalerMenuActions.onRejectFromMenu(requireContext(), talerMessageRecord)
+            finishActionMode()
+          }
+        )
+      }
+      if (talerMenuTargets.showCancel) {
+        items.add(
+          ActionItem(CoreUiR.drawable.symbol_x_24, resources.getString(R.string.TalerFork_action_cancel)) {
+            TalerMenuActions.onCancelFromMenu(requireContext(), talerMessageRecord)
+            finishActionMode()
+          }
+        )
+      }
+      if (talerMenuTargets.showRefresh) {
+        items.add(
+          ActionItem(R.drawable.symbol_refresh_24, resources.getString(R.string.TalerFork_action_refresh)) {
+            TalerMenuActions.onRefreshFromMenu(requireContext(), talerMessageRecord)
+            finishActionMode()
+          }
+        )
+      }
+      if (talerMenuTargets.showRefund) {
+        items.add(
+          ActionItem(R.drawable.symbol_payment_24, resources.getString(R.string.TalerFork_action_refund)) {
+            TalerMenuActions.onRefundFromMenu(requireContext(), talerMessageRecord)
+            finishActionMode()
+          }
+        )
+      }
     }
 
     if (menuState.shouldShowDetailsAction()) {
@@ -3078,34 +3156,48 @@ class ConversationFragment :
   private fun handleForwardMessageParts(messageParts: Set<MultiselectPart>) {
     inputPanel.clearQuote()
 
-    // GNU-Fork (Signal-Taler-Integration, Meilenstein 6; REVIEW.md H4-Muster):
-    // Interstitial nur, wenn die Auswahl genau eine Nachricht mit mindestens
-    // einer Taler-URI ist (das schliesst Gruppen-Split-Nachrichten mit
-    // mehreren URIs ein) - siehe TalerForwardGate fuer die Begruendung und
-    // alle anderen Faelle bleiben unveraendert.
-    val talerForward = TalerForwardGate.detectTalerForward(messageParts)
-    if (talerForward != null) {
-      TalerForwardGate.showChoiceDialog(
-        context = requireContext(),
-        uris = talerForward.uris,
-        onForwardAsText = {
-          MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
-            MultiselectForwardFragment.showBottomSheet(childFragmentManager, args)
-          }
-        },
-        onForwardAsImage = {
-          MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
-            TalerForwardGate.attachPaymentSnapshot(requireContext(), viewLifecycleOwner, talerForward, args) { imaged ->
-              MultiselectForwardFragment.showBottomSheet(childFragmentManager, imaged)
-            }
-          }
-        },
-      )
-      return
-    }
-
+    // GNU-Fork (Signal-Taler-Integration): fuer eine Auswahl mit mindestens
+    // einer Taler-URI zeigt das Long-Press-Menue/die Mehrfachauswahl-Toolbar
+    // direkt zwei eigene Eintraege ("Weiterleiten als Bild"/"als Transkript",
+    // siehe handleTalerForwardAsImage/handleTalerForwardAsText) statt dieses
+    // Standard-Forward-Eintrags (MenuState unterdrueckt ihn dafuer bereits) -
+    // dieser Pfad wird fuer Taler-Nachrichten also gar nicht mehr erreicht.
     MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
       MultiselectForwardFragment.showBottomSheet(childFragmentManager, args)
+    }
+  }
+
+  /**
+   * "Weiterleiten als Transkript": traegt die rohe(n) URI(s) unveraendert
+   * weiter (bestehendes Standardverhalten von buildMultiShareArgs) - mit
+   * kurzer Bestaetigung, wenn mindestens einer der Anteile noch OFFEN ist
+   * (TalerForwardGate.forwardAsText), weil damit ein Inhaberpapier
+   * weitergegeben wird.
+   */
+  private fun handleTalerForwardAsText(conversationMessage: ConversationMessage) {
+    val messageParts = conversationMessage.multiselectCollection.toSet()
+    val talerForward = TalerForwardGate.detectTalerForward(messageParts) ?: return
+    inputPanel.clearQuote()
+    TalerForwardGate.forwardAsText(requireContext(), talerForward) {
+      MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
+        MultiselectForwardFragment.showBottomSheet(childFragmentManager, args)
+      }
+    }
+  }
+
+  /**
+   * "Weiterleiten als Bild": rendert einen Schnappschuss der Zahlungskarte
+   * statt der rohen URI(s) weiterzugeben - kein Inhaberpapier-Risiko, daher
+   * keine Bestaetigung noetig.
+   */
+  private fun handleTalerForwardAsImage(conversationMessage: ConversationMessage) {
+    val messageParts = conversationMessage.multiselectCollection.toSet()
+    val talerForward = TalerForwardGate.detectTalerForward(messageParts) ?: return
+    inputPanel.clearQuote()
+    MultiselectForwardFragmentArgs.create(requireContext(), messageParts) { args ->
+      TalerForwardGate.attachPaymentSnapshot(requireContext(), viewLifecycleOwner, talerForward, args) { imaged ->
+        MultiselectForwardFragment.showBottomSheet(childFragmentManager, imaged)
+      }
     }
   }
 
@@ -3194,6 +3286,7 @@ class ConversationFragment :
     ).observeOn(AndroidSchedulers.mainThread())
       .subscribe { (deleted: Boolean, _: Boolean) ->
         if (!deleted) return@subscribe
+        TalerAcceptRejectActions.cancelCancelablePaymentsForDeletedMessages(requireContext(), records)
         val editMessageId = inputPanel.editMessageId?.id
         if (editMessageId != null && records.any { it.id == editMessageId }) {
           inputPanel.exitEditMessageMode()
@@ -4588,6 +4681,14 @@ class ConversationFragment :
         ConversationReactionOverlay.Action.UNPIN_MESSAGE -> handleUnpinMessage(conversationMessage.messageRecord.id)
         ConversationReactionOverlay.Action.STAR_MESSAGE -> handleStarMessages(setOf(conversationMessage.messageRecord.id))
         ConversationReactionOverlay.Action.UNSTAR_MESSAGE -> handleUnstarMessages(setOf(conversationMessage.messageRecord.id))
+        ConversationReactionOverlay.Action.TALER_REJECT -> TalerMenuActions.onRejectFromMenu(requireContext(), conversationMessage.messageRecord)
+        ConversationReactionOverlay.Action.TALER_CANCEL -> TalerMenuActions.onCancelFromMenu(requireContext(), conversationMessage.messageRecord)
+        ConversationReactionOverlay.Action.TALER_REFRESH -> TalerMenuActions.onRefreshFromMenu(requireContext(), conversationMessage.messageRecord)
+        ConversationReactionOverlay.Action.TALER_REFUND -> TalerMenuActions.onRefundFromMenu(requireContext(), conversationMessage.messageRecord)
+        ConversationReactionOverlay.Action.TALER_FORWARD_IMAGE -> handleTalerForwardAsImage(conversationMessage)
+        ConversationReactionOverlay.Action.TALER_FORWARD_TEXT -> handleTalerForwardAsText(conversationMessage)
+        ConversationReactionOverlay.Action.TALER_COPY_IMAGE -> TalerMenuActions.onCopyAsImageFromMenu(requireContext(), viewLifecycleOwner, conversationMessage.messageRecord)
+        ConversationReactionOverlay.Action.TALER_COPY_TEXT -> TalerMenuActions.onCopyAsTextFromMenu(requireContext(), conversationMessage.messageRecord)
       }
     }
   }
@@ -5208,7 +5309,9 @@ class ConversationFragment :
 
           AttachmentKeyboardButton.PAYMENT -> AttachmentManager.selectPayment(this@ConversationFragment, recipient)
 
-          AttachmentKeyboardButton.TALER_SEND -> TalerSendActions.onSendClicked(requireContext(), recipient, viewModel.threadId)
+          AttachmentKeyboardButton.TALER_SEND -> TalerSendActions.onSendClicked(requireContext(), recipient, viewModel.threadId, TalerUriKind.PAY_PUSH)
+
+          AttachmentKeyboardButton.TALER_REQUEST -> TalerSendActions.onSendClicked(requireContext(), recipient, viewModel.threadId, TalerUriKind.PAY_PULL)
 
           AttachmentKeyboardButton.FILE -> {
             if (!conversationActivityResultContracts.launchSelectFile()) {

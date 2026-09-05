@@ -42,6 +42,9 @@ class GroupClaimTracker(private val prefs: SharedPreferences) {
 
   fun hasClaimedAny(uris: List<String>): Boolean = uris.any { prefs.contains(it) }
 
+  /** Teilmenge von [uris], die dieses Geraet selbst beansprucht hat. */
+  fun claimedOf(uris: List<String>): Set<String> = uris.filter { prefs.contains(it) }.toSet()
+
   companion object {
     private const val PREFS_NAME = "taler_group_claims"
   }

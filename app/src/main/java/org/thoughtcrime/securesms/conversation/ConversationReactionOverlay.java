@@ -41,6 +41,9 @@ import org.thoughtcrime.securesms.database.model.MessageRecord;
 import org.thoughtcrime.securesms.database.model.ReactionRecord;
 import org.thoughtcrime.securesms.keyvalue.SignalStore;
 import org.thoughtcrime.securesms.recipients.Recipient;
+import org.thoughtcrime.securesms.taler.TalerMenuGate;
+import org.thoughtcrime.securesms.taler.TalerMenuState;
+import org.thoughtcrime.securesms.taler.TalerMenuTargets;
 import org.thoughtcrime.securesms.util.ViewUtil;
 
 import java.util.ArrayList;
@@ -678,6 +681,15 @@ public final class ConversationReactionOverlay extends FrameLayout {
 
     List<ActionItem> items = new ArrayList<>();
 
+    // GNU-Fork (Signal-Taler-Integration): fuer eine Taler-Zahlungsnachricht
+    // ersetzen die Taler-spezifischen Eintraege unten den Standard-Forward-/
+    // Copy-Eintrag (MenuState unterdrueckt beide bereits ueber hasTalerPayment)
+    // und ergaenzen Ablehnen/Abbrechen/Aktualisieren/Rueckerstatten, die zuvor
+    // Buttons auf der Karte waren (siehe TalerPaymentCardPresenter/Plan).
+    MessageRecord talerMessageRecord = conversationMessage.getMessageRecord();
+    boolean isTalerMessage = TalerMenuGate.INSTANCE.messageHasTalerUris(talerMessageRecord);
+    TalerMenuTargets talerMenuTargets = isTalerMessage ? TalerMenuState.INSTANCE.compute(getContext(), talerMessageRecord) : null;
+
     if (menuState.shouldShowReplyAction()) {
       items.add(new ActionItem(R.drawable.symbol_reply_24, getResources().getString(R.string.conversation_selection__menu_reply), () -> handleActionItemClicked(Action.REPLY)));
     }
@@ -688,6 +700,11 @@ public final class ConversationReactionOverlay extends FrameLayout {
 
     if (menuState.shouldShowForwardAction()) {
       items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_forward_24, getResources().getString(R.string.conversation_selection__menu_forward), () -> handleActionItemClicked(Action.FORWARD)));
+    }
+
+    if (isTalerMessage) {
+      items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_forward_24, getResources().getString(R.string.TalerFork_forward_as_image), () -> handleActionItemClicked(Action.TALER_FORWARD_IMAGE)));
+      items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_forward_24, getResources().getString(R.string.TalerFork_forward_as_text), () -> handleActionItemClicked(Action.TALER_FORWARD_TEXT)));
     }
 
     if (menuState.shouldShowResendAction()) {
@@ -702,8 +719,28 @@ public final class ConversationReactionOverlay extends FrameLayout {
       items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_copy_android_24, getResources().getString(R.string.conversation_selection__menu_copy), () -> handleActionItemClicked(Action.COPY)));
     }
 
+    if (isTalerMessage) {
+      items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_copy_android_24, getResources().getString(R.string.TalerFork_copy_as_image), () -> handleActionItemClicked(Action.TALER_COPY_IMAGE)));
+      items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_copy_android_24, getResources().getString(R.string.TalerFork_copy_as_text), () -> handleActionItemClicked(Action.TALER_COPY_TEXT)));
+    }
+
     if (menuState.shouldShowPaymentDetails()) {
       items.add(new ActionItem(R.drawable.symbol_payment_24, getResources().getString(R.string.conversation_selection__menu_payment_details), () -> handleActionItemClicked(Action.PAYMENT_DETAILS)));
+    }
+
+    if (talerMenuTargets != null) {
+      if (talerMenuTargets.getShowReject()) {
+        items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_x_24, getResources().getString(R.string.TalerFork_action_reject), () -> handleActionItemClicked(Action.TALER_REJECT)));
+      }
+      if (talerMenuTargets.getShowCancel()) {
+        items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_x_24, getResources().getString(R.string.TalerFork_action_cancel), () -> handleActionItemClicked(Action.TALER_CANCEL)));
+      }
+      if (talerMenuTargets.getShowRefresh()) {
+        items.add(new ActionItem(R.drawable.symbol_refresh_24, getResources().getString(R.string.TalerFork_action_refresh), () -> handleActionItemClicked(Action.TALER_REFRESH)));
+      }
+      if (talerMenuTargets.getShowRefund()) {
+        items.add(new ActionItem(R.drawable.symbol_payment_24, getResources().getString(R.string.TalerFork_action_refund), () -> handleActionItemClicked(Action.TALER_REFUND)));
+      }
     }
 
     items.add(new ActionItem(org.signal.core.ui.R.drawable.symbol_check_circle_24, getResources().getString(R.string.conversation_selection__menu_multi_select), () -> handleActionItemClicked(Action.MULTISELECT)));
@@ -923,6 +960,18 @@ public final class ConversationReactionOverlay extends FrameLayout {
     PIN_MESSAGE,
     UNPIN_MESSAGE,
     STAR_MESSAGE,
-    UNSTAR_MESSAGE
+    UNSTAR_MESSAGE,
+    // GNU-Fork (Signal-Taler-Integration): Aktionen, die von der Zahlungskarte
+    // ins Long-Press-Menue verschoben wurden (siehe TalerMenuState/
+    // TalerMenuActions), plus die Weiterleiten-/Kopieren-Varianten, die den
+    // Standard-Forward-/Copy-Eintrag fuer Taler-Nachrichten ersetzen.
+    TALER_REJECT,
+    TALER_CANCEL,
+    TALER_REFRESH,
+    TALER_REFUND,
+    TALER_FORWARD_IMAGE,
+    TALER_FORWARD_TEXT,
+    TALER_COPY_IMAGE,
+    TALER_COPY_TEXT
   }
 }

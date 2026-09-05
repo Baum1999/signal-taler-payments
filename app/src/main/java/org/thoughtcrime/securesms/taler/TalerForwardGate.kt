@@ -68,30 +68,30 @@ object TalerForwardGate {
   }
 
   /**
-   * Zeigt die Wahl zwischen "Als Text" (rohe URI(s), [onForwardAsText]) und
-   * "Als Bild" (Schnappschuss, [onForwardAsImage]) - beide immer verfuegbar.
-   * Die Claim-Warnung erscheint, sobald mindestens einer der [uris] noch
-   * OFFEN ist (siehe [anyOpen]).
+   * "Weiterleiten als Transkript" (rohe URI(s), bestehendes
+   * buildMultiShareArgs-Standardverhalten) - direkt aus dem Long-Press-Menue
+   * angestossen (kein vorgeschalteter Auswahl-Dialog mehr, siehe Plan
+   * "Aktionen ins Long-Press-Menue verschieben"). Zeigt vorher eine kurze
+   * Bestaetigung, sobald mindestens einer der [TalerForwardCandidate.uris]
+   * noch OFFEN ist (siehe [anyOpen]) - nur dieser Weg traegt ein
+   * Inhaberpapier-Risiko weiter, "als Bild" (siehe [attachPaymentSnapshot])
+   * nicht.
    */
-  fun showChoiceDialog(
+  fun forwardAsText(
     context: Context,
-    uris: List<String>,
-    onForwardAsText: () -> Unit,
-    onForwardAsImage: () -> Unit,
+    candidate: TalerForwardCandidate,
+    onProceed: () -> Unit,
   ) {
-    val statuses = uris.map { SignalDatabase.talerPayments.getByUri(it)?.status }
-    val isOpen = anyOpen(statuses)
-
-    val builder = AlertDialog.Builder(context)
-      .setTitle(R.string.TalerFork_forward_choice_title)
-      .setNegativeButton(R.string.TalerFork_send_dialog_cancel, null)
-      .setPositiveButton(R.string.TalerFork_forward_as_text) { _, _ -> onForwardAsText() }
-      .setNeutralButton(R.string.TalerFork_forward_as_image) { _, _ -> onForwardAsImage() }
-
-    if (isOpen) {
-      builder.setMessage(R.string.TalerFork_forward_payment_warning)
+    val statuses = candidate.uris.map { SignalDatabase.talerPayments.getByUri(it)?.status }
+    if (anyOpen(statuses)) {
+      AlertDialog.Builder(context)
+        .setMessage(R.string.TalerFork_forward_payment_warning)
+        .setNegativeButton(R.string.TalerFork_send_dialog_cancel, null)
+        .setPositiveButton(R.string.TalerFork_forward_as_text) { _, _ -> onProceed() }
+        .show()
+    } else {
+      onProceed()
     }
-    builder.show()
   }
 
   /**
@@ -125,6 +125,7 @@ object TalerForwardGate {
             threadId = candidate.record.threadId,
             sender = candidate.record.fromRecipient,
             messageBody = candidate.record.body,
+            messageId = candidate.record.id,
           )
         } else {
           val record = SignalDatabase.talerPayments.getByUri(candidate.uris.single())

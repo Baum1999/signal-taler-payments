@@ -77,30 +77,4 @@ class TalerPaymentDataTest {
   fun `blank text returns empty list`() {
     assertEquals(emptyList<String>(), urisFromMessageBody(""))
   }
-
-  @Test
-  fun `recipientAcis survives a JSON round-trip in sorted order`() {
-    val paymentData = TalerPaymentData(
-      legacyText = "fallback",
-      uri = listOf(
-        "taler://pay-push/exchange.example/AAA",
-        "taler://pay-push/exchange.example/BBB",
-      ),
-      recipientAcis = listOf("aci-b", "aci-c"),
-    )
-    val body = Json.encodeToString(paymentData)
-    val decoded = Json.decodeFromString<TalerPaymentData>(body)
-    assertEquals(listOf("aci-b", "aci-c"), decoded.recipientAcis)
-  }
-
-  @Test
-  fun `recipientAcis defaults to null for messages without it, e g plain single payments`() {
-    val paymentData = TalerPaymentData(
-      legacyText = "fallback",
-      uri = listOf("taler://pay-push/exchange.example/AAA"),
-    )
-    val body = Json.encodeToString(paymentData)
-    val decoded = Json.decodeFromString<TalerPaymentData>(body)
-    assertEquals(null, decoded.recipientAcis)
-  }
 }

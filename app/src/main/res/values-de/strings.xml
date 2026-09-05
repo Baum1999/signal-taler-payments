@@ -10063,5 +10063,23 @@
 
     <string name="TalerFork_confirmation_icon_content_description">GNU-Taler-Zahlungsbestätigung</string>
 
+    <string name="TalerFork_action_refund">Rückerstatten</string>
+    <string name="TalerFork_send_dialog_cancel">Abbrechen</string>
+
+    <string name="TalerFork_forward_choice_title">Taler-Zahlung weiterleiten</string>
+    <string name="TalerFork_forward_as_text">Als Transkript weiterleiten</string>
+    <string name="TalerFork_forward_as_image">Als Bild weiterleiten</string>
+    <string name="TalerFork_forward_payment_warning">Dies leitet eine noch nicht eingelöste Zahlung weiter. Wer den Link zuerst öffnet, kann das Geld beanspruchen.</string>
+
+    <string name="TalerFork_copy_as_image">Als Bild kopieren</string>
+    <string name="TalerFork_copy_as_text">Als Transkript kopieren</string>
+
+    <string name="TalerFork_details_uri_label">Zahlungslink</string>
+    <string name="TalerFork_details_total_label">Gesamtbetrag</string>
+    <string name="TalerFork_details_detected_at">Auf diesem Gerät erkannt am</string>
+    <string name="TalerFork_details_status_pending">Status wird geprüft…</string>
+
+    <string name="TalerFork_quote_group_summary">Geteilte Zahlung · %1$d Anteile</string>
+
     <!-- EOF -->
 </resources>

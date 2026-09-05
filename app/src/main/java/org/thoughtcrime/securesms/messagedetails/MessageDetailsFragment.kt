@@ -31,6 +31,7 @@ import org.thoughtcrime.securesms.conversation.colors.ColorizerV2
 import org.thoughtcrime.securesms.conversation.colors.RecyclerViewColorizer
 import org.thoughtcrime.securesms.conversation.mutiselect.MultiselectPart
 import org.thoughtcrime.securesms.conversation.ui.edit.EditMessageHistoryDialog.Companion.show
+import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.model.InMemoryMessageRecord
 import org.thoughtcrime.securesms.database.model.MessageId
 import org.thoughtcrime.securesms.database.model.MessageRecord
@@ -50,8 +51,15 @@ import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.recipients.RecipientId
 import org.thoughtcrime.securesms.safety.SafetyNumberBottomSheet.forOutgoingMessageRecord
 import org.thoughtcrime.securesms.stickers.StickerLocator
+import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
+import org.thoughtcrime.securesms.taler.computeVerifiedTotal
+import org.thoughtcrime.securesms.taler.parsePaymentDataOrNull
+import org.thoughtcrime.securesms.taler.urisFromMessageBody
+import org.thoughtcrime.securesms.util.DateUtils
 import org.thoughtcrime.securesms.util.Material3OnScrollHelper
 import org.thoughtcrime.securesms.util.fragments.requireListener
+import java.util.Date
+import java.util.Locale
 
 class MessageDetailsFragment : Fragment(), MessageDetailsAdapter.Callbacks {
   private lateinit var requestManager: RequestManager
@@ -128,6 +136,10 @@ class MessageDetailsFragment : Fragment(), MessageDetailsAdapter.Callbacks {
       list.add(MessageDetailsViewState(details.conversationMessage.messageRecord, MessageDetailsViewState.EDIT_HISTORY))
     }
 
+    buildTalerPaymentDetailsRow(details.conversationMessage.messageRecord)?.let { row ->
+      list.add(MessageDetailsViewState(row, MessageDetailsViewState.TALER_PAYMENT))
+    }
+
     if (details.conversationMessage.messageRecord.isOutgoing) {
       addRecipients(list, RecipientHeader.NOT_SENT, details.notSent)
       addRecipients(list, RecipientHeader.VIEWED, details.viewed)
@@ -141,6 +153,54 @@ class MessageDetailsFragment : Fragment(), MessageDetailsAdapter.Callbacks {
     }
 
     return list
+  }
+
+  /**
+   * GNU-Fork (Signal-Taler-Integration): pro Taler-URI der Nachricht eine
+   * Kurzinfo (URI/Status/Betrag/lokale Erkennungszeit) fuer den
+   * Nachrichtendetails-Screen - null, wenn der Nachrichtenkoerper keine
+   * Taler-URI traegt. Bei mehreren URIs (Gruppen-Split) zusaetzlich eine
+   * verifizierte Gesamtsumme, nur wenn GroupSplitCard.computeVerifiedTotal
+   * sie bestaetigen konnte (dieselbe Fail-Safe-Regel wie auf der
+   * Sammelkarte).
+   */
+  private fun buildTalerPaymentDetailsRow(messageRecord: MessageRecord): TalerPaymentDetailsRow? {
+    val uris = urisFromMessageBody(messageRecord.body)
+    if (uris.isEmpty()) return null
+
+    val context = requireContext()
+    val dateFormatter = DateUtils.getDetailedDateFormatter(context, Locale.getDefault())
+    val records = uris.map { SignalDatabase.talerPayments.getByUri(it) }
+
+    val entries = uris.zip(records).map { (uri, record) ->
+      TalerPaymentDetailsEntry(
+        shortUri = shortenTalerUri(uri),
+        statusLabel = record?.let { TalerPaymentCardPresenter.plainStatusLabel(context, it.status) }
+          ?: context.getString(R.string.TalerFork_details_status_pending),
+        amountLabel = record?.amount?.let { amount -> "${amount.replace(".", ",")} ${record.currency.orEmpty()}".trim() },
+        detectedAtLabel = record?.let { dateFormatter.format(Date(it.createdAt)) }
+      )
+    }
+
+    val totalLabel = if (uris.size > 1) {
+      val paymentData = parsePaymentDataOrNull(messageRecord.body)
+      val representativeRecord = records.firstNotNullOfOrNull { it }
+      val verifiedTotal = computeVerifiedTotal(
+        totalAmount = paymentData?.totalAmount,
+        includeSelf = paymentData?.includeSelf,
+        uriCount = uris.size,
+        perShareAmount = representativeRecord?.amount
+      )
+      verifiedTotal?.let { "${it.toPlainString().replace(".", ",")} ${representativeRecord?.currency.orEmpty()}".trim() }
+    } else {
+      null
+    }
+
+    return TalerPaymentDetailsRow(entries, totalLabel)
+  }
+
+  private fun shortenTalerUri(uri: String): String {
+    return if (uri.length <= 48) uri else uri.take(28) + "…" + uri.takeLast(12)
   }
 
   private fun addRecipients(list: MutableList<MessageDetailsViewState<*>>, header: RecipientHeader, recipients: Collection<RecipientDeliveryStatus>): Boolean {

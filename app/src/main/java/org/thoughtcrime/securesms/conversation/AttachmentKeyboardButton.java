@@ -11,6 +11,7 @@ public enum AttachmentKeyboardButton {
   FILE(R.string.AttachmentKeyboard_file, R.drawable.symbol_file_24),
   PAYMENT(R.string.AttachmentKeyboard_payment, R.drawable.symbol_payment_24),
   TALER_SEND(R.string.AttachmentKeyboard_taler_send, R.drawable.ic_taler_logo_24),
+  TALER_REQUEST(R.string.AttachmentKeyboard_taler_request, R.drawable.ic_taler_logo_24),
   CONTACT(R.string.AttachmentKeyboard_contact, org.signal.core.ui.R.drawable.symbol_person_circle_24),
   LOCATION(R.string.AttachmentKeyboard_location, R.drawable.symbol_location_circle_24),
   POLL(R.string.AttachmentKeyboard_poll, R.drawable.symbol_poll_24);

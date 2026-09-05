@@ -11,9 +11,7 @@ import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.conversation.ConversationIntents
 import org.thoughtcrime.securesms.database.SignalDatabase
-import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.mms.OutgoingMessage
-import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.sms.MessageSender
 import kotlin.time.Duration.Companion.seconds
 
@@ -213,10 +211,15 @@ class TalerReturnActivity : Activity() {
         is TalerLinkResult.KeinConsent,
         is TalerLinkResult.Fehler -> return@execute
       }
-      if (preview.uriKind != TalerUriKind.PAY_PUSH) return@execute
+      if (preview.uriKind != TalerUriKind.PAY_PUSH && preview.uriKind != TalerUriKind.PAY_PULL) return@execute
 
-      val kindLabel = TalerPaymentCardPresenter.kindLabel(appContext, TalerUriKind.PAY_PUSH.name)
-      val body = appContext.getString(messageRes, kindLabel, uri)
+      val kindLabel = TalerPaymentCardPresenter.kindLabel(appContext, preview.uriKind.name)
+      val resolvedMessageRes = if (preview.uriKind == TalerUriKind.PAY_PULL) {
+        R.string.TalerFork_request_message
+      } else {
+        messageRes
+      }
+      val body = appContext.getString(resolvedMessageRes, kindLabel, uri)
 
       val message = OutgoingMessage(
         threadRecipient = recipient,
@@ -230,9 +233,12 @@ class TalerReturnActivity : Activity() {
   }
 
   /**
-   * Sendet eine Zahlungsnachricht mit JSON-Format (für Gruppen-Split-Transaktionen).
-   * Verwende JSON statt plain URI, um Metadaten wie includeSelf und totalAmount
-   * zu transportieren.
+   * Sendet eine Zahlungsnachricht mit strukturierten Metadaten (fuer
+   * Gruppen-Split-Transaktionen: includeSelf, totalAmount). Die Struktur
+   * geht ueber DataMessage.talerPayment (Feld 9000, SignalService.proto),
+   * nicht mehr als JSON in `body` - `body` traegt nur noch die rohen URIs
+   * plus den Legacy-Text in Klartext, fuer Clients ohne Kenntnis dieses
+   * Feldes (docs/API.md).
    */
   private fun sendComposedPaymentWithData(threadId: Long, paymentData: TalerPaymentData) {
     val appContext = applicationContext
@@ -261,36 +267,27 @@ class TalerReturnActivity : Activity() {
         if (preview.uriKind != TalerUriKind.PAY_PUSH) return@execute
       }
 
-      // Gruppen-Split (Meilenstein 4, PROMPT_parallel_group_split.md): jeder
-      // Empfaenger-Client braucht recipientAcis, um per resolveGroupCardRole()
-      // die eigene Rolle und einen deterministischen Start-Index fuer
-      // resolveTargetUri() zu bestimmen (GroupSplitCard.kt) - nur bei
-      // tatsaechlichem Gruppen-Split (>1 URI an eine Gruppe) gesetzt, eine
-      // regulaere Einzelzahlung bleibt unveraendert (null). Sender selbst
-      // braucht keinen Slot: der wird ueber ACI-Gleichheit mit dem Absender
-      // als Creator erkannt, nicht ueber diese Liste. Sortiert fuer eine
-      // Reihenfolge, auf die sich alle Geraete unabhaengig einigen.
-      val effectivePaymentData = if (recipient.isGroup && paymentData.uri.size > 1) {
-        val selfAci = SignalStore.account.requireAci().toString()
-        val recipientAcis = recipient.participantIds
-          .map { Recipient.resolved(it) }
-          .mapNotNull { if (it.aci.isPresent) it.aci.get().toString() else null }
-          .filter { it != selfAci }
-          .sorted()
-        paymentData.copy(recipientAcis = recipientAcis)
-      } else {
-        paymentData
-      }
+      val isGroupSplit = recipient.isGroup && paymentData.uri.size > 1
+      val talerPayment = TalerPaymentPayload(
+        uris = paymentData.uri,
+        version = paymentData.version,
+        isGroupSplit = isGroupSplit,
+        includeSelf = paymentData.includeSelf,
+        totalAmount = paymentData.totalAmount
+      )
 
-      // Verwende das JSON-Objekt direkt als Nachrichtenkörper
-      val body = Json.encodeToString(effectivePaymentData)
+      // body traegt die rohen URIs (eine pro Zeile, damit TalerUriDetector
+      // sie einzeln findet) gefolgt vom Legacy-Text - fuer Clients ohne
+      // Kenntnis von DataMessage.talerPayment.
+      val body = paymentData.uri.joinToString("\n") + "\n\n" + paymentData.legacyText
 
       val message = OutgoingMessage(
         threadRecipient = recipient,
         body = body,
         sentTimeMillis = System.currentTimeMillis(),
         expiresIn = recipient.expiresInSeconds.seconds.inWholeMilliseconds,
-        isSecure = true
+        isSecure = true,
+        talerPayment = talerPayment
       )
       MessageSender.send(appContext, message, threadId, MessageSender.SendType.SIGNAL, null, null)
     }

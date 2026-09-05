@@ -16,6 +16,7 @@ import org.thoughtcrime.securesms.linkpreview.LinkPreview
 import org.thoughtcrime.securesms.polls.Poll
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.sms.GroupV2UpdateMessageUtil
+import org.thoughtcrime.securesms.taler.TalerPaymentPayload
 import kotlin.time.Duration.Companion.seconds
 
 /**
@@ -60,7 +61,8 @@ data class OutgoingMessage(
   val isUnblocked: Boolean = false,
   val poll: Poll? = null,
   val messageExtras: MessageExtras? = null,
-  val isSelfGroupAdd: Boolean = false
+  val isSelfGroupAdd: Boolean = false,
+  val talerPayment: TalerPaymentPayload? = null
 ) {
 
   val isV2Group: Boolean = messageGroupContext != null && GroupV2UpdateMessageUtil.isGroupV2(messageGroupContext)

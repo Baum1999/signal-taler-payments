@@ -1037,8 +1037,16 @@ object DataMessageProcessor {
         batchCache.addIncomingMessageInsertThreadUpdate(insertResult.threadId)
       }
       AppDependencies.messageNotifier.updateNotification(context, ConversationId.forConversation(insertResult.threadId))
-      // Track Taler URIs in all chat types (1:1, group, self)
-      TalerPaymentTracker.trackUrisInBody(body, insertResult.threadId)
+      // Track Taler URIs in all chat types (1:1, group, self). Prefer the
+      // structured talerPayment field (9000) when present - only messages
+      // sent before this feature shipped (or by a foreign client) fall back
+      // to deriving URIs from the plaintext body.
+      val talerPayment = message.talerPayment
+      if (talerPayment != null) {
+        TalerPaymentTracker.trackStructuredPayment(talerPayment, insertResult.messageId, insertResult.threadId)
+      } else {
+        TalerPaymentTracker.trackUrisInBody(body, insertResult.threadId)
+      }
       // Bestaetigungsnachricht ("Zahlung fuer [Kind] akzeptiert") nur in 1:1-Chats
       // erkennen, spiegelbildlich zur Sendebedingung in
       // TalerUriRefreshJob.maybeSendAcceptConfirmation. Bug 2 Fix: Self-Chat
