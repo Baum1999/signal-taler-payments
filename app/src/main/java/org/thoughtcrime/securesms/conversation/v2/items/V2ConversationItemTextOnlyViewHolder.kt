@@ -51,6 +51,7 @@ import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.taler.TalerAcceptRejectActions
 import org.thoughtcrime.securesms.taler.TalerConfirmationIconPresenter
 import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
+import org.thoughtcrime.securesms.taler.urisFromMessageBody
 import org.thoughtcrime.securesms.util.InterceptableLongClickCopyLinkSpan
 import org.thoughtcrime.securesms.util.LongClickMovementMethod
 import org.thoughtcrime.securesms.util.MAX_BODY_DISPLAY_LENGTH
@@ -425,6 +426,17 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
     // Icon aus presentTalerConfirmationIcon() - der Rohtext wird verworfen,
     // nicht nur versteckt (kein Overflow/Highlight-Handling noetig).
     if (SignalDatabase.talerConfirmationMessages.getByMessageId(record.id) != null) {
+      binding.body.visible = false
+      binding.body.setOverflowText(null)
+      return
+    }
+
+    // GNU-Fork (Signal-Taler-Integration): Nachrichten mit Taler-Zahlungs-URI(s)
+    // zeigen ausschliesslich die Karte aus presentTalerCard() - der Rohtext
+    // (Klartext-URI bzw. JSON-Payload) bleibt weiterhin in record.body
+    // gespeichert, damit Legacy-Clients ohne Taler-Unterstuetzung ihn lesen
+    // koennen, wird hier aber nicht mehr zusaetzlich zur Karte angezeigt.
+    if (urisFromMessageBody(record.body).isNotEmpty()) {
       binding.body.visible = false
       binding.body.setOverflowText(null)
       return

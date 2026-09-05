@@ -6,6 +6,7 @@ import androidx.annotation.StringRes
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import net.taler.wallet.link.TalerUriKind
+import net.taler.wallet.link.TalerUriValidity
 import org.signal.core.util.concurrent.SignalExecutors
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
@@ -246,25 +247,24 @@ class TalerReturnActivity : Activity() {
       val recipient = SignalDatabase.threads.getRecipientForThreadId(threadId) ?: return@execute
       if (recipient.isSelf || !(recipient.isIndividual || recipient.isGroup)) return@execute
 
-      // Klassifiziere JEDE URI im paymentData (nicht nur die erste), um
-      // sicherzustellen, dass es sich um gueltige Taler-Pay-Push-URIs
-      // handelt. Zusaetzlicher Schutzmechanismus, falls das JSON manipuliert
-      // wurde - bei einem Gruppen-Split-Versand (Meilenstein 2,
-      // PROMPT_parallel_group_split.md) traegt paymentData.uri N Elemente;
-      // eine einzelne, davon abweichende ungueltige URI darf die anderen
-      // nicht unentdeckt mit durchrutschen lassen. Schlaegt auch nur eine
-      // Klassifizierung fehl, wird NICHTS verschickt (gleiche konservative
+      // Prueft JEDE URI im paymentData (nicht nur die erste) auf syntaktische
+      // Gueltigkeit - Schutzmechanismus, falls das JSON manipuliert wurde
+      // (Meilenstein 2, PROMPT_parallel_group_split.md). Bewusst nur die
+      // guenstige lokale Pruefung (validateUri, kein Exchange-Roundtrip) statt
+      // previewForUri: bei einem Gruppen-Split mit N Mitgliedern wuerde
+      // previewForUri N sequentielle Netzwerk-Roundtrips zum Exchange
+      // ausloesen und das Versenden spuerbar verzoegern. Schlaegt auch nur
+      // eine Pruefung fehl, wird NICHTS verschickt (gleiche konservative
       // Regel wie beim Einzel-URI-Pfad oben) - kein unvollstaendiges Paket.
       if (paymentData.uri.isEmpty()) return@execute
       for (uri in paymentData.uri) {
-        val preview = when (val result = runBlocking { TalerLinkClient(appContext).previewForUri(uri) }) {
-          is TalerLinkResult.Ergebnis -> result.value
+        when (val result = runBlocking { TalerLinkClient(appContext).validateUri(uri) }) {
+          is TalerLinkResult.Ergebnis -> if (result.value != TalerUriValidity.GUELTIG) return@execute
           is TalerLinkResult.NichtInstalliert,
           is TalerLinkResult.NichtVertrauenswuerdig,
           is TalerLinkResult.KeinConsent,
           is TalerLinkResult.Fehler -> return@execute
         }
-        if (preview.uriKind != TalerUriKind.PAY_PUSH) return@execute
       }
 
       val isGroupSplit = recipient.isGroup && paymentData.uri.size > 1
@@ -276,10 +276,11 @@ class TalerReturnActivity : Activity() {
         totalAmount = paymentData.totalAmount
       )
 
-      // body traegt die rohen URIs (eine pro Zeile, damit TalerUriDetector
-      // sie einzeln findet) gefolgt vom Legacy-Text - fuer Clients ohne
-      // Kenntnis von DataMessage.talerPayment.
-      val body = paymentData.uri.joinToString("\n") + "\n\n" + paymentData.legacyText
+      // body traegt die rohen URIs (mit Leerzeile dazwischen, damit
+      // TalerUriDetector sie einzeln findet UND der Klartext fuer
+      // Legacy-Clients lesbar bleibt) gefolgt vom Legacy-Text - fuer Clients
+      // ohne Kenntnis von DataMessage.talerPayment.
+      val body = paymentData.uri.joinToString("\n\n") + "\n\n" + paymentData.legacyText
 
       val message = OutgoingMessage(
         threadRecipient = recipient,
