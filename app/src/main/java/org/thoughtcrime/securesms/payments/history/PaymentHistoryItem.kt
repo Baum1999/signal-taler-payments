@@ -95,6 +95,8 @@ enum class PaymentStatus {
     FAILED,
     /** Zahlung wurde lokal abgelehnt */
     LOCAL_REJECTED,
+    /** Zahlung wurde durch Löschen der Nachricht lokal abgebrochen */
+    LOCAL_CANCELLED,
     /** Zustand unbekannt (offline) */
     UNKNOWN_OFFLINE,
     /** Taler App nicht verbunden */

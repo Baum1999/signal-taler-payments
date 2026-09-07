@@ -529,6 +529,7 @@ object TalerPaymentCardPresenter {
       TalerPaymentStatus.OFFEN -> R.string.TalerFork_status_compact_open
       TalerPaymentStatus.ANGENOMMEN -> R.string.TalerFork_status_compact_accepted
       TalerPaymentStatus.LOKAL_ABGELEHNT -> R.string.TalerFork_status_compact_declined
+      TalerPaymentStatus.LOKAL_ABGEBROCHEN -> R.string.TalerFork_status_compact_cancelled
       TalerPaymentStatus.ABGELAUFEN -> R.string.TalerFork_status_compact_expired
       TalerPaymentStatus.UNBEKANNT_OFFLINE -> R.string.TalerFork_status_compact_checking
       TalerPaymentStatus.UNGUELTIG -> R.string.TalerFork_status_compact_invalid
@@ -620,6 +621,7 @@ object TalerPaymentCardPresenter {
       TalerPaymentStatus.OFFEN -> R.string.TalerFork_status_icon_open
       TalerPaymentStatus.ANGENOMMEN -> R.string.TalerFork_status_icon_accepted
       TalerPaymentStatus.LOKAL_ABGELEHNT -> R.string.TalerFork_status_icon_declined
+      TalerPaymentStatus.LOKAL_ABGEBROCHEN -> R.string.TalerFork_status_icon_cancelled
       TalerPaymentStatus.ABGELAUFEN -> R.string.TalerFork_status_icon_expired
       TalerPaymentStatus.UNBEKANNT_OFFLINE -> R.string.TalerFork_status_icon_checking
       TalerPaymentStatus.UNGUELTIG -> R.string.TalerFork_status_icon_invalid
@@ -632,6 +634,7 @@ object TalerPaymentCardPresenter {
       TalerPaymentStatus.OFFEN -> R.string.TalerFork_status_compact_open
       TalerPaymentStatus.ANGENOMMEN -> R.string.TalerFork_status_compact_accepted
       TalerPaymentStatus.LOKAL_ABGELEHNT -> R.string.TalerFork_status_compact_declined
+      TalerPaymentStatus.LOKAL_ABGEBROCHEN -> R.string.TalerFork_status_compact_cancelled
       TalerPaymentStatus.ABGELAUFEN -> R.string.TalerFork_status_compact_expired
       TalerPaymentStatus.UNBEKANNT_OFFLINE -> R.string.TalerFork_status_compact_checking
       TalerPaymentStatus.UNGUELTIG -> R.string.TalerFork_status_compact_invalid
@@ -639,11 +642,11 @@ object TalerPaymentCardPresenter {
       TalerPaymentStatus.NICHT_INSTALLIERT -> R.string.TalerFork_status_compact_not_installed
       TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> R.string.TalerFork_status_compact_untrusted
     }
-    
+
     // Farben basierend auf Status-Kategorie
     val (iconColorRes, textColorRes) = when (status) {
       TalerPaymentStatus.ANGENOMMEN -> Pair(R.color.taler_status_ok_light, R.color.taler_status_ok_light)
-      TalerPaymentStatus.LOKAL_ABGELEHNT, TalerPaymentStatus.ABGELAUFEN, TalerPaymentStatus.UNGUELTIG, TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> 
+      TalerPaymentStatus.LOKAL_ABGELEHNT, TalerPaymentStatus.LOKAL_ABGEBROCHEN, TalerPaymentStatus.ABGELAUFEN, TalerPaymentStatus.UNGUELTIG, TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG ->
         Pair(R.color.taler_status_bad_light, R.color.taler_status_bad_light)
       else -> Pair(R.color.taler_status_neutral_light, R.color.taler_status_neutral_light)
     }

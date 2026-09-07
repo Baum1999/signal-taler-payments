@@ -60,6 +60,7 @@ object TalerPaymentPreference {
             TalerPaymentStatus.OFFEN -> "Open"
             TalerPaymentStatus.ANGENOMMEN -> "Accepted"
             TalerPaymentStatus.LOKAL_ABGELEHNT -> "Declined"
+            TalerPaymentStatus.LOKAL_ABGEBROCHEN -> "Cancelled"
             TalerPaymentStatus.ABGELAUFEN -> "Expired"
             TalerPaymentStatus.UNBEKANNT_OFFLINE -> "Checking..."
             TalerPaymentStatus.UNGUELTIG -> "Invalid"

@@ -77,6 +77,13 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
      */
     const val IS_OWN_PAYMENT = "is_own_payment"
 
+    /**
+     * Rein lokale Endzustaende (nie von Taler selbst geliefert, siehe
+     * [TalerPaymentStatus.fromTalerStatus]) - ein Refresh darf sie nie
+     * ueberschreiben, siehe [updateStatus]/[updateFromPreview].
+     */
+    private val LOCAL_TERMINAL_STATUSES = setOf(TalerPaymentStatus.LOKAL_ABGELEHNT, TalerPaymentStatus.LOKAL_ABGEBROCHEN)
+
     const val CREATE_TABLE = """
       CREATE TABLE $TABLE_NAME (
         $ID INTEGER PRIMARY KEY,
@@ -141,14 +148,15 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     summary: String?,
     isOwnPayment: Boolean = false,
   ) {
-    // Schuetzt einen lokal per Reject gesetzten LOKAL_ABGELEHNT-Zustand vor
-    // dem Ueberschreiben durch einen verspaeteten Refresh (REVIEW.md,
-    // Finding 3a) - z.B. wenn ein TalerUriRefreshJob noch unterwegs war, als
-    // der Nutzer bereits abgelehnt hat. TalerPaymentStatus.fromTalerStatus()
-    // liefert nie LOKAL_ABGELEHNT (das ist ein rein lokaler Zustand), ein
-    // Preview-Refresh will diesen Wert also nie legitim setzen - ein
-    // bestehendes LOKAL_ABGELEHNT bleibt hier deshalb immer unangetastet.
-    if (getByUri(uri)?.status == TalerPaymentStatus.LOKAL_ABGELEHNT) {
+    // Schuetzt einen lokal per Reject/Cancel gesetzten Zustand (LOKAL_ABGELEHNT/
+    // LOKAL_ABGEBROCHEN) vor dem Ueberschreiben durch einen verspaeteten
+    // Refresh (REVIEW.md, Finding 3a) - z.B. wenn ein TalerUriRefreshJob noch
+    // unterwegs war, als der Nutzer bereits abgelehnt/die Nachricht geloescht
+    // hat. TalerPaymentStatus.fromTalerStatus() liefert keinen dieser Werte
+    // (rein lokale Zustaende), ein Preview-Refresh will sie also nie legitim
+    // setzen - ein bestehender lokaler Endzustand bleibt hier deshalb immer
+    // unangetastet.
+    if (getByUri(uri)?.status in LOCAL_TERMINAL_STATUSES) {
       return
     }
     writableDatabase
@@ -197,12 +205,14 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
 
   fun updateStatus(uri: String, status: TalerPaymentStatus) {
     // Gleicher Schutz wie in updateFromPreview (REVIEW.md, Finding 3a) - ein
-    // bestehendes LOKAL_ABGELEHNT wird nicht ueberschrieben, AUSSER der
-    // Aufruf selbst setzt (erneut) LOKAL_ABGELEHNT - ein echter Reject-Klick
-    // muss weiterhin funktionieren, nur ein Zurueckdrehen auf einen anderen
-    // Zustand (z.B. durch einen verspaeteten TalerReturnActivity-Ruecksprung
-    // nach einem bereits erfolgten lokalen Reject) wird verhindert.
-    if (status != TalerPaymentStatus.LOKAL_ABGELEHNT && getByUri(uri)?.status == TalerPaymentStatus.LOKAL_ABGELEHNT) {
+    // bestehender lokaler Endzustand (LOKAL_ABGELEHNT/LOKAL_ABGEBROCHEN) wird
+    // nicht ueberschrieben, AUSSER der Aufruf selbst setzt erneut genau
+    // diesen Zustand - ein echter Reject-/Cancel-Aufruf muss weiterhin
+    // funktionieren, nur ein Zurueckdrehen auf einen anderen Zustand (z.B.
+    // durch einen verspaeteten TalerReturnActivity-Ruecksprung nach einem
+    // bereits erfolgten lokalen Reject/Cancel) wird verhindert.
+    val existingStatus = getByUri(uri)?.status
+    if (status != existingStatus && existingStatus in LOCAL_TERMINAL_STATUSES) {
       return
     }
     writableDatabase

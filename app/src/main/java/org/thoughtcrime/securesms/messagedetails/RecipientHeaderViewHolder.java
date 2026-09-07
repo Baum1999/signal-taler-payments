@@ -19,20 +19,35 @@ final class RecipientHeaderViewHolder extends RecyclerView.ViewHolder {
     deliveryStatus = itemView.findViewById(R.id.recipient_header_delivery_status);
   }
 
-  void bind(RecipientHeader recipientHeader) {
+  void bind(RecipientHeaderState state) {
+    RecipientHeader recipientHeader = state.getHeader();
+    boolean         isTalerPayment  = state.isTalerPayment();
+
     header.setText(recipientHeader.getHeaderText());
     switch (recipientHeader) {
       case PENDING:
         deliveryStatus.setPending();
         break;
       case SENT_TO:
-        deliveryStatus.setSent();
+        if (isTalerPayment) {
+          deliveryStatus.setTalerSent();
+        } else {
+          deliveryStatus.setSent();
+        }
         break;
       case DELIVERED:
-        deliveryStatus.setDelivered();
+        if (isTalerPayment) {
+          deliveryStatus.setTalerDelivered();
+        } else {
+          deliveryStatus.setDelivered();
+        }
         break;
       case READ:
-        deliveryStatus.setRead();
+        if (isTalerPayment) {
+          deliveryStatus.setTalerRead();
+        } else {
+          deliveryStatus.setRead();
+        }
         break;
       default:
         deliveryStatus.setNone();

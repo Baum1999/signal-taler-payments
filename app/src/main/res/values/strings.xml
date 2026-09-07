@@ -10095,6 +10095,7 @@
     <string name="TalerFork_update_accepted">Taler payment accepted</string>
     <!-- Local system-message line shown when this device locally declined an incoming Taler payment - wording must never imply money moved, only that this device stopped tracking the transaction -->
     <string name="TalerFork_update_declined">Taler payment declined on this device</string>
+    <string name="TalerFork_update_cancelled">Taler payment cancelled by deleting the message</string>
     <!-- Local system-message line shown when a Taler payment link expired before being accepted or declined -->
     <string name="TalerFork_update_expired">Taler payment link expired</string>
 
@@ -10137,6 +10138,8 @@
     <string name="TalerFork_details_detected_at">Detected on this device</string>
     <!-- Message-details screen: placeholder shown for a Taler payment link whose status hasn't been resolved by Taler yet -->
     <string name="TalerFork_details_status_pending">Checking status…</string>
+    <!-- Message-details screen: shown below a Taler payment's details in a group chat, clarifying that the app only tracks whether the payment as a whole was completed, not which individual group member paid their share -->
+    <string name="TalerFork_details_group_privacy_note">In groups, it isn\'t recorded who paid — only that the payment was completed.</string>
 
     <!-- Quote/reply preview (compose bar and in-chat quote bubble) for a group-split Taler payment message, replacing the raw payment links; %1$d is the number of shares -->
     <string name="TalerFork_quote_group_summary">Split payment · %1$d shares</string>
@@ -10176,19 +10179,24 @@
     <string name="TalerFork_status_compact_accepted">Angenommen</string>
     <string name="TalerFork_status_compact_confirmed">Bestätigt</string>
     <string name="TalerFork_status_compact_declined">Abgelehnt</string>
+    <string name="TalerFork_status_compact_cancelled">Abgebrochen</string>
     <string name="TalerFork_status_compact_expired">Abgelaufen</string>
     <string name="TalerFork_status_compact_checking">Wird geprüft…</string>
     <string name="TalerFork_status_compact_invalid">Zahlung fehlgeschlagen</string>
     <string name="TalerFork_status_compact_not_connected">Nicht verbunden</string>
     <string name="TalerFork_status_compact_not_installed">Nicht installiert</string>
     <string name="TalerFork_status_compact_untrusted">Nicht vertrauenswürdig</string>
-    
+
+    <!-- Beschreibung fuer Screenreader: viertes Kreis-Icon im Nachrichten-Footer (DeliveryStatusView.setTalerPaid) -->
+    <string name="TalerFork_delivery_status_paid">Zahlung abgeschlossen</string>
+
     <!-- Status Icons (Unicode) -->
     <string name="TalerFork_status_icon_open">○</string>
     <string name="TalerFork_status_icon_waiting">⏳</string>
     <string name="TalerFork_status_icon_accepted">✓</string>
     <string name="TalerFork_status_icon_confirmed">✓</string>
     <string name="TalerFork_status_icon_declined">✕</string>
+    <string name="TalerFork_status_icon_cancelled">⊘</string>
     <string name="TalerFork_status_icon_expired">⏱</string>
     <string name="TalerFork_status_icon_checking">…</string>
     <string name="TalerFork_status_icon_invalid">!</string>

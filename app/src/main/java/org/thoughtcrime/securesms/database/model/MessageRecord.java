@@ -327,6 +327,8 @@ public abstract class MessageRecord extends DisplayRecord {
         textRes = R.string.TalerFork_update_accepted;
       } else if ("LOKAL_ABGELEHNT".equals(rawStatus)) {
         textRes = R.string.TalerFork_update_declined;
+      } else if ("LOKAL_ABGEBROCHEN".equals(rawStatus)) {
+        textRes = R.string.TalerFork_update_cancelled;
       } else if ("ABGELAUFEN".equals(rawStatus)) {
         textRes = R.string.TalerFork_update_expired;
       } else {

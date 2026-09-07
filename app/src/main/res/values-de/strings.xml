@@ -10056,6 +10056,7 @@
 
     <string name="TalerFork_update_accepted">Taler-Zahlung angenommen</string>
     <string name="TalerFork_update_declined">Taler-Zahlung auf diesem Gerät abgelehnt</string>
+    <string name="TalerFork_update_cancelled">Taler-Zahlung durch Löschen der Nachricht abgebrochen</string>
     <string name="TalerFork_update_expired">Taler-Zahlungslink abgelaufen</string>
 
     <!-- Vom Parser (TalerConfirmationDetector) exakt erkannter Text - %1$s muss mit einem der TalerFork_kind_*-Werte uebereinstimmen, %2$s ist die urspruengliche Taler-URI (eindeutige Referenz fuer die Zuordnung beim Empfaenger) -->
@@ -10078,6 +10079,7 @@
     <string name="TalerFork_details_total_label">Gesamtbetrag</string>
     <string name="TalerFork_details_detected_at">Auf diesem Gerät erkannt am</string>
     <string name="TalerFork_details_status_pending">Status wird geprüft…</string>
+    <string name="TalerFork_details_group_privacy_note">In Gruppen wird nicht erfasst, wer bezahlt hat – nur, dass die Zahlung abgeschlossen wurde.</string>
 
     <string name="TalerFork_quote_group_summary">Geteilte Zahlung · %1$d Anteile</string>
 

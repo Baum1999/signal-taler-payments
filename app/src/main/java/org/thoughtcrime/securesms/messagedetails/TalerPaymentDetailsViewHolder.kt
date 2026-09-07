@@ -29,6 +29,7 @@ data class TalerPaymentDetailsEntry(
 data class TalerPaymentDetailsRow(
   val entries: List<TalerPaymentDetailsEntry>,
   val totalLabel: String?,
+  val groupPrivacyNoteLabel: String? = null,
 )
 
 class TalerPaymentDetailsViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -48,6 +49,14 @@ class TalerPaymentDetailsViewHolder(itemView: View) : RecyclerView.ViewHolder(it
 
     entriesContainer.removeAllViews()
     val verticalPaddingPx = (8 * context.resources.displayMetrics.density).toInt()
+
+    if (row.groupPrivacyNoteLabel != null) {
+      val noteView = TextView(context)
+      noteView.text = row.groupPrivacyNoteLabel
+      noteView.textSize = 12f
+      noteView.setPadding(0, 0, 0, verticalPaddingPx)
+      entriesContainer.addView(noteView)
+    }
 
     row.entries.forEach { entry ->
       val line = StringBuilder()

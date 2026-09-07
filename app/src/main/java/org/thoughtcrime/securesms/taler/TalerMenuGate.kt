@@ -8,6 +8,7 @@ import org.thoughtcrime.securesms.database.model.MessageRecord
  * Bedingung beschraenkt (siehe REVIEW.md H4-Muster).
  */
 object TalerMenuGate {
+  @JvmStatic
   fun messageHasTalerUris(messageRecord: MessageRecord): Boolean =
     urisFromMessageBody(messageRecord.body).isNotEmpty()
 }

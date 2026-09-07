@@ -15,13 +15,16 @@ import android.view.animation.RotateAnimation;
 import androidx.annotation.Nullable;
 import androidx.annotation.StringRes;
 import androidx.appcompat.widget.AppCompatImageView;
+import androidx.core.content.ContextCompat;
 
 import org.signal.core.util.DimensionUnit;
 import org.thoughtcrime.securesms.R;
 import org.thoughtcrime.securesms.util.ViewUtil;
 
 /**
- * View responsible for displaying the delivery status (NONE, PENDING, SENT, DELIVERED, READ) of a given outgoing message.
+ * View responsible for displaying the delivery status (NONE, PENDING, SENT, DELIVERED, READ, or - for Taler payment
+ * messages - the circle-icon equivalents TALER_SENT/TALER_DELIVERED/TALER_READ plus the Taler-only TALER_PAID) of a
+ * given outgoing message.
  * <p>
  * This view manipulates its start / end padding to properly place the corresponding icon, and also performs a rotation
  * animation on itself in the pending mode. Thus, users should be aware that padding values set in XML will be overwritten.
@@ -80,6 +83,18 @@ public class DeliveryStatusView extends AppCompatImageView {
           break;
         case READ:
           setRead();
+          break;
+        case TALER_SENT:
+          setTalerSent();
+          break;
+        case TALER_DELIVERED:
+          setTalerDelivered();
+          break;
+        case TALER_READ:
+          setTalerRead();
+          break;
+        case TALER_PAID:
+          setTalerPaid();
           break;
       }
 
@@ -181,6 +196,61 @@ public class DeliveryStatusView extends AppCompatImageView {
     updateContentDescription();
   }
 
+  /**
+   * Kreis-Varianten der drei obigen Zustaende fuer Taler-Zahlungsnachrichten
+   * (gleiche Semantik wie setSent/setDelivered/setRead, nur andere Optik:
+   * die Kreise bauen sich so auf, dass sie zusammen das Taler-Logo ergeben).
+   */
+  public void setTalerSent() {
+    state = State.TALER_SENT;
+    setVisibility(View.VISIBLE);
+    ViewUtil.setPaddingStart(this, horizontalPadding);
+    ViewUtil.setPaddingEnd(this, 0);
+    clearAnimation();
+    setImageResource(R.drawable.symbol_messagestatus_taler_sent_24);
+    updateContentDescription();
+  }
+
+  public void setTalerDelivered() {
+    state = State.TALER_DELIVERED;
+    setVisibility(View.VISIBLE);
+    ViewUtil.setPaddingStart(this, horizontalPadding);
+    ViewUtil.setPaddingEnd(this, 0);
+    clearAnimation();
+    setImageResource(R.drawable.symbol_messagestatus_taler_delivered_24);
+    updateContentDescription();
+  }
+
+  public void setTalerRead() {
+    state = State.TALER_READ;
+    setVisibility(View.VISIBLE);
+    ViewUtil.setPaddingStart(this, horizontalPadding);
+    ViewUtil.setPaddingEnd(this, 0);
+    clearAnimation();
+    setImageResource(R.drawable.symbol_messagestatus_taler_read_24);
+    updateContentDescription();
+  }
+
+  /**
+   * Vierter Zustand ohne Signal-Pendant: Taler-Zahlung abgeschlossen. Faerbt
+   * die drei Kreise fest in Taler-Blau statt in der vom Aufrufer gesetzten
+   * Footer-Farbe (analog zu TalerConfirmationIconPresenter, das aus demselben
+   * Grund signal_colorPrimary statt der Footer-Tint verwendet) - der naechste
+   * setTint()-Aufruf beim naechsten Bind dieser (recycelten) View setzt die
+   * normale Tint-Farbe wieder her, siehe ConversationItemFooter#setIconColor,
+   * das vor jedem presentDeliveryStatus()-Aufruf laeuft.
+   */
+  public void setTalerPaid() {
+    state = State.TALER_PAID;
+    setVisibility(View.VISIBLE);
+    ViewUtil.setPaddingStart(this, horizontalPadding);
+    ViewUtil.setPaddingEnd(this, 0);
+    clearAnimation();
+    setImageResource(R.drawable.symbol_messagestatus_taler_paid_24);
+    setColorFilter(ContextCompat.getColor(getContext(), org.signal.core.ui.R.color.signal_colorPrimary), PorterDuff.Mode.SRC_IN);
+    updateContentDescription();
+  }
+
   public void setTint(int color) {
     setColorFilter(color, PorterDuff.Mode.SRC_IN);
   }
@@ -198,7 +268,11 @@ public class DeliveryStatusView extends AppCompatImageView {
     PENDING(1, R.string.message_details_recipient_header__pending_send),
     SENT(2, R.string.message_details_header_sent),
     DELIVERED(3, R.string.conversation_item_sent__delivered_description),
-    READ(4, R.string.conversation_item_sent__message_read);
+    READ(4, R.string.conversation_item_sent__message_read),
+    TALER_SENT(5, R.string.message_details_header_sent),
+    TALER_DELIVERED(6, R.string.conversation_item_sent__delivered_description),
+    TALER_READ(7, R.string.conversation_item_sent__message_read),
+    TALER_PAID(8, R.string.TalerFork_delivery_status_paid);
 
     final int code;
 

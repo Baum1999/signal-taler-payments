@@ -23,12 +23,12 @@ class PaymentHistoryManagerTest {
     @Before
     fun setUp() {
         sampleSender = PaymentParty(
-            id = RecipientId.from("sender_123"),
+            id = RecipientId.from("123"),
             name = "Max Mustermann"
         )
         
         sampleRecipient = PaymentParty(
-            id = RecipientId.from("recipient_456"),
+            id = RecipientId.from("456"),
             name = "Erika Mustermann"
         )
         
@@ -150,10 +150,10 @@ class PaymentHistoryManagerTest {
     @Test
     fun testPaymentPartyCreation() {
         val party = PaymentParty(
-            id = RecipientId.from("test_id"),
+            id = RecipientId.from("789"),
             name = "Test Name"
         )
-        assertEquals(RecipientId.from("test_id"), party.id)
+        assertEquals(RecipientId.from("789"), party.id)
         assertEquals("Test Name", party.name)
     }
 }

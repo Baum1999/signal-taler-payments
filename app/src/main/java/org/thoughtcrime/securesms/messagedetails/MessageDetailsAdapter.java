@@ -57,7 +57,7 @@ final class MessageDetailsAdapter extends ListAdapter<MessageDetailsAdapter.Mess
     if (holder instanceof MessageHeaderViewHolder) {
       ((MessageHeaderViewHolder) holder).bind(lifecycleOwner, (ConversationMessage) getItem(position).data);
     } else if (holder instanceof RecipientHeaderViewHolder) {
-      ((RecipientHeaderViewHolder) holder).bind((RecipientHeader) getItem(position).data);
+      ((RecipientHeaderViewHolder) holder).bind((RecipientHeaderState) getItem(position).data);
     } else if (holder instanceof RecipientViewHolder) {
       ((RecipientViewHolder) holder).bind((RecipientDeliveryStatus) getItem(position).data);
     } else if (holder instanceof ViewEditHistoryViewHolder) {
@@ -87,7 +87,7 @@ final class MessageDetailsAdapter extends ListAdapter<MessageDetailsAdapter.Mess
           case MessageDetailsViewState.TALER_PAYMENT:
             return true;
           case MessageDetailsViewState.RECIPIENT_HEADER:
-            return oldData == newData;
+            return ((RecipientHeaderState) oldData).getHeader() == ((RecipientHeaderState) newData).getHeader();
           case MessageDetailsViewState.RECIPIENT:
             return ((RecipientDeliveryStatus) oldData).getRecipient().getId().equals(((RecipientDeliveryStatus) newData).getRecipient().getId());
         }

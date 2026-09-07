@@ -140,16 +140,18 @@ class MessageDetailsFragment : Fragment(), MessageDetailsAdapter.Callbacks {
       list.add(MessageDetailsViewState(row, MessageDetailsViewState.TALER_PAYMENT))
     }
 
+    val isTalerPayment = urisFromMessageBody(details.conversationMessage.messageRecord.body).isNotEmpty()
+
     if (details.conversationMessage.messageRecord.isOutgoing) {
-      addRecipients(list, RecipientHeader.NOT_SENT, details.notSent)
-      addRecipients(list, RecipientHeader.VIEWED, details.viewed)
-      addRecipients(list, RecipientHeader.READ, details.read)
-      addRecipients(list, RecipientHeader.DELIVERED, details.delivered)
-      addRecipients(list, RecipientHeader.SENT_TO, details.sent)
-      addRecipients(list, RecipientHeader.PENDING, details.pending)
-      addRecipients(list, RecipientHeader.SKIPPED, details.skipped)
+      addRecipients(list, RecipientHeader.NOT_SENT, details.notSent, isTalerPayment)
+      addRecipients(list, RecipientHeader.VIEWED, details.viewed, isTalerPayment)
+      addRecipients(list, RecipientHeader.READ, details.read, isTalerPayment)
+      addRecipients(list, RecipientHeader.DELIVERED, details.delivered, isTalerPayment)
+      addRecipients(list, RecipientHeader.SENT_TO, details.sent, isTalerPayment)
+      addRecipients(list, RecipientHeader.PENDING, details.pending, isTalerPayment)
+      addRecipients(list, RecipientHeader.SKIPPED, details.skipped, isTalerPayment)
     } else {
-      addRecipients(list, RecipientHeader.SENT_FROM, details.sent)
+      addRecipients(list, RecipientHeader.SENT_FROM, details.sent, isTalerPayment)
     }
 
     return list
@@ -196,19 +198,25 @@ class MessageDetailsFragment : Fragment(), MessageDetailsAdapter.Callbacks {
       null
     }
 
-    return TalerPaymentDetailsRow(entries, totalLabel)
+    val groupPrivacyNoteLabel = if (messageRecord.toRecipient.isGroup) {
+      context.getString(R.string.TalerFork_details_group_privacy_note)
+    } else {
+      null
+    }
+
+    return TalerPaymentDetailsRow(entries, totalLabel, groupPrivacyNoteLabel)
   }
 
   private fun shortenTalerUri(uri: String): String {
     return if (uri.length <= 48) uri else uri.take(28) + "…" + uri.takeLast(12)
   }
 
-  private fun addRecipients(list: MutableList<MessageDetailsViewState<*>>, header: RecipientHeader, recipients: Collection<RecipientDeliveryStatus>): Boolean {
+  private fun addRecipients(list: MutableList<MessageDetailsViewState<*>>, header: RecipientHeader, recipients: Collection<RecipientDeliveryStatus>, isTalerPayment: Boolean): Boolean {
     if (recipients.isEmpty()) {
       return false
     }
 
-    list.add(MessageDetailsViewState(header, MessageDetailsViewState.RECIPIENT_HEADER))
+    list.add(MessageDetailsViewState(RecipientHeaderState(header, isTalerPayment), MessageDetailsViewState.RECIPIENT_HEADER))
     for (status in recipients) {
       list.add(MessageDetailsViewState(status, MessageDetailsViewState.RECIPIENT))
     }

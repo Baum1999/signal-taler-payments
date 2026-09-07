@@ -8,7 +8,6 @@ package org.thoughtcrime.securesms.database
 import android.app.Application
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -58,21 +57,6 @@ class TalerPaymentTableTest {
   val recipientTestRule = RecipientTestRule()
 
   private val table get() = SignalDatabase.talerPayments
-
-  /**
-   * [org.thoughtcrime.securesms.testutil.SignalDatabaseRule] baut das Schema nur aus den CREATE_TABLE-Konstanten
-   * auf (kein Replay der echten Migrationshistorie) - CONSECUTIVE_FAILURES
-   * ist bewusst nicht Teil von [TalerPaymentTable.CREATE_TABLE] (siehe
-   * Kommentar dort und in V323_AddTalerPaymentPollingColumns), fehlt im
-   * Testschema also ohne diesen manuellen Nachtrag. Auf dem echten Geraet
-   * lief V323 bereits nachweislich korrekt (siehe REVIEW.md B3-Log-Dumps).
-   */
-  @Before
-  fun applyV323Migration() {
-    SignalDatabase.writableDatabase.execSQL(
-      "ALTER TABLE ${TalerPaymentTable.TABLE_NAME} ADD COLUMN ${TalerPaymentTable.CONSECUTIVE_FAILURES} INTEGER NOT NULL DEFAULT 0"
-    )
-  }
 
   @Test
   fun getPollCandidates_includesRecentTtlSubjectRow() {
@@ -222,6 +206,43 @@ class TalerPaymentTableTest {
 
     assertEquals(1, readValues.size)
     assertEquals(1L, readValues.single())
+  }
+
+  /**
+   * Gleicher Schutz wie updateStatus_doesNotOverwriteExistingLokalAbgelehnt,
+   * jetzt fuer den zweiten lokalen Endzustand LOKAL_ABGEBROCHEN (Loeschen
+   * einer Taler-Nachricht, TalerAcceptRejectActions.cancelCancelablePaymentsForDeletedMessages) -
+   * ein verspaeteter Refresh darf einen bereits lokal abgebrochenen Vorgang
+   * nicht wieder auf OFFEN zuruecksetzen.
+   */
+  @Test
+  fun updateStatus_doesNotOverwriteExistingLokalAbgebrochen() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionJ"
+    table.upsertDetected(uri, threadId = 1)
+    table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGEBROCHEN)
+
+    table.updateStatus(uri, TalerPaymentStatus.OFFEN)
+
+    assertEquals(TalerPaymentStatus.LOKAL_ABGEBROCHEN, table.getByUri(uri)?.status)
+  }
+
+  @Test
+  fun updateFromPreview_doesNotOverwriteExistingLokalAbgebrochen() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionK"
+    table.upsertDetected(uri, threadId = 1)
+    table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGEBROCHEN)
+
+    table.updateFromPreview(
+      uri = uri,
+      uriKind = "PAY_PUSH",
+      status = TalerPaymentStatus.OFFEN,
+      amount = "1",
+      currency = "KUDOS",
+      exchangeBaseUrl = "https://exchange.demo.taler.net/",
+      summary = "resurrected",
+    )
+
+    assertEquals(TalerPaymentStatus.LOKAL_ABGEBROCHEN, table.getByUri(uri)?.status)
   }
 
   private fun setLastCheckedAt(uri: String, timestamp: Long) {

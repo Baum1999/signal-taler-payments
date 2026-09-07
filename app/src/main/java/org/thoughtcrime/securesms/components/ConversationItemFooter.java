@@ -37,6 +37,8 @@ import org.thoughtcrime.securesms.database.model.MmsMessageRecord;
 import org.thoughtcrime.securesms.dependencies.AppDependencies;
 import org.signal.core.ui.permissions.Permissions;
 import org.thoughtcrime.securesms.recipients.Recipient;
+import org.thoughtcrime.securesms.taler.TalerDeliveryStatusPresenter;
+import org.thoughtcrime.securesms.taler.TalerPaymentStatus;
 import org.thoughtcrime.securesms.util.DateUtils;
 import org.thoughtcrime.securesms.util.MessageRecordUtil;
 import org.thoughtcrime.securesms.util.Projection;
@@ -429,12 +431,25 @@ public class ConversationItemFooter extends ConstraintLayout {
         deliveryStatusView.setNone();
       } else if (messageRecord.isPending()) {
         deliveryStatusView.setPending();
-      } else if (messageRecord.hasReadReceipt()) {
-        deliveryStatusView.setRead();
-      } else if (messageRecord.isDelivered()) {
-        deliveryStatusView.setDelivered();
       } else {
-        deliveryStatusView.setSent();
+        TalerPaymentStatus talerStatus = TalerDeliveryStatusPresenter.statusFor(messageRecord.getBody());
+        if (talerStatus == TalerPaymentStatus.ANGENOMMEN) {
+          deliveryStatusView.setTalerPaid();
+        } else if (talerStatus != null) {
+          if (messageRecord.hasReadReceipt()) {
+            deliveryStatusView.setTalerRead();
+          } else if (messageRecord.isDelivered()) {
+            deliveryStatusView.setTalerDelivered();
+          } else {
+            deliveryStatusView.setTalerSent();
+          }
+        } else if (messageRecord.hasReadReceipt()) {
+          deliveryStatusView.setRead();
+        } else if (messageRecord.isDelivered()) {
+          deliveryStatusView.setDelivered();
+        } else {
+          deliveryStatusView.setSent();
+        }
       }
     }
   }

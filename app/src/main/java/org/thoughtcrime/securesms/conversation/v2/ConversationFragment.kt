@@ -3285,7 +3285,7 @@ class ConversationFragment :
     ).observeOn(AndroidSchedulers.mainThread())
       .subscribe { (deleted: Boolean, _: Boolean) ->
         if (!deleted) return@subscribe
-        TalerAcceptRejectActions.cancelCancelablePaymentsForDeletedMessages(requireContext(), records)
+        TalerAcceptRejectActions.cancelCancelablePaymentsForDeletedMessages(records)
         val editMessageId = inputPanel.editMessageId?.id
         if (editMessageId != null && records.any { it.id == editMessageId }) {
           inputPanel.exitEditMessageMode()

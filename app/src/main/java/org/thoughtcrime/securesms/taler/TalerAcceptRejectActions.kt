@@ -103,13 +103,22 @@ object TalerAcceptRejectActions {
    * bereits entschiedene Zahlungen angefasst werden. Wirkt automatisch auch
    * fuer Gruppen-Split-Nachrichten (mehrere URIs im Body -> mehrere
    * unabhaengig geprueft Abbrueche).
+   *
+   * Bewusst REIN LOKAL und sofort, ohne Talers eigene Abbrechen-UI zu oeffnen
+   * (anders als der manuelle Abbrechen-Button/onCancelClicked): Loeschen soll
+   * den Vorgang ohne weitere Nutzerinteraktion beenden, und ein
+   * startActivity() pro betroffener URI waere bei mehreren offenen Anteilen
+   * (Gruppen-Split) ohnehin unzuverlaessig (nur der zuletzt gestartete Intent
+   * kommt sicher an). Gleiche Semantik wie onRejectClicked: nur lokales
+   * Nicht-mehr-Verfolgen, kein Netzwerkzugriff, keine Rueckerstattung.
    */
-  fun cancelCancelablePaymentsForDeletedMessages(context: Context, records: Set<MessageRecord>) {
+  fun cancelCancelablePaymentsForDeletedMessages(records: Set<MessageRecord>) {
     records.forEach { record ->
       urisFromMessageBody(record.body).forEach { uri ->
         val paymentRecord = SignalDatabase.talerPayments.getByUri(uri)
         if (TalerCardActionGate.showCancel(paymentRecord)) {
-          onCancelClicked(context, uri, record.threadId)
+          SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGEBROCHEN)
+          SignalDatabase.talerPayments.insertLocalStatusLine(record.threadId, TalerPaymentStatus.LOKAL_ABGEBROCHEN)
         }
       }
     }

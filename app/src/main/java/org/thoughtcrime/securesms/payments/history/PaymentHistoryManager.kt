@@ -364,6 +364,7 @@ class PaymentHistoryManager(
             TalerPaymentStatus.ABGELAUFEN -> PaymentStatus.EXPIRED
             TalerPaymentStatus.UNGUELTIG -> PaymentStatus.FAILED
             TalerPaymentStatus.LOKAL_ABGELEHNT -> PaymentStatus.LOCAL_REJECTED
+            TalerPaymentStatus.LOKAL_ABGEBROCHEN -> PaymentStatus.LOCAL_CANCELLED
         }
     }
 
