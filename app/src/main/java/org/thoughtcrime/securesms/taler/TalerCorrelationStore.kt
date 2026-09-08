@@ -1,5 +1,6 @@
 package org.thoughtcrime.securesms.taler
 
+import org.thoughtcrime.securesms.recipients.RecipientId
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
@@ -42,15 +43,37 @@ enum class TalerCorrelationIntent { ACCEPT_OR_CANCEL, SEND, REFUND }
  */
 object TalerCorrelationStore {
 
-  data class Entry(val intent: TalerCorrelationIntent, val uri: String?, val threadId: Long)
+  /**
+   * quoteMessageId/quoteAuthor: nur bei REFUND gesetzt, wenn der Aufrufer die
+   * urspruengliche Zahlungsnachricht kennt (Long-Press-Menue auf der Karte -
+   * TalerMenuActions.onRefundFromMenu). Die fertige Rueckerstattungs-URI wird
+   * dann beim Ruecksprung nicht nur als Entwurfstext, sondern als Zitat-Antwort
+   * auf genau diese Nachricht vorbereitet (siehe TalerReturnActivity). Aus der
+   * Zahlungshistorie (PaymentHistoryFragment) ist keine messageId bekannt -
+   * dort bleibt es bei einem reinen Text-Entwurf ohne Zitat.
+   */
+  data class Entry(
+    val intent: TalerCorrelationIntent,
+    val uri: String?,
+    val threadId: Long,
+    val quoteMessageId: Long? = null,
+    val quoteAuthor: RecipientId? = null,
+  )
 
   private data class StoredEntry(val entry: Entry, val createdAt: Long)
 
   private val TTL_MS = TimeUnit.MINUTES.toMillis(15)
   private val entries = ConcurrentHashMap<String, StoredEntry>()
 
-  fun put(correlationId: String, intent: TalerCorrelationIntent, uri: String?, threadId: Long) {
-    entries[correlationId] = StoredEntry(Entry(intent, uri, threadId), System.currentTimeMillis())
+  fun put(
+    correlationId: String,
+    intent: TalerCorrelationIntent,
+    uri: String?,
+    threadId: Long,
+    quoteMessageId: Long? = null,
+    quoteAuthor: RecipientId? = null,
+  ) {
+    entries[correlationId] = StoredEntry(Entry(intent, uri, threadId, quoteMessageId, quoteAuthor), System.currentTimeMillis())
   }
 
   fun take(correlationId: String, now: Long = System.currentTimeMillis()): Entry? {

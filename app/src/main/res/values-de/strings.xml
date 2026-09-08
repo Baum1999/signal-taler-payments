@@ -10064,6 +10064,9 @@
 
     <string name="TalerFork_confirmation_icon_content_description">GNU-Taler-Zahlungsbestätigung</string>
 
+    <!-- Header vor dem Verwendungszweck/der Rückerstattungs-URI im Entwurf, der nach dem Erstellen einer Rückerstattung vorbereitet wird - %1$s ist der von Taler gelieferte Verwendungszweck (legacyText), bzw. bei älteren Taler-Versionen ohne diesen die rohe Rückerstattungs-URI -->
+    <string name="TalerFork_refund_message">Rückerstattung: %1$s</string>
+
     <string name="TalerFork_action_refund">Rückerstatten</string>
     <string name="TalerFork_send_dialog_cancel">Abbrechen</string>
 

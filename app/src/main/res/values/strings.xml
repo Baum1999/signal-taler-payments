@@ -10106,6 +10106,9 @@
     <string name="TalerFork_send_message">Payment sent: %1$s (%2$s)</string>
     <string name="TalerFork_request_message">Payment requested: %1$s (%2$s)</string>
 
+    <!-- Header prefixed to the purpose/refund URI in the message draft prepared after composing a refund (Refund-Redesign, TalerReturnActivity); %1$s is the Taler-supplied purpose text (legacyText), or the raw refund URI for older Taler versions without it. Sent as a quote-reply to the original payment message where the refund was triggered from the chat's long-press menu. -->
+    <string name="TalerFork_refund_message">Refund: %1$s</string>
+
     <!-- Accessibility label for the small icon shown instead of the raw text on a recognized accept-confirmation message; gray while unconfirmed, blue once Taler confirms the payment as accepted -->
     <string name="TalerFork_confirmation_icon_content_description">GNU Taler payment confirmation</string>
 

@@ -11,8 +11,10 @@ import org.signal.core.util.concurrent.SignalExecutors
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.conversation.ConversationIntents
+import org.thoughtcrime.securesms.database.DraftTable
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.mms.OutgoingMessage
+import org.thoughtcrime.securesms.mms.QuoteId
 import org.thoughtcrime.securesms.sms.MessageSender
 import kotlin.time.Duration.Companion.seconds
 
@@ -106,8 +108,17 @@ class TalerReturnActivity : Activity() {
             // sendComposedPaymentWithData weiter unten fuer jede URI erneut.
             if (paymentData.uri.all { TalerUriDetector.isExactlyOneUri(it) }) {
               if (entry.intent == TalerCorrelationIntent.REFUND) {
-                // Für Refund: JSON als Entwurfstext
-                draftText = Json.encodeToString(paymentData)
+                // Fuer Refund: URIs im Klartext (nicht als kompaktes JSON -
+                // urisFromMessageBody wuerde sonst versuchen, den GESAMTEN Text
+                // strikt als TalerPaymentData zu dekodieren; ein Header davor
+                // liesse das fehlschlagen und den Regex-Fallback auf noch
+                // JSON-verklebte URIs anwenden, siehe Warnung in
+                // TalerPaymentData.kt) gefolgt vom Header + Taler-seitigem
+                // Verwendungszweck (legacyText) - derselbe Body-Aufbau wie
+                // sendComposedPaymentWithData, nur mit Header vor legacyText
+                // statt direktem Legacy-Text.
+                draftText = paymentData.uri.joinToString("\n\n") + "\n\n" +
+                  getString(R.string.TalerFork_refund_message, paymentData.legacyText)
               } else {
                 // Für SEND: JSON direkt als Nachricht senden
                 sendComposedPaymentWithData(entry.threadId, paymentData)
@@ -116,7 +127,7 @@ class TalerReturnActivity : Activity() {
           } else if (talerUri != null && TalerUriDetector.isExactlyOneUri(talerUri)) {
             // Fallback für ältere Taler-Versionen ohne JSON-Unterstützung
             if (entry.intent == TalerCorrelationIntent.REFUND) {
-              draftText = talerUri
+              draftText = getString(R.string.TalerFork_refund_message, talerUri)
             } else {
               sendComposedPayment(entry.threadId, talerUri, R.string.TalerFork_send_message)
             }
@@ -131,10 +142,29 @@ class TalerReturnActivity : Activity() {
 
       val recipientId = SignalDatabase.threads.getRecipientIdForThreadId(entry.threadId)
       if (recipientId != null) {
-        ConversationIntents.createBuilderSync(this, recipientId, entry.threadId)
-          .withDraftText(draftText)
-          .build()
-          .let { conversationIntent -> startActivity(conversationIntent) }
+        val builder = ConversationIntents.createBuilderSync(this, recipientId, entry.threadId)
+        val quoteMessageId = entry.quoteMessageId
+        val quoteAuthor = entry.quoteAuthor
+        if (draftText != null && quoteMessageId != null && quoteAuthor != null) {
+          // Rueckerstattung als Zitat-Antwort auf die urspruengliche
+          // Zahlungsnachricht statt als eigenstaendige Nachricht (Refund-Redesign) -
+          // Draft-Table statt withDraftText: ConversationArgs.canInitializeFromDatabase()
+          // (und damit der QUOTE-Draft-Ladepfad in DraftRepository) greift nur,
+          // wenn draftText aus dem Intent (EXTRA_TEXT/withDraftText) null ist -
+          // shareText wird dort VOR dem DB-Drafts-Pfad geprueft.
+          SignalDatabase.drafts.replaceDrafts(
+            entry.threadId,
+            DraftTable.Drafts(
+              listOf(
+                DraftTable.Draft(DraftTable.Draft.QUOTE, QuoteId(quoteMessageId, quoteAuthor).serialize()),
+                DraftTable.Draft(DraftTable.Draft.TEXT, draftText),
+              )
+            )
+          )
+        } else {
+          builder.withDraftText(draftText)
+        }
+        builder.build().let { conversationIntent -> startActivity(conversationIntent) }
       }
     } finally {
       finish()

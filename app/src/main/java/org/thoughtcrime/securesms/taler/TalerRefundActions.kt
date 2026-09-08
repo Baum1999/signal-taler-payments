@@ -6,6 +6,7 @@ import android.net.Uri
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import net.taler.wallet.link.PrepareRefundRequest
+import org.thoughtcrime.securesms.recipients.RecipientId
 
 /**
  * Klick-Handler fuer den "Refund"-Button auf einer angenommenen, eingehenden
@@ -33,9 +34,30 @@ import net.taler.wallet.link.PrepareRefundRequest
  */
 object TalerRefundActions {
 
-  fun onRefundClicked(context: Context, uri: String, threadId: Long) {
+  /**
+   * quoteMessageId/quoteAuthor: optional, wenn der Aufrufer die urspruengliche
+   * Zahlungsnachricht kennt (Long-Press-Menue - TalerMenuActions.onRefundFromMenu
+   * ruft mit messageRecord.id/fromRecipient auf). Steuert, ob die
+   * Rueckerstattungs-URI beim Ruecksprung als Zitat-Antwort auf diese Nachricht
+   * vorbereitet wird statt als reiner Text-Entwurf (siehe TalerReturnActivity,
+   * TalerCorrelationStore.Entry).
+   */
+  fun onRefundClicked(
+    context: Context,
+    uri: String,
+    threadId: Long,
+    quoteMessageId: Long? = null,
+    quoteAuthor: RecipientId? = null,
+  ) {
     val correlationId = java.util.UUID.randomUUID().toString()
-    TalerCorrelationStore.put(correlationId, TalerCorrelationIntent.REFUND, uri = uri, threadId = threadId)
+    TalerCorrelationStore.put(
+      correlationId,
+      TalerCorrelationIntent.REFUND,
+      uri = uri,
+      threadId = threadId,
+      quoteMessageId = quoteMessageId,
+      quoteAuthor = quoteAuthor,
+    )
     val returnUri = "signalfuergnu://taler-return"
 
     val request = PrepareRefundRequest(

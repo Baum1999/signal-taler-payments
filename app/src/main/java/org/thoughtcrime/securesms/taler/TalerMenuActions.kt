@@ -50,7 +50,13 @@ object TalerMenuActions {
 
   fun onRefundFromMenu(context: Context, messageRecord: MessageRecord) {
     TalerMenuState.compute(context, messageRecord).refundUris.forEach { uri ->
-      TalerRefundActions.onRefundClicked(context, uri, messageRecord.threadId)
+      TalerRefundActions.onRefundClicked(
+        context,
+        uri,
+        messageRecord.threadId,
+        quoteMessageId = messageRecord.id,
+        quoteAuthor = messageRecord.fromRecipient.id,
+      )
     }
   }
 
