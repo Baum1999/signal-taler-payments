@@ -384,27 +384,33 @@ object TalerPaymentCardPresenter {
     kindView.text = kindLabel(context, record?.uriKind)
     previewBadge.visibility = View.GONE
 
-    val formattedAmount = record?.amount?.replace(".", ",") ?: "0"
-    directionView.text = arrow
-    amountView.text = formattedAmount
-    currencyView.text = getCurrencySymbol(record?.currency)
-
-    partyView.text = partyText
-
-    // Split Note: jetzt herleitbar, seit paymentData.totalAmount/includeSelf
-    // mitgeliefert werden - aber nur anzeigen, nachdem computeVerifiedTotal
+    // Hauptbetrag der Sammelkarte: der verifizierte GESAMTBETRAG der
+    // Gruppenzahlung (Bugfix 2026-09-09: zeigte hier bisher den
+    // Pro-Anteil-Betrag des zuerst gefundenen records - eine Karte pro
+    // Nachricht soll aber die ganze Nachricht repraesentieren, nicht nur
+    // einen einzelnen Anteil). Nur anzeigen, nachdem computeVerifiedTotal
     // (GroupSplitCard.kt) bestaetigt hat, dass Divisor * Pro-Anteil-Betrag
-    // zum gelieferten totalAmount passt. Weicht das ab (manipulierte oder
-    // inkonsistente Nachricht), lieber gar nichts zeigen als eine falsche
-    // Zahl (Regel 4, PROMPT.md) - kein Crash, die Karte bleibt sonst
-    // unveraendert nutzbar (fail-safe, da die Nachricht von jedem
-    // Gruppenmitglied stammen kann).
+    // zum gelieferten totalAmount passt - sonst (aeltere Nachricht ohne
+    // totalAmount/includeSelf, oder manipulierte/inkonsistente Angaben)
+    // bleibt der Pro-Anteil-Betrag als einzig bekannte, gepruefte Zahl der
+    // Fallback (fail-safe statt Absturz oder falscher Zahl, Regel 4,
+    // PROMPT.md).
     val verifiedTotal = computeVerifiedTotal(
       totalAmount = totalAmount,
       includeSelf = includeSelf,
       uriCount = uris.size,
       perShareAmount = record?.amount
     )
+    val formattedAmount = (verifiedTotal?.toPlainString() ?: record?.amount)?.replace(".", ",") ?: "0"
+    directionView.text = arrow
+    amountView.text = formattedAmount
+    currencyView.text = getCurrencySymbol(record?.currency)
+
+    partyView.text = partyText
+
+    // Split Note: ergaenzt den Hauptbetrag oben um die Aufteilung (Anzahl
+    // Personen, verschickte Links) - dieselbe verifiedTotal-Pruefung wie
+    // oben, keine zweite Berechnung noetig.
     if (verifiedTotal != null) {
       val totalFormatted = verifiedTotal.toPlainString().replace(".", ",")
       val currencySymbol = getCurrencySymbol(record?.currency)
