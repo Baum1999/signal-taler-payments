@@ -50,7 +50,9 @@ import org.thoughtcrime.securesms.recipients.RecipientId
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.taler.TalerAcceptRejectActions
 import org.thoughtcrime.securesms.taler.TalerConfirmationIconPresenter
+import org.thoughtcrime.securesms.taler.TalerDeliveryStatusPresenter
 import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
+import org.thoughtcrime.securesms.taler.TalerPaymentStatus
 import org.thoughtcrime.securesms.taler.urisFromMessageBody
 import org.thoughtcrime.securesms.util.InterceptableLongClickCopyLinkSpan
 import org.thoughtcrime.securesms.util.LongClickMovementMethod
@@ -884,8 +886,22 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
       return
     }
 
+    if (record.isPending) {
+      deliveryStatus.setPending()
+      return
+    }
+
+    // GNU-Fork (Signal-Taler-Integration): Taler-Zahlungsnachrichten sind reiner
+    // Text und laufen deshalb ueber diesen ViewHolder statt ueber
+    // ConversationItemFooter - dieselbe Kreis-Logik wie dort (presentDeliveryStatus).
+    val talerStatus = TalerDeliveryStatusPresenter.statusFor(record.body)
     when {
-      record.isPending -> deliveryStatus.setPending()
+      talerStatus == TalerPaymentStatus.ANGENOMMEN -> deliveryStatus.setTalerPaid()
+      talerStatus != null -> when {
+        record.hasReadReceipt() -> deliveryStatus.setTalerRead()
+        record.isDelivered -> deliveryStatus.setTalerDelivered()
+        else -> deliveryStatus.setTalerSent()
+      }
       record.hasReadReceipt() -> deliveryStatus.setRead()
       record.isDelivered -> deliveryStatus.setDelivered()
       else -> deliveryStatus.setSent()
