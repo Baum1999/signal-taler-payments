@@ -78,13 +78,11 @@ class TalerUriRefreshJob private constructor(
   )
 
   override fun onRun() {
-    val previousStatus = SignalDatabase.talerPayments.getByUri(uri)?.status
     val result = runBlocking { TalerLinkClient(context).previewForUri(uri) }
     when (result) {
       is TalerLinkResult.Ergebnis -> {
-        applyPreview(result.value)
         val newStatus = TalerPaymentStatus.fromTalerStatus(result.value.status)
-        maybeInsertLocalStatusLine(previousStatus, newStatus)
+        val previousStatus = applyPreview(result.value, newStatus)
         maybeSendAcceptConfirmation(previousStatus, newStatus)
       }
       // P1 (REVIEW.md): drei fuer den Nutzer unterschiedliche Faelle nicht
@@ -119,18 +117,6 @@ class TalerUriRefreshJob private constructor(
     // ("ein Vorgang pro URI, nicht pro Nachricht").
     SignalDatabase.talerPayments.getByUri(uri)?.let { record ->
       AppDependencies.databaseObserver.notifyConversationListeners(record.threadId)
-    }
-  }
-
-  /**
-   * Lokale Info-Zeile nur bei tatsaechlichem Wechsel IN einen Endzustand
-   * (nicht bei jedem Poll-Tick mit unveraendertem Status) - docs/API.md 2.10.
-   */
-  private fun maybeInsertLocalStatusLine(previous: TalerPaymentStatus?, new: TalerPaymentStatus) {
-    val terminalStates = setOf(TalerPaymentStatus.ANGENOMMEN, TalerPaymentStatus.ABGELAUFEN)
-    if (new !in terminalStates || previous == new) return
-    SignalDatabase.talerPayments.getByUri(uri)?.let { record ->
-      SignalDatabase.talerPayments.insertLocalStatusLine(record.threadId, new)
     }
   }
 
@@ -178,18 +164,24 @@ class TalerUriRefreshJob private constructor(
     MessageSender.send(context, message, record.threadId, MessageSender.SendType.SIGNAL, null, null)
   }
 
-  private fun applyPreview(preview: PaymentPreviewResult) {
-    SignalDatabase.talerPayments.updateFromPreview(
+  /**
+   * Schreibt die neue Vorschau und entscheidet atomar (siehe
+   * [org.thoughtcrime.securesms.database.TalerPaymentTable.applyPreviewAndRecordTransition])
+   * ueber die lokale Statuszeile, statt bisherigen Status und neuen Status
+   * an zwei unsynchronisierten Stellen zu vergleichen - Root Cause des
+   * "abgelaufen"-Bugreports (siehe dortiger Kommentar).
+   */
+  private fun applyPreview(preview: PaymentPreviewResult, status: TalerPaymentStatus): TalerPaymentStatus? =
+    SignalDatabase.talerPayments.applyPreviewAndRecordTransition(
       uri = uri,
       uriKind = preview.uriKind.name,
-      status = TalerPaymentStatus.fromTalerStatus(preview.status),
+      status = status,
       amount = preview.amount,
       currency = preview.currency,
       exchangeBaseUrl = preview.exchangeBaseUrl,
       summary = preview.summary,
       isOwnPayment = preview.isOwnPayment,
     )
-  }
 
   override fun onShouldRetry(e: Exception): Boolean = false
 

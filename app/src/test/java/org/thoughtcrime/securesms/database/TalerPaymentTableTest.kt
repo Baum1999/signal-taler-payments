@@ -20,6 +20,7 @@ import org.signal.core.util.select
 import org.signal.core.util.update
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
 import org.thoughtcrime.securesms.testutil.RecipientTestRule
+import java.util.concurrent.CyclicBarrier
 import java.util.concurrent.TimeUnit
 
 /**
@@ -244,6 +245,91 @@ class TalerPaymentTableTest {
 
     assertEquals(TalerPaymentStatus.LOKAL_ABGEBROCHEN, table.getByUri(uri)?.status)
   }
+
+  /**
+   * Regressionstest fuer den "abgelaufen"-Bugreport: zwei ueberlappende
+   * TalerUriRefreshJob-Laeufe fuer dieselbe URI (z.B. ein ROUTINE-Fast-Poll-
+   * Tick und ein zeitgleicher RETURN-Trigger, siehe Bug 3 in
+   * HANDOFF_bug123_investigation.md - beide Trigger-Typen laufen in
+   * getrennten Queues bewusst parallel) konnten vorher beide unabhaengig
+   * denselben veralteten Ausgangsstatus (OFFEN) sehen und beide dieselbe
+   * Transition nach ABGELAUFEN erkennen - sichtbar als doppelte
+   * "Taler-Zahlungslink abgelaufen"-Zeile im Chat fuer einen Vorgang, der
+   * kurz danach tatsaechlich angenommen wurde. [TalerUriRefreshJob] liest
+   * seitdem keinen "previous"-Status mehr selbst, sondern ueberlaesst das
+   * komplett dieser (jetzt transaktional atomaren) Methode.
+   */
+  @Test
+  fun applyPreviewAndRecordTransition_concurrentCallsToSameTerminalStatusInsertLineOnlyOnce() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionRace"
+    table.upsertDetected(uri, threadId = 1)
+    table.updateStatus(uri, TalerPaymentStatus.OFFEN)
+
+    val barrier = CyclicBarrier(2)
+    val racers = List(2) {
+      Thread {
+        barrier.await()
+        table.applyPreviewAndRecordTransition(
+          uri = uri,
+          uriKind = "PAY_PUSH",
+          status = TalerPaymentStatus.ABGELAUFEN,
+          amount = "1",
+          currency = "KUDOS",
+          exchangeBaseUrl = "https://exchange.demo.taler.net/",
+          summary = "s",
+        )
+      }
+    }
+    racers.forEach { it.start() }
+    racers.forEach { it.join(TimeUnit.SECONDS.toMillis(10)) }
+
+    assertEquals(1, countStatusLines(threadId = 1, body = "ABGELAUFEN"))
+    assertEquals(TalerPaymentStatus.ABGELAUFEN, table.getByUri(uri)?.status)
+
+    // Der eigentliche, spaetere Annahme-Ruecksprung meldet danach
+    // tatsaechlich ANGENOMMEN - das darf weiterhin eine eigene Zeile
+    // bekommen (echter, neuer Endzustand), nur eben genau eine.
+    table.applyPreviewAndRecordTransition(
+      uri = uri,
+      uriKind = "PAY_PUSH",
+      status = TalerPaymentStatus.ANGENOMMEN,
+      amount = "1",
+      currency = "KUDOS",
+      exchangeBaseUrl = "https://exchange.demo.taler.net/",
+      summary = "s",
+    )
+
+    assertEquals(1, countStatusLines(threadId = 1, body = "ABGELAUFEN"))
+    assertEquals(1, countStatusLines(threadId = 1, body = "ANGENOMMEN"))
+  }
+
+  @Test
+  fun applyPreviewAndRecordTransition_doesNotOverwriteExistingLokalAbgelehnt() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/regressionM"
+    table.upsertDetected(uri, threadId = 1)
+    table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
+
+    table.applyPreviewAndRecordTransition(
+      uri = uri,
+      uriKind = "PAY_PUSH",
+      status = TalerPaymentStatus.OFFEN,
+      amount = "1",
+      currency = "KUDOS",
+      exchangeBaseUrl = "https://exchange.demo.taler.net/",
+      summary = "resurrected",
+    )
+
+    assertEquals(TalerPaymentStatus.LOKAL_ABGELEHNT, table.getByUri(uri)?.status)
+  }
+
+  private fun countStatusLines(threadId: Long, body: String): Int =
+    SignalDatabase.writableDatabase
+      .select(MessageTable.TYPE, MessageTable.BODY)
+      .from(MessageTable.TABLE_NAME)
+      .where("${MessageTable.THREAD_ID} = ?", threadId)
+      .run()
+      .readToList { it.requireLong(MessageTable.TYPE) to it.requireString(MessageTable.BODY) }
+      .count { (type, lineBody) -> (type and MessageTypes.SPECIAL_TYPES_MASK) == MessageTypes.SPECIAL_TYPE_TALER_PAYMENT_UPDATE && lineBody == body }
 
   private fun setLastCheckedAt(uri: String, timestamp: Long) {
     SignalDatabase.writableDatabase

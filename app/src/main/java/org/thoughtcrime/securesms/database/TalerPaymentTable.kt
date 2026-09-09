@@ -84,6 +84,12 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
      */
     private val LOCAL_TERMINAL_STATUSES = setOf(TalerPaymentStatus.LOKAL_ABGELEHNT, TalerPaymentStatus.LOKAL_ABGEBROCHEN)
 
+    /**
+     * Zustaende, bei deren Erst-Erreichen [applyPreviewAndRecordTransition]
+     * eine lokale Statuszeile einfuegt - siehe dort.
+     */
+    private val STATUS_LINE_TERMINAL_STATUSES = setOf(TalerPaymentStatus.ANGENOMMEN, TalerPaymentStatus.ABGELAUFEN)
+
     const val CREATE_TABLE = """
       CREATE TABLE $TABLE_NAME (
         $ID INTEGER PRIMARY KEY,
@@ -175,6 +181,83 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       )
       .where("$URI = ?", uri)
       .run()
+  }
+
+  /**
+   * Atomarer Ersatz fuer den Aufrufer-seitigen Ablauf
+   * "getByUri() lesen -> updateFromPreview() schreiben -> Vorher/Nachher
+   * vergleichen -> ggf. insertLocalStatusLine()" in [TalerUriRefreshJob].
+   *
+   * Bugreport "abgelaufen-Bug": TalerUriRefreshJob las den bisherigen Status
+   * VOR dem (mehrere Sekunden dauernden) previewForUri()-Netzwerkaufruf in
+   * eine lokale Variable und verglich sie erst danach, unsynchronisiert,
+   * gegen den neuen Status. Bug 3 (siehe HANDOFF_bug123_investigation.md)
+   * hat bewusst getrennte Job-Queues pro TriggerType eingefuehrt, damit ein
+   * RETURN-Trigger (Ruecksprung aus Taler nach Annehmen) nicht hinter einem
+   * laufenden ROUTINE-Polling-Job fuer dieselbe URI wartet - genau das
+   * erlaubt jetzt aber, dass ein ROUTINE- und ein RETURN-Job fuer dieselbe
+   * URI echt parallel laufen. Lasen beide ihren Ausgangsstatus (z.B. OFFEN),
+   * bevor der jeweils andere seinen neuen Status geschrieben hatte, erkannte
+   * jeder Job unabhaengig "Uebergang in einen Endzustand" - sichtbar als
+   * doppelte "Taler-Zahlungslink abgelaufen"-Zeile fuer einen Vorgang, der
+   * kurz danach (vom parallel laufenden Job) tatsaechlich als angenommen
+   * bestaetigt wurde.
+   *
+   * SQLiteDatabase serialisiert beginTransaction()/endTransaction() auf
+   * derselben Datenbankverbindung (zweiter Aufrufer blockiert, bis der
+   * erste committet) - Lesen des bisherigen Status, Schreiben der Preview
+   * und die Entscheidung ueber die Statuszeile passieren hier deshalb als
+   * eine Einheit. Der (langsame) previewForUri()-Aufruf selbst bleibt
+   * ausserhalb dieser Methode und damit unserialisiert - RETURN wird also
+   * weiterhin nicht durch einen laufenden ROUTINE-Netzwerkaufruf blockiert.
+   *
+   * Gibt den bisherigen Status zurueck (oder null, wenn kein bestehender
+   * lokaler Endzustand ueberschrieben werden durfte, siehe
+   * [LOCAL_TERMINAL_STATUSES]), damit der Aufrufer denselben Wert auch fuer
+   * [org.thoughtcrime.securesms.jobs.TalerUriRefreshJob.maybeSendAcceptConfirmation]
+   * verwenden kann, statt ihn ein zweites Mal - wieder unsynchronisiert - zu lesen.
+   */
+  fun applyPreviewAndRecordTransition(
+    uri: String,
+    uriKind: String?,
+    status: TalerPaymentStatus,
+    amount: String?,
+    currency: String?,
+    exchangeBaseUrl: String?,
+    summary: String?,
+    isOwnPayment: Boolean = false,
+  ): TalerPaymentStatus? {
+    val db = writableDatabase
+    db.beginTransaction()
+    try {
+      val previous = getByUri(uri)?.status ?: return null
+      if (previous in LOCAL_TERMINAL_STATUSES) {
+        db.setTransactionSuccessful()
+        return null
+      }
+      db
+        .update(TABLE_NAME)
+        .values(
+          URI_KIND to uriKind,
+          STATUS to status.name,
+          AMOUNT to amount,
+          CURRENCY to currency,
+          EXCHANGE_BASE_URL to exchangeBaseUrl,
+          SUMMARY to summary,
+          IS_OWN_PAYMENT to if (isOwnPayment) 1 else 0,
+          LAST_CHECKED_AT to System.currentTimeMillis(),
+          CONSECUTIVE_FAILURES to 0,
+        )
+        .where("$URI = ?", uri)
+        .run()
+      if (status in STATUS_LINE_TERMINAL_STATUSES && previous != status) {
+        getByUri(uri)?.let { insertLocalStatusLine(it.threadId, status) }
+      }
+      db.setTransactionSuccessful()
+      return previous
+    } finally {
+      db.endTransaction()
+    }
   }
 
   /**
