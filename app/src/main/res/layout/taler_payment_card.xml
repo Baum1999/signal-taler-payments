@@ -280,5 +280,14 @@
 
     </LinearLayout>
 
+    <!-- Platz fuer den frei ueber der Bubble schwebenden Footer (Zeitstempel +
+         Taler-Bestaetigungsicon), der sonst die letzte Zeile der Karte
+         ueberlappt (z.B. Split-Fortschrittstext "1 von 2 Angenommen"), da die
+         Karte anders als normaler Nachrichtentext keine Endaussparung dafuer
+         mitbringt. -->
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="20dp" />
+
 </LinearLayout>
 
