@@ -16,32 +16,6 @@ import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
 import kotlin.time.Duration.Companion.seconds
 
-data class TalerPaymentRecord(
-  val uri: String,
-  val threadId: Long,
-  val uriKind: String?,
-  val status: TalerPaymentStatus,
-  val amount: String?,
-  val currency: String?,
-  val exchangeBaseUrl: String?,
-  val summary: String?,
-  val createdAt: Long,
-  val lastCheckedAt: Long?,
-  val consecutiveFailures: Int,
-  val isOwnPayment: Boolean,
-)
-
-/**
- * Kandidat fuers Polling (REVIEW.md B2) - schlanker als [TalerPaymentRecord],
- * enthaelt nur, was [org.thoughtcrime.securesms.taler.TalerPollingCoordinator]
- * fuer die Backoff-Entscheidung braucht.
- */
-data class TalerPaymentPollCandidate(
-  val uri: String,
-  val lastCheckedAt: Long?,
-  val consecutiveFailures: Int,
-)
-
 /**
  * Ein Vorgang pro Taler-URI, nicht pro Nachricht - doppelt zugestellte,
  * zitierte und weitergeleitete Nachrichten mit derselben URI sind derselbe
