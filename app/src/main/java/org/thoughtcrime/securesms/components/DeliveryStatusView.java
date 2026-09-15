@@ -23,8 +23,8 @@ import org.thoughtcrime.securesms.util.ViewUtil;
 
 /**
  * View responsible for displaying the delivery status (NONE, PENDING, SENT, DELIVERED, READ, or - for Taler payment
- * messages - the circle-icon equivalents TALER_SENT/TALER_DELIVERED/TALER_READ plus the Taler-only TALER_PAID) of a
- * given outgoing message.
+ * messages - the circle-icon equivalents TALER_SENT/TALER_DELIVERED/TALER_READ, which build up open ring segments,
+ * plus the Taler-only TALER_PAID, which closes those rings as its own icon) of a given outgoing message.
  * <p>
  * This view manipulates its start / end padding to properly place the corresponding icon, and also performs a rotation
  * animation on itself in the pending mode. Thus, users should be aware that padding values set in XML will be overwritten.
@@ -36,7 +36,8 @@ public class DeliveryStatusView extends AppCompatImageView {
   private static final String STATE_KEY = "DeliveryStatusView.STATE";
   private static final String ROOT_KEY  = "DeliveryStatusView.ROOT";
 
-  private final int horizontalPadding = (int) DimensionUnit.DP.toPixels(2);
+  private final int horizontalPadding         = (int) DimensionUnit.DP.toPixels(2);
+  private final int talerPaidExtraStartOffset = (int) DimensionUnit.DP.toPixels(2);
 
   private RotateAnimation rotationAnimation;
 
@@ -199,7 +200,8 @@ public class DeliveryStatusView extends AppCompatImageView {
   /**
    * Kreis-Varianten der drei obigen Zustaende fuer Taler-Zahlungsnachrichten
    * (gleiche Semantik wie setSent/setDelivered/setRead, nur andere Optik:
-   * die Kreise bauen sich so auf, dass sie zusammen das Taler-Logo ergeben).
+   * die Kreise bauen sich als offene Ring-Segmente auf; setTalerPaid() unten
+   * schliesst diese Ringe dann als eigenstaendigen 4. Zustand).
    */
   public void setTalerSent() {
     state = State.TALER_SENT;
@@ -232,18 +234,22 @@ public class DeliveryStatusView extends AppCompatImageView {
   }
 
   /**
-   * Vierter Zustand ohne Signal-Pendant: Taler-Zahlung abgeschlossen. Faerbt
-   * die drei Kreise fest in Taler-Blau statt in der vom Aufrufer gesetzten
+   * Vierter Zustand ohne Signal-Pendant: Taler-Zahlung abgeschlossen. Nutzt ein
+   * eigenstaendiges Icon (drei geschlossene Ringe statt der offenen Halbmond-
+   * Wirbel von sent/delivered/read), das die Statuskette sichtbar abschliesst,
+   * und faerbt es fest in Taler-Blau statt in der vom Aufrufer gesetzten
    * Footer-Farbe (analog zu TalerConfirmationIconPresenter, das aus demselben
    * Grund signal_colorPrimary statt der Footer-Tint verwendet) - der naechste
    * setTint()-Aufruf beim naechsten Bind dieser (recycelten) View setzt die
    * normale Tint-Farbe wieder her, siehe ConversationItemFooter#setIconColor,
-   * das vor jedem presentDeliveryStatus()-Aufruf laeuft.
+   * das vor jedem presentDeliveryStatus()-Aufruf laeuft. Das Icon ist etwas
+   * breiter als die Vorstufen, daher zusaetzlicher Start-Versatz, damit es nicht
+   * zu dicht am Nachrichtentext klebt.
    */
   public void setTalerPaid() {
     state = State.TALER_PAID;
     setVisibility(View.VISIBLE);
-    ViewUtil.setPaddingStart(this, horizontalPadding);
+    ViewUtil.setPaddingStart(this, horizontalPadding + talerPaidExtraStartOffset);
     ViewUtil.setPaddingEnd(this, 0);
     clearAnimation();
     setImageResource(R.drawable.symbol_messagestatus_taler_paid_24);

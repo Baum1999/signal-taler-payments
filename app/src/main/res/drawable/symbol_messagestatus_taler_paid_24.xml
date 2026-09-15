@@ -1,17 +1,29 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="20dp"
+    android:width="22dp"
     android:height="12dp"
-    android:viewportWidth="20"
+    android:viewportWidth="22"
     android:viewportHeight="12">
+    <!-- GNU-Fork (Signal-Taler-Integration): eigenstaendiges 4. Icon fuer TALER_PAID
+         (Zahlung abgeschlossen), keine Kopie von symbol_messagestatus_taler_read_24.
+         Die drei offenen Halbmond-Wirbel der vorherigen Zustaende (sent/delivered/read)
+         werden hier zu geschlossenen Ringen vervollstaendigt, um den Abschluss der
+         Statuskette visuell erkennbar zu machen; Viewport ist etwas breiter, damit der
+         geschlossene dritte Ring nicht am rechten Rand abgeschnitten wirkt. -->
     <group>
         <path
             android:fillColor="#FF000000"
-            android:pathData="M9.77 8.64 A4.60 4.60 0 1 1 9.77 3.36 L8.70 4.11 A3.30 3.30 0 1 0 8.70 7.89 Z"/>
+            android:fillType="evenOdd"
+            android:pathData="M14.37,6 A4.60,4.60 0 1,1 5.17,6 A4.60,4.60 0 1,1 14.37,6 Z
+                               M13.07,6 A3.30,3.30 0 1,1 6.47,6 A3.30,3.30 0 1,1 13.07,6 Z"/>
         <path
             android:fillColor="#FF000000"
-            android:pathData="M13.07 8.64 A4.60 4.60 0 1 1 13.07 3.36 L12.00 4.11 A3.30 3.30 0 1 0 12.00 7.89 Z"/>
+            android:fillType="evenOdd"
+            android:pathData="M17.67,6 A4.60,4.60 0 1,1 8.47,6 A4.60,4.60 0 1,1 17.67,6 Z
+                               M16.37,6 A3.30,3.30 0 1,1 9.77,6 A3.30,3.30 0 1,1 16.37,6 Z"/>
         <path
             android:fillColor="#FF000000"
-            android:pathData="M16.37 8.64 A4.60 4.60 0 1 1 16.37 3.36 L15.30 4.11 A3.30 3.30 0 1 0 15.30 7.89 Z"/>
+            android:fillType="evenOdd"
+            android:pathData="M20.97,6 A4.60,4.60 0 1,1 11.77,6 A4.60,4.60 0 1,1 20.97,6 Z
+                               M19.67,6 A3.30,3.30 0 1,1 13.07,6 A3.30,3.30 0 1,1 19.67,6 Z"/>
     </group>
 </vector>
