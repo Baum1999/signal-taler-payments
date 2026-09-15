@@ -81,6 +81,7 @@ object TalerMenuActions {
             sender = messageRecord.fromRecipient,
             messageBody = messageRecord.body,
             messageId = messageRecord.id,
+            messageExtrasTalerPayment = messageRecord.messageExtras?.talerPayment,
           )
         } else {
           val record = SignalDatabase.talerPayments.getByUri(uris.single())

@@ -126,6 +126,7 @@ object TalerForwardGate {
             sender = candidate.record.fromRecipient,
             messageBody = candidate.record.body,
             messageId = candidate.record.id,
+            messageExtrasTalerPayment = candidate.record.messageExtras?.talerPayment,
           )
         } else {
           val record = SignalDatabase.talerPayments.getByUri(candidate.uris.single())

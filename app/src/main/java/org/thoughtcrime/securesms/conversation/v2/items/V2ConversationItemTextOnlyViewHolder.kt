@@ -482,6 +482,10 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
       threadId = conversationMessage.messageRecord.threadId,
       sender = conversationMessage.messageRecord.fromRecipient,
       onAccept = { uri, threadId -> TalerAcceptRejectActions.onAcceptClicked(root.context, uri, threadId) },
+      // Deckt die eigene ausgehende Bubble ab: totalAmount/includeSelf landen
+      // fuer die dort nur lokal in MessageExtras.talerPayment, nicht in der
+      // TalerPaymentMessageTable (siehe Kommentar in bindGroupCard).
+      messageExtrasTalerPayment = conversationMessage.messageRecord.messageExtras?.talerPayment,
     )
   }
 

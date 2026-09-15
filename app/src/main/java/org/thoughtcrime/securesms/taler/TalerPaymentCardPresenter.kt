@@ -15,6 +15,7 @@ import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.TalerPaymentRecord
+import org.thoughtcrime.securesms.database.model.databaseprotos.TalerPaymentExtra
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.util.visible
@@ -62,6 +63,7 @@ object TalerPaymentCardPresenter {
     threadId: Long,
     sender: Recipient,
     onAccept: (uri: String, threadId: Long) -> Unit = { _, _ -> },
+    messageExtrasTalerPayment: TalerPaymentExtra? = null,
   ) {
     if (stub == null) return
     val uris = urisFromMessageBody(messageBody)
@@ -94,7 +96,7 @@ object TalerPaymentCardPresenter {
     // bleibt unten unveraendert.
     if (uris.size > 1) {
       val cardView = inflater.inflate(R.layout.taler_payment_card, container, false)
-      bindGroupCard(cardView, uris, threadId, sender, messageBody, messageId, onAccept)
+      bindGroupCard(cardView, uris, threadId, sender, messageBody, messageId, onAccept, messageExtrasTalerPayment)
       container.addView(cardView)
       return
     }
@@ -136,9 +138,10 @@ object TalerPaymentCardPresenter {
     sender: Recipient,
     messageBody: String,
     messageId: Long,
+    messageExtrasTalerPayment: TalerPaymentExtra? = null,
   ): View {
     val view = LayoutInflater.from(context).inflate(R.layout.taler_payment_card, null, false)
-    bindGroupCard(view, uris, threadId, sender, messageBody, messageId, { _, _ -> })
+    bindGroupCard(view, uris, threadId, sender, messageBody, messageId, { _, _ -> }, messageExtrasTalerPayment)
     view.findViewById<View>(R.id.taler_card_actions).visibility = View.GONE
     return view
   }
@@ -314,6 +317,7 @@ object TalerPaymentCardPresenter {
     messageBody: String,
     messageId: Long,
     onAccept: (uri: String, threadId: Long) -> Unit,
+    messageExtrasTalerPayment: TalerPaymentExtra? = null,
   ) {
     val context = view.context
 
@@ -329,10 +333,18 @@ object TalerPaymentCardPresenter {
     // 9000, ueber TalerPaymentMessageTable persistiert) - `body` ist bei neu
     // gesendeten Nachrichten kein JSON mehr. parsePaymentDataOrNull bleibt
     // als Fallback fuer aeltere, vor der Umstellung gesendete Nachrichten.
+    // Fuer die eigene ausgehende Nachricht des Absenders traegt weder die
+    // TalerPaymentMessageTable noch der Body diese Daten: trackStructuredPayment
+    // wird nur beim Verarbeiten einer EINGEHENDEN Nachricht bzw. eines
+    // Sync-Transcripts aufgerufen (DataMessageProcessor/SyncMessageProcessor),
+    // nicht beim lokalen Einfuegen der eigenen Bubble. Dort liegen
+    // totalAmount/includeSelf aber bereits im MessageExtras.talerPayment-Feld
+    // der Nachricht selbst (MessageTable.insertMessageOutbox), das der Aufrufer
+    // hier durchreicht - dritte und letzte Fallback-Quelle.
     val structuredPayment = SignalDatabase.talerPaymentMessages.getByMessageId(messageId)
     val legacyPaymentData = parsePaymentDataOrNull(messageBody)
-    val totalAmount = structuredPayment?.totalAmount ?: legacyPaymentData?.totalAmount
-    val includeSelf = structuredPayment?.includeSelf ?: legacyPaymentData?.includeSelf
+    val totalAmount = structuredPayment?.totalAmount ?: legacyPaymentData?.totalAmount ?: messageExtrasTalerPayment?.totalAmount
+    val includeSelf = structuredPayment?.includeSelf ?: legacyPaymentData?.includeSelf ?: messageExtrasTalerPayment?.includeSelf
 
     val myAci = SignalStore.account.requireAci().toString()
     val role = if (sender.aci.isPresent) {
