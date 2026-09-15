@@ -77,4 +77,32 @@ class TalerPaymentDataTest {
   fun `blank text returns empty list`() {
     assertEquals(emptyList<String>(), urisFromMessageBody(""))
   }
+
+  @Test
+  fun `plain text body with legacy text before the uri still finds it - TalerReturnActivity body order`() {
+    // Body-Reihenfolge seit dem Bugfix "Transkript kopieren -> Taler
+    // einfuegen" (TalerReturnActivity.kt: legacyText + uris statt
+    // andersherum, damit "copy the URI below" tatsaechlich stimmt). Kein
+    // JSON hier - genau der Klartext-Body, den sendComposedPaymentWithData
+    // jetzt tatsaechlich verschickt.
+    val body = "This is a GNU Taler link. Update Signal or copy the URI below " +
+      "into the GNU Taler app to make the payment.\n\n" +
+      "taler://pay-push/exchange.example/AAA"
+    assertEquals(listOf("taler://pay-push/exchange.example/AAA"), urisFromMessageBody(body))
+  }
+
+  @Test
+  fun `plain text body with legacy text before multiple uris finds all of them in order`() {
+    val body = "This is a GNU Taler link. Update Signal or copy the URI below " +
+      "into the GNU Taler app to make the payment.\n\n" +
+      "taler://pay-push/exchange.example/AAA\n\n" +
+      "taler://pay-push/exchange.example/BBB"
+    assertEquals(
+      listOf(
+        "taler://pay-push/exchange.example/AAA",
+        "taler://pay-push/exchange.example/BBB",
+      ),
+      urisFromMessageBody(body),
+    )
+  }
 }

@@ -108,17 +108,20 @@ class TalerReturnActivity : Activity() {
             // sendComposedPaymentWithData weiter unten fuer jede URI erneut.
             if (paymentData.uri.all { TalerUriDetector.isExactlyOneUri(it) }) {
               if (entry.intent == TalerCorrelationIntent.REFUND) {
-                // Fuer Refund: URIs im Klartext (nicht als kompaktes JSON -
+                // Header + Taler-seitiger Verwendungszweck (legacyText) ZUERST,
+                // dann die URIs im Klartext (nicht als kompaktes JSON -
                 // urisFromMessageBody wuerde sonst versuchen, den GESAMTEN Text
                 // strikt als TalerPaymentData zu dekodieren; ein Header davor
                 // liesse das fehlschlagen und den Regex-Fallback auf noch
                 // JSON-verklebte URIs anwenden, siehe Warnung in
-                // TalerPaymentData.kt) gefolgt vom Header + Taler-seitigem
-                // Verwendungszweck (legacyText) - derselbe Body-Aufbau wie
+                // TalerPaymentData.kt) - derselbe Body-Aufbau wie
                 // sendComposedPaymentWithData, nur mit Header vor legacyText
-                // statt direktem Legacy-Text.
-                draftText = paymentData.uri.joinToString("\n\n") + "\n\n" +
-                  getString(R.string.TalerFork_refund_message, paymentData.legacyText)
+                // statt direktem Legacy-Text. Text-zuerst-Reihenfolge (Bugfix
+                // "Transkript kopieren -> Taler einfuegen"): legacyText sagt
+                // "copy the URI below", das stimmt nur, wenn die URI(s)
+                // tatsaechlich NACH dem Text stehen.
+                draftText = getString(R.string.TalerFork_refund_message, paymentData.legacyText) +
+                  "\n\n" + paymentData.uri.joinToString("\n\n")
               } else {
                 // Für SEND: JSON direkt als Nachricht senden
                 sendComposedPaymentWithData(entry.threadId, paymentData)
@@ -307,11 +310,21 @@ class TalerReturnActivity : Activity() {
         totalAmount = paymentData.totalAmount
       )
 
-      // body traegt die rohen URIs (mit Leerzeile dazwischen, damit
-      // TalerUriDetector sie einzeln findet UND der Klartext fuer
-      // Legacy-Clients lesbar bleibt) gefolgt vom Legacy-Text - fuer Clients
-      // ohne Kenntnis von DataMessage.talerPayment.
-      val body = paymentData.uri.joinToString("\n\n") + "\n\n" + paymentData.legacyText
+      // body traegt zuerst den Legacy-Text - fuer Clients ohne Kenntnis von
+      // DataMessage.talerPayment -, gefolgt von den rohen URIs (mit Leerzeile
+      // dazwischen, damit TalerUriDetector sie einzeln findet UND der
+      // Klartext lesbar bleibt). Text-zuerst-Reihenfolge (Bugfix "Transkript
+      // kopieren -> Taler einfuegen"): legacyText sagt "copy the URI below",
+      // das stimmt nur, wenn die URI(s) tatsaechlich NACH dem Text stehen -
+      // vorher standen sie davor, was sowohl die eigene Anleitung
+      // widersprach als auch (Root Cause des eigentlichen Bugs)
+      // TalerUriExtractor.extract() auf Taler-Seite dazu brachte, den
+      // GESAMTEN Text inklusive Legacy-Satz als eine einzige "URI"
+      // misszuverstehen (siehe TalerUriExtractor.kt: der Fix dort macht
+      // dieses Umdrehen nicht ueberfluessig - bereits verschickte
+      // Nachrichten in bestehenden Chats haben weiterhin die alte
+      // Reihenfolge, und der Extractor muss beide Richtungen abdecken).
+      val body = paymentData.legacyText + "\n\n" + paymentData.uri.joinToString("\n\n")
 
       val message = OutgoingMessage(
         threadRecipient = recipient,
