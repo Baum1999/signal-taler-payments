@@ -117,6 +117,7 @@ import org.thoughtcrime.securesms.service.webrtc.links.CallLinkCredentials
 import org.thoughtcrime.securesms.service.webrtc.links.CallLinkRoomId
 import org.thoughtcrime.securesms.service.webrtc.links.SignalCallLinkState
 import org.thoughtcrime.securesms.stories.Stories
+import org.thoughtcrime.securesms.taler.TalerPaymentTracker
 import org.thoughtcrime.securesms.util.EarlyMessageCacheEntry
 import org.thoughtcrime.securesms.util.IdentityUtil
 import org.thoughtcrime.securesms.util.MediaUtil
@@ -954,6 +955,19 @@ object SyncMessageProcessor {
     }
 
     log(envelopeTimestamp, "Inserted sync message as messageId $messageId")
+
+    // GNU-Fork (Signal-Taler-Integration): DataMessageProcessor.handleTextMessage()
+    // trackt Taler-URIs bereits fuer normal empfangene Nachrichten (structured
+    // Feld 9000 bevorzugt, sonst Body-Fallback) - dieser Sync-Pfad (verknuepfte
+    // Geraete, sent-Transkript der eigenen/einer anderen eigenen Geraete-Instanz)
+    // hatte denselben Hook bisher nicht, wodurch Taler-Zahlungskarten auf
+    // Linked Devices nie erschienen sind.
+    val talerPayment = dataMessage.talerPayment
+    if (talerPayment != null) {
+      TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId, threadId)
+    } else {
+      TalerPaymentTracker.trackUrisInBody(body, threadId)
+    }
 
     SignalDatabase.messages.markAsSent(messageId)
 
