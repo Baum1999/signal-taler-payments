@@ -5,10 +5,14 @@ package org.thoughtcrime.securesms.taler
  * gleichen drei Schemata, die Talers eigenes Manifest als Intent-Filter
  * registriert (wallet/src/main/AndroidManifest.xml, siehe docs/API.md).
  *
- * Reine Textmustererkennung, keine Validierung. Ob eine gefundene URI
- * tatsaechlich gueltig ist, entscheidet immer Taler selbst
- * (TalerLinkClient.validateUri) - siehe docs/API.md Abschnitt 2.8: eine
- * gefundene URI ist nur ein Kandidat, keine Vertrauensquelle.
+ * Reine Textmustererkennung, keine Validierung: eine gefundene URI ist nur ein
+ * Kandidat, keine Vertrauensquelle (docs/API.md Abschnitt 2.8). Ueber Art und
+ * Gueltigkeit entscheidet danach [net.taler.wallet.link.TalerUriParser].
+ *
+ * `taler+http://` fehlt hier bewusst, obwohl classify() es kennt: dieses
+ * Schema zeigt auf einen Exchange ohne TLS, und Signal loest erkannte
+ * Peer-URIs unaufgefordert selbst beim Exchange auf. Was automatisch
+ * abgerufen wird, soll nicht im Klartext ueber die Leitung gehen.
  */
 object TalerUriDetector {
   private val URI_REGEX = Regex("(?i)\\b(?:taler|ext\\+taler|payto)://\\S+")

@@ -99,12 +99,6 @@ enum class PaymentStatus {
     LOCAL_CANCELLED,
     /** Zustand unbekannt (offline) */
     UNKNOWN_OFFLINE,
-    /** Taler App nicht verbunden */
-    TALER_NOT_CONNECTED,
-    /** Taler App nicht installiert */
-    NOT_INSTALLED,
-    /** Taler App nicht vertrauenswürdig */
-    NOT_TRUSTED,
     /** Zahlung abgelaufen */
     EXPIRED
 }

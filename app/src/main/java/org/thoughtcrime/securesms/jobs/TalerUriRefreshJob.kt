@@ -1,6 +1,5 @@
 package org.thoughtcrime.securesms.jobs
 
-import kotlinx.coroutines.runBlocking
 import net.taler.wallet.link.PaymentPreviewResult
 import net.taler.wallet.link.TalerUriKind
 import org.signal.core.util.logging.Log
@@ -9,19 +8,20 @@ import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobmanager.Job
 import org.thoughtcrime.securesms.jobmanager.JsonJobData
+import org.thoughtcrime.securesms.jobmanager.impl.NetworkConstraint
 import org.thoughtcrime.securesms.mms.OutgoingMessage
 import org.thoughtcrime.securesms.sms.MessageSender
+import org.thoughtcrime.securesms.taler.TalerContractResolution
 import org.thoughtcrime.securesms.taler.TalerCorrelation
-import org.thoughtcrime.securesms.taler.TalerLinkClient
-import org.thoughtcrime.securesms.taler.TalerLinkResult
 import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
+import org.thoughtcrime.securesms.taler.TalerPeerContractResolver
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Fragt Status/Vorschau eines einzelnen Taler-URI bei der lokalen
- * Taler-Schnittstelle ab (docs/API.md) und schreibt das Ergebnis in
+ * Fragt Status/Vorschau eines einzelnen Taler-URI direkt beim Exchange ab
+ * (siehe [TalerPeerContractResolver]) und schreibt das Ergebnis in
  * [org.thoughtcrime.securesms.database.TalerPaymentTable]. Wird beim
  * erstmaligen Erkennen einer URI enqueued (siehe TalerPaymentTracker) und
  * spaeter erneut fuers Polling (Schritt 4g).
@@ -69,7 +69,12 @@ class TalerUriRefreshJob private constructor(
     Parameters.Builder()
       .setQueue("TalerUriRefreshJob::${triggerType.name}::${TalerCorrelation.shortHash(uri)}")
       .setMaxInstancesForQueue(1)
-      .setLifespan(TimeUnit.MINUTES.toMillis(1))
+      // Seit der Abruf ueber das Netz statt ueber einen lokalen Binder laeuft:
+      // ohne Verbindung gar nicht erst anlaufen, sonst zaehlt jeder Versuch
+      // offline als Fehlschlag und treibt den Backoff in TalerPollingCoordinator
+      // hoch, obwohl der Exchange nie gefragt wurde.
+      .addConstraint(NetworkConstraint.KEY)
+      .setLifespan(TimeUnit.MINUTES.toMillis(5))
       .setMaxAttempts(3)
       .setQueuePriority(if (triggerType == TriggerType.RETURN) Job.Parameters.PRIORITY_HIGH else Job.Parameters.PRIORITY_DEFAULT)
       .build(),
@@ -78,28 +83,17 @@ class TalerUriRefreshJob private constructor(
   )
 
   override fun onRun() {
-    val result = runBlocking { TalerLinkClient(context).previewForUri(uri) }
-    when (result) {
-      is TalerLinkResult.Ergebnis -> {
-        val newStatus = TalerPaymentStatus.fromTalerStatus(result.value.status)
-        val previousStatus = applyPreview(result.value, newStatus)
+    when (val result = TalerPeerContractResolver().resolve(uri)) {
+      is TalerContractResolution.Ergebnis -> {
+        val newStatus = TalerPaymentStatus.fromTalerStatus(result.preview.status)
+        val previousStatus = applyPreview(result.preview, newStatus)
         maybeSendAcceptConfirmation(previousStatus, newStatus)
       }
-      // P1 (REVIEW.md): drei fuer den Nutzer unterschiedliche Faelle nicht
-      // mehr auf einen gemeinsamen Fallback-Zustand zusammenfassen - "App
-      // fehlt" ist ein Installationshinweis, "Signatur stimmt nicht" ein
-      // Sicherheitshinweis, "kein Consent" ein reiner Verbindungshinweis.
-      is TalerLinkResult.NichtInstalliert -> {
-        SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.NICHT_INSTALLIERT)
+      is TalerContractResolution.Fehlgeschlagen -> {
+        SignalDatabase.talerPayments.updateStatus(uri, result.status)
       }
-      is TalerLinkResult.NichtVertrauenswuerdig -> {
-        SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG)
-      }
-      is TalerLinkResult.KeinConsent -> {
-        SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.TALER_NICHT_VERBUNDEN)
-      }
-      is TalerLinkResult.Fehler -> {
-        Log.w(TAG, "previewForUri fehlgeschlagen (uri=${TalerCorrelation.shortHash(uri)})")
+      is TalerContractResolution.Offline -> {
+        Log.w(TAG, "Exchange nicht erreichbar (uri=${TalerCorrelation.shortHash(uri)})")
         // B2 (REVIEW.md): consecutive_failures hochzaehlen statt keinem
         // DB-Update - TalerPollingCoordinator braucht das fuer den
         // exponentiellen Backoff, sonst wird ein dauerhaft fehlschlagender
@@ -136,8 +130,9 @@ class TalerUriRefreshJob private constructor(
    * muss sich selbst nichts bestaetigen"). Diese Annahme stimmt nicht, wenn
    * Sender und Empfaenger zwar denselben Signal-Thread (Notiz an mich), aber
    * zwei verschiedene Taler-Wallets sind - wirtschaftlich zwei Parteien,
-   * technisch ein Self-Chat. isOwnPayment (oben) ist bereits die korrekte,
-   * Taler-seitig ermittelte Unterscheidung dafuer; ein zusaetzlicher
+   * technisch ein Self-Chat. isOwnPayment (oben) ist bereits die korrekte
+   * Unterscheidung dafuer (gesetzt beim Erkennen anhand der
+   * Nachrichtenrichtung, siehe TalerPaymentTable.upsertDetected); ein zusaetzlicher
    * Self-Chat-Ausschluss ist deshalb unnoetig und im echten
    * Nur-ich-selbst-Fall harmlos (dann ist isOwnPayment ohnehin true und die
    * Methode kehrt oben schon zurueck).
@@ -180,7 +175,6 @@ class TalerUriRefreshJob private constructor(
       currency = preview.currency,
       exchangeBaseUrl = preview.exchangeBaseUrl,
       summary = preview.summary,
-      isOwnPayment = preview.isOwnPayment,
     )
 
   override fun onShouldRetry(e: Exception): Boolean = false

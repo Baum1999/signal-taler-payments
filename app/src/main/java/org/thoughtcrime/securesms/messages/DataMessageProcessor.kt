@@ -1043,9 +1043,9 @@ object DataMessageProcessor {
       // to deriving URIs from the plaintext body.
       val talerPayment = message.talerPayment
       if (talerPayment != null) {
-        TalerPaymentTracker.trackStructuredPayment(talerPayment, insertResult.messageId, insertResult.threadId)
+        TalerPaymentTracker.trackStructuredPayment(talerPayment, insertResult.messageId, insertResult.threadId, isOwnPayment = false)
       } else {
-        TalerPaymentTracker.trackUrisInBody(body, insertResult.threadId)
+        TalerPaymentTracker.trackUrisInBody(body, insertResult.threadId, isOwnPayment = false)
       }
       // Bestaetigungsnachricht ("Zahlung fuer [Kind] akzeptiert") nur in 1:1-Chats
       // erkennen, spiegelbildlich zur Sendebedingung in

@@ -10053,12 +10053,6 @@
     <string name="TalerFork_status_checking">Checking…</string>
     <!-- Status text on a payment card: the link is not a valid Taler link -->
     <string name="TalerFork_status_invalid">Payment failed</string>
-    <!-- Status text on a payment card: GNU Taler is installed and trusted, but the user has not granted the connection yet -->
-    <string name="TalerFork_status_not_connected">GNU Taler not connected</string>
-    <!-- Status text on a payment card: the GNU Taler app is not installed on this device -->
-    <string name="TalerFork_status_not_installed">GNU Taler is not installed</string>
-    <!-- Status text on a payment card: an app claiming to be GNU Taler responded, but its signing certificate does not match the pinned allowlist. This is a security warning, not an installation hint, and must look visibly different from TalerFork_status_not_installed -->
-    <string name="TalerFork_status_untrusted">GNU Taler: unexpected app signature, connection blocked</string>
 
     <!-- Meilenstein 7: Section header for payment tab in conversation settings -->
     <string name="TalerFork_payments">Payments</string>
@@ -10082,14 +10076,14 @@
     <!-- Cancel button in the decline dialog -->
     <string name="TalerFork_decline_dialog_cancel">Cancel</string>
 
-    <!-- Row label in chat settings for the temporary GNU Taler connection-test entry -->
-    <string name="TalerFork_settings_row_label">GNU Taler (connection test)</string>
-    <!-- Toast shown after a successful GNU Taler connection test -->
-    <string name="TalerFork_settings_connected">GNU Taler: connected</string>
-    <!-- Toast shown when the GNU Taler connection test failed without further detail -->
-    <string name="TalerFork_settings_connection_error">GNU Taler: connection attempt failed</string>
-    <!-- Toast shown when the GNU Taler connection test failed; %1$s is the exception class name -->
-    <string name="TalerFork_settings_connection_error_detail">GNU Taler: connection attempt failed (%1$s)</string>
+    <!-- Row label in app settings for the GNU Taler wallet status entry -->
+    <string name="TalerFork_settings_row_label">GNU Taler wallet</string>
+    <!-- Status line of the wallet settings row when the wallet app is present on this device -->
+    <string name="TalerFork_settings_wallet_installed">Installed</string>
+    <!-- Status line of the wallet settings row when no wallet app is present on this device -->
+    <string name="TalerFork_settings_wallet_not_installed">Not installed</string>
+    <!-- Status line of the wallet settings row when an app of that name is installed but signed with an unexpected certificate. Security warning, must read differently from TalerFork_settings_wallet_not_installed -->
+    <string name="TalerFork_settings_wallet_untrusted">Unexpected app signature</string>
 
     <!-- Local system-message line shown when this device accepted an incoming Taler payment (docs/API.md 2.10) -->
     <string name="TalerFork_update_accepted">Taler payment accepted</string>
@@ -10186,9 +10180,6 @@
     <string name="TalerFork_status_compact_expired">Abgelaufen</string>
     <string name="TalerFork_status_compact_checking">Wird geprüft…</string>
     <string name="TalerFork_status_compact_invalid">Zahlung fehlgeschlagen</string>
-    <string name="TalerFork_status_compact_not_connected">Nicht verbunden</string>
-    <string name="TalerFork_status_compact_not_installed">Nicht installiert</string>
-    <string name="TalerFork_status_compact_untrusted">Nicht vertrauenswürdig</string>
 
     <!-- Beschreibung fuer Screenreader: viertes Kreis-Icon im Nachrichten-Footer (DeliveryStatusView.setTalerPaid) -->
     <string name="TalerFork_delivery_status_paid">Zahlung abgeschlossen</string>
@@ -10203,9 +10194,6 @@
     <string name="TalerFork_status_icon_expired">⏱</string>
     <string name="TalerFork_status_icon_checking">…</string>
     <string name="TalerFork_status_icon_invalid">!</string>
-    <string name="TalerFork_status_icon_not_connected">⚠</string>
-    <string name="TalerFork_status_icon_not_installed">⚠</string>
-    <string name="TalerFork_status_icon_untrusted">⚠</string>
     
     <!-- Direction arrows -->
     <string name="TalerFork_direction_in">↓</string>

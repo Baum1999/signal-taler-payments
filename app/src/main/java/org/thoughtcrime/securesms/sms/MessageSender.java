@@ -230,7 +230,7 @@ public class MessageSender {
       long         messageId         = insertResult.getMessageId();
 
       // Track Taler URIs in all chat types (1:1, group, self)
-      TalerPaymentTracker.trackUrisInBody(message.getBody(), allocatedThreadId);
+      TalerPaymentTracker.trackUrisInBody(message.getBody(), allocatedThreadId, true);
 
       if (message.getThreadRecipient().isGroup()) {
         if (message.getAttachments().isEmpty() && message.getLinkPreviews().isEmpty() && message.getSharedContacts().isEmpty()) {

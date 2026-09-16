@@ -3,10 +3,9 @@ package org.thoughtcrime.securesms.taler
 import android.app.Activity
 import android.os.Bundle
 import androidx.annotation.StringRes
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import net.taler.wallet.link.TalerUriKind
-import net.taler.wallet.link.TalerUriValidity
+import net.taler.wallet.link.TalerUriParser
 import org.signal.core.util.concurrent.SignalExecutors
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
@@ -203,30 +202,18 @@ class TalerReturnActivity : Activity() {
    * zusaetzliche isSelf-Check, als echte Parity zum UI-Gate (das isSelf
    * ebenfalls separat ausschliesst, siehe isTalerRecipientAllowed dort).
    *
-   * MessageSender.send() macht synchrone SQLite-Schreibzugriffe, und die
-   * Pay-Push-Klassifizierung unten macht einen echten AIDL-Roundtrip zu
-   * Taler (previewForUri, suspend) - beides gehoert nicht auf den Main-Thread
-   * (onCreate). Deshalb laeuft die komplette Methode auf
-   * SignalExecutors.BOUNDED, EIN Background-Mechanismus fuer beide Zwecke
-   * statt zwei getrennter (z. B. zusaetzlich Main-Thread-Klassifizierung vor
-   * dem Dispatch) - gleiches Muster wie TalerUriRefreshJob.onRun(), der
-   * previewForUri() ebenfalls per runBlocking von einem bereits laufenden
-   * Background-Thread aus aufruft (dort ist das ein Job-Worker-Thread, hier
-   * ein SignalExecutors.BOUNDED-Thread). Fire-and-forget: onCreate wartet
-   * nicht auf den Abschluss und ruft anschliessend ohnehin finish() auf.
+   * MessageSender.send() macht synchrone SQLite-Schreibzugriffe - die
+   * gehoeren nicht auf den Main-Thread (onCreate). Deshalb laeuft die
+   * komplette Methode auf SignalExecutors.BOUNDED. Fire-and-forget: onCreate
+   * wartet nicht auf den Abschluss und ruft anschliessend ohnehin finish()
+   * auf.
    *
-   * Klassifizierung per TalerLinkClient.previewForUri() statt eines lokal
-   * nachgebauten Parsers (fruehere Fassung kopierte TalerUriParser.kt aus
-   * dem Taler-Repo - das ist genau die Datei, die sync-aidl.sh explizit als
-   * "Talers interne Implementierung" von der Synchronisation ausschliesst,
-   * eine lokale Kopie kann also unbemerkt von Talers echtem classify()
-   * abdriften). previewForUri ist Taler-seitig autoritativ und ohnehin schon
-   * der etablierte Mechanismus fuer exakt diese Frage (siehe
-   * TalerUriRefreshJob). Jedes Nicht-Ergebnis (App fehlt, nicht
-   * vertrauenswuerdig, kein Consent, sonstiger Fehler) wird wie ein
-   * gescheiterter Klassifizierungsversuch behandelt - stiller Abbruch, kein
-   * Absturz, kein Log mit der URI (gleiche Regel wie beim
-   * TalerUriDetector-Check oben).
+   * Klassifizierung per TalerUriParser.classify() - reine String-Logik ohne
+   * Netz und ohne Taler-App. Die Datei wird von scripts/sync-aidl.sh
+   * byte-identisch aus dem Taler-Repo gespiegelt, kann also nicht unbemerkt
+   * von Talers eigener Einteilung abdriften. Eine nicht klassifizierbare URI
+   * gilt als gescheiterter Versuch - stiller Abbruch, kein Absturz, kein Log
+   * mit der URI (gleiche Regel wie beim TalerUriDetector-Check oben).
    */
   private fun sendComposedPayment(threadId: Long, uri: String, @StringRes messageRes: Int) {
     val appContext = applicationContext
@@ -234,21 +221,11 @@ class TalerReturnActivity : Activity() {
       val recipient = SignalDatabase.threads.getRecipientForThreadId(threadId) ?: return@execute
       if (recipient.isSelf || !(recipient.isIndividual || recipient.isGroup)) return@execute
 
-      // Gleiches exhaustives when() wie TalerUriRefreshJob.onRun() - jeder
-      // Nicht-Ergebnis-Fall (App fehlt/nicht vertrauenswuerdig/kein
-      // Consent/sonstiger Fehler) gilt hier als gescheiterte
-      // Klassifizierung, nicht als eigener Zustand.
-      val preview = when (val result = runBlocking { TalerLinkClient(appContext).previewForUri(uri) }) {
-        is TalerLinkResult.Ergebnis -> result.value
-        is TalerLinkResult.NichtInstalliert,
-        is TalerLinkResult.NichtVertrauenswuerdig,
-        is TalerLinkResult.KeinConsent,
-        is TalerLinkResult.Fehler -> return@execute
-      }
-      if (preview.uriKind != TalerUriKind.PAY_PUSH && preview.uriKind != TalerUriKind.PAY_PULL) return@execute
+      val uriKind = TalerUriParser.classify(uri) ?: return@execute
+      if (uriKind != TalerUriKind.PAY_PUSH && uriKind != TalerUriKind.PAY_PULL) return@execute
 
-      val kindLabel = TalerPaymentCardPresenter.kindLabel(appContext, preview.uriKind.name)
-      val resolvedMessageRes = if (preview.uriKind == TalerUriKind.PAY_PULL) {
+      val kindLabel = TalerPaymentCardPresenter.kindLabel(appContext, uriKind.name)
+      val resolvedMessageRes = if (uriKind == TalerUriKind.PAY_PULL) {
         R.string.TalerFork_request_message
       } else {
         messageRes
@@ -283,23 +260,14 @@ class TalerReturnActivity : Activity() {
 
       // Prueft JEDE URI im paymentData (nicht nur die erste) auf syntaktische
       // Gueltigkeit - Schutzmechanismus, falls das JSON manipuliert wurde
-      // (Meilenstein 2, PROMPT_parallel_group_split.md). Bewusst nur die
-      // guenstige lokale Pruefung (validateUri, kein Exchange-Roundtrip) statt
-      // previewForUri: bei einem Gruppen-Split mit N Mitgliedern wuerde
-      // previewForUri N sequentielle Netzwerk-Roundtrips zum Exchange
-      // ausloesen und das Versenden spuerbar verzoegern. Schlaegt auch nur
-      // eine Pruefung fehl, wird NICHTS verschickt (gleiche konservative
-      // Regel wie beim Einzel-URI-Pfad oben) - kein unvollstaendiges Paket.
+      // (Meilenstein 2, PROMPT_parallel_group_split.md). Rein lokale
+      // Klassifikation, kein Exchange-Roundtrip: bei einem Gruppen-Split mit N
+      // Mitgliedern waere ein Abruf pro URI eine spuerbare Verzoegerung beim
+      // Versenden. Schlaegt auch nur eine Pruefung fehl, wird NICHTS
+      // verschickt (gleiche konservative Regel wie beim Einzel-URI-Pfad oben)
+      // - kein unvollstaendiges Paket.
       if (paymentData.uri.isEmpty()) return@execute
-      for (uri in paymentData.uri) {
-        when (val result = runBlocking { TalerLinkClient(appContext).validateUri(uri) }) {
-          is TalerLinkResult.Ergebnis -> if (result.value != TalerUriValidity.GUELTIG) return@execute
-          is TalerLinkResult.NichtInstalliert,
-          is TalerLinkResult.NichtVertrauenswuerdig,
-          is TalerLinkResult.KeinConsent,
-          is TalerLinkResult.Fehler -> return@execute
-        }
-      }
+      if (paymentData.uri.any { TalerUriParser.classify(it) == null }) return@execute
 
       val isGroupSplit = recipient.isGroup && paymentData.uri.size > 1
       val talerPayment = TalerPaymentPayload(

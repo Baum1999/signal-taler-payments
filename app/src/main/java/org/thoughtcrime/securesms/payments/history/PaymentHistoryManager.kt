@@ -356,9 +356,6 @@ class PaymentHistoryManager(
     private fun mapTalerPaymentStatus(status: TalerPaymentStatus): PaymentStatus {
         return when (status) {
             TalerPaymentStatus.UNBEKANNT_OFFLINE -> PaymentStatus.UNKNOWN_OFFLINE
-            TalerPaymentStatus.TALER_NICHT_VERBUNDEN -> PaymentStatus.TALER_NOT_CONNECTED
-            TalerPaymentStatus.NICHT_INSTALLIERT -> PaymentStatus.NOT_INSTALLED
-            TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> PaymentStatus.NOT_TRUSTED
             TalerPaymentStatus.OFFEN -> PaymentStatus.PENDING
             TalerPaymentStatus.ANGENOMMEN -> PaymentStatus.COMPLETED
             TalerPaymentStatus.ABGELAUFEN -> PaymentStatus.EXPIRED

@@ -69,17 +69,12 @@ sealed interface TalerHeadline {
 object TalerThreadSummary {
 
   /**
-   * Zustaende, in denen Signal den Vorgang nicht pruefen konnte - die App
-   * fehlt, ist nicht vertrauenswuerdig, ist nicht verbunden, oder der letzte
-   * Abruf schlug fehl. Das sind keine Zahlungszustaende, sondern Wissensluecken,
-   * und muessen in der Kopfzeile deshalb getrennt von "erledigt" auftauchen.
+   * Zustaende, in denen Signal den Vorgang nicht pruefen konnte - der Exchange
+   * war nicht erreichbar. Das ist kein Zahlungszustand, sondern eine
+   * Wissensluecke, und muss in der Kopfzeile deshalb getrennt von "erledigt"
+   * auftauchen.
    */
-  private val UNVERIFIABLE_STATUSES = setOf(
-    TalerPaymentStatus.UNBEKANNT_OFFLINE,
-    TalerPaymentStatus.TALER_NICHT_VERBUNDEN,
-    TalerPaymentStatus.NICHT_INSTALLIERT,
-    TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG,
-  )
+  private val UNVERIFIABLE_STATUSES = setOf(TalerPaymentStatus.UNBEKANNT_OFFLINE)
 
   fun aggregate(records: List<TalerPaymentRecord>): TalerThreadAggregate {
     val open = records.filter { it.status == TalerPaymentStatus.OFFEN }

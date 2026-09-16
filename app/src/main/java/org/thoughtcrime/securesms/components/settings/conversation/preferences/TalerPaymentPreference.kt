@@ -64,9 +64,6 @@ object TalerPaymentPreference {
             TalerPaymentStatus.ABGELAUFEN -> "Expired"
             TalerPaymentStatus.UNBEKANNT_OFFLINE -> "Checking..."
             TalerPaymentStatus.UNGUELTIG -> "Invalid"
-            TalerPaymentStatus.TALER_NICHT_VERBUNDEN -> "Not connected"
-            TalerPaymentStatus.NICHT_INSTALLIERT -> "Not installed"
-            TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> "Untrusted"
           }
         } else {
           null

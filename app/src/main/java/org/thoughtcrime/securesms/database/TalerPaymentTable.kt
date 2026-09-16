@@ -104,14 +104,21 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
    * Legt einen neuen Vorgang an, falls [uri] noch nicht bekannt ist. Gibt
    * true zurueck, wenn tatsaechlich neu angelegt wurde (Aufrufer soll dann
    * einen Refresh-Job enqueuen) - false, wenn der Vorgang schon existierte.
+   *
+   * [isOwnPayment] kommt vom Aufrufer, weil nur der die Richtung kennt: eine
+   * URI im eigenen Sendepfad gehoert zu einer eigenen Zahlung, eine aus einer
+   * empfangenen Nachricht nicht. Frueher lieferte Taler diese Unterscheidung
+   * per Vorschau mit (OwnUriTracker); ohne die App-zu-App-Schnittstelle ist
+   * die Nachrichtenrichtung die einzige verbleibende Quelle dafuer.
    */
-  fun upsertDetected(uri: String, threadId: Long): Boolean {
+  fun upsertDetected(uri: String, threadId: Long, isOwnPayment: Boolean): Boolean {
     val rowId = writableDatabase
       .insertInto(TABLE_NAME)
       .values(
         URI to uri,
         THREAD_ID to threadId,
         STATUS to TalerPaymentStatus.UNBEKANNT_OFFLINE.name,
+        IS_OWN_PAYMENT to if (isOwnPayment) 1 else 0,
         CREATED_AT to System.currentTimeMillis(),
       )
       .run(conflictStrategy = SQLiteDatabase.CONFLICT_IGNORE)
@@ -199,7 +206,6 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     currency: String?,
     exchangeBaseUrl: String?,
     summary: String?,
-    isOwnPayment: Boolean = false,
   ): TalerPaymentStatus? {
     val db = writableDatabase
     db.beginTransaction()
@@ -218,7 +224,6 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
           CURRENCY to currency,
           EXCHANGE_BASE_URL to exchangeBaseUrl,
           SUMMARY to summary,
-          IS_OWN_PAYMENT to if (isOwnPayment) 1 else 0,
           LAST_CHECKED_AT to System.currentTimeMillis(),
           CONSECUTIVE_FAILURES to 0,
         )
@@ -334,12 +339,10 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
    * aendern - fuer die ist auch kein TTL noetig, sie werden hier gar nicht
    * erst betrachtet.
    *
-   * TTL fuer UNBEKANNT_OFFLINE/TALER_NICHT_VERBUNDEN/NICHT_INSTALLIERT/
-   * NICHT_VERTRAUENSWUERDIG: das sind die unsicheren Zustaende (App fehlt,
-   * App nicht vertrauenswuerdig, kein Consent, bzw. ein fehlgeschlagener
-   * Abruf), die ohne Nutzerinteraktion ewig so bleiben koennen. OFFEN ist
-   * ein von Taler bestaetigter, echter Wartezustand (ein offener Dialog/eine
-   * offene Purse) - der bleibt ohne TTL im Polling, sonst wuerde eine
+   * TTL fuer UNBEKANNT_OFFLINE: der Zustand eines noch nie erfolgreichen
+   * Abrufs, der ohne Nutzerinteraktion ewig so bleiben kann. OFFEN ist
+   * ein vom Exchange bestaetigter, echter Wartezustand (eine offene Purse) -
+   * der bleibt ohne TTL im Polling, sonst wuerde eine
    * tagelang liegen gelassene, aber weiterhin gueltige Zahlungsanfrage
    * irgendwann nicht mehr aktualisiert.
    *
@@ -352,12 +355,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
    */
   fun getPollCandidates(limit: Int, ttlCutoffMillis: Long): List<TalerPaymentPollCandidate> {
     val ttlExempt = listOf(TalerPaymentStatus.OFFEN)
-    val ttlSubject = listOf(
-      TalerPaymentStatus.UNBEKANNT_OFFLINE,
-      TalerPaymentStatus.TALER_NICHT_VERBUNDEN,
-      TalerPaymentStatus.NICHT_INSTALLIERT,
-      TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG,
-    )
+    val ttlSubject = listOf(TalerPaymentStatus.UNBEKANNT_OFFLINE)
     val exemptPlaceholders = ttlExempt.joinToString(",") { "?" }
     val subjectPlaceholders = ttlSubject.joinToString(",") { "?" }
     // B3 (REVIEW.md, root-cause 2026-08-15): CAST(? AS INTEGER) ist notwendig,

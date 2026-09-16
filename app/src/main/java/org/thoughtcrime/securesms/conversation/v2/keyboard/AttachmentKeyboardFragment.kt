@@ -12,12 +12,8 @@ import androidx.core.os.bundleOf
 import androidx.fragment.app.setFragmentResult
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.lifecycleScope
 import io.reactivex.rxjava3.android.schedulers.AndroidSchedulers
 import io.reactivex.rxjava3.kotlin.subscribeBy
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import net.taler.wallet.link.ConnectionState
 import org.signal.core.models.media.Media
 import org.signal.core.ui.logging.LoggingFragment
 import org.signal.core.ui.permissions.Permissions
@@ -31,8 +27,7 @@ import org.thoughtcrime.securesms.conversation.ManageContextMenu
 import org.thoughtcrime.securesms.conversation.v2.ConversationViewModel
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
-import org.thoughtcrime.securesms.taler.TalerLinkClient
-import org.thoughtcrime.securesms.taler.TalerLinkResult
+import org.thoughtcrime.securesms.taler.TalerInstallation
 import java.util.function.Predicate
 
 /**
@@ -53,9 +48,6 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
   private lateinit var attachmentKeyboardView: AttachmentKeyboard
 
   private val lifecycleDisposable = LifecycleDisposable()
-  private var talerConnected = false
-  private val talerLinkClient by lazy { TalerLinkClient(requireContext()) }
-  private var pendingConnectionCheck: Job? = null
 
   private fun applyButtonFilters(paymentsAvailable: Boolean, talerAvailable: Boolean) {
     val hidden = buildSet {
@@ -154,27 +146,14 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
     // Bedingung als Backstop nochmal prueft und dort ausfuehrlich begruendet,
     // warum Gruppen jetzt erlaubt sind) - ein Taler-URI bleibt ein
     // Inhaberpapier, das Compose-Send-Screen warnt bei Gruppen explizit
-    // ("wer zuerst bestaetigt"). KEIN isPrimaryDevice-Check: die Taler-AIDL-
-    // Verbindung laeuft lokal zur Taler-App auf diesem Geraet, unabhaengig von
-    // Signals Primaer/Verknuepft-Konzept (anders als isPaymentsAvailable oben,
-    // dessen MobileCoin-Schluessel nur auf dem primaeren Geraet liegen).
+    // ("wer zuerst bestaetigt"). KEIN isPrimaryDevice-Check: die Wallet liegt
+    // lokal auf diesem Geraet, unabhaengig von Signals Primaer/Verknuepft-
+    // Konzept (anders als isPaymentsAvailable oben, dessen MobileCoin-
+    // Schluessel nur auf dem primaeren Geraet liegen).
     val isTalerRecipientAllowed = !recipient.isSelf && recipient.isRegistered
 
-    applyButtonFilters(isPaymentsAvailable, talerConnected && isTalerRecipientAllowed)
-
-    // Taler-Verbindungsstatus ist ein AIDL-Roundtrip (kein synchroner
-    // SignalStore-Read wie bei Payments) - asynchron nachziehen und bei
-    // Aenderung erneut anwenden. Kein Caching/Throttling ueber die Lebensdauer
-    // des Fragments hinaus - jedes Oeffnen der Tastatur bzw. jeder
-    // Empfaengerwechsel ist selten genug, dass ein Extra-Bind/Unbind-Zyklus
-    // unproblematisch ist.
-    pendingConnectionCheck?.cancel()
-    pendingConnectionCheck = viewLifecycleOwner.lifecycleScope.launch {
-      val connected = (talerLinkClient.getConnectionState() as? TalerLinkResult.Ergebnis)?.value == ConnectionState.VERBUNDEN
-      if (connected != talerConnected) {
-        talerConnected = connected
-        applyButtonFilters(isPaymentsAvailable, talerConnected && isTalerRecipientAllowed)
-      }
-    }
+    // Reiner PackageManager-Check, synchron - frueher ein asynchroner
+    // Binder-Roundtrip, der den Button bis zu seiner Antwort ausblendete.
+    applyButtonFilters(isPaymentsAvailable, TalerInstallation.isTrusted(requireContext()) && isTalerRecipientAllowed)
   }
 }

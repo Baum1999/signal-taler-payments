@@ -66,7 +66,10 @@ object TalerPaymentCardPresenter {
     messageExtrasTalerPayment: TalerPaymentExtra? = null,
   ) {
     if (stub == null) return
-    val uris = urisFromMessageBody(messageBody)
+    // Nur Arten, zu denen Signal ueberhaupt einen Vorgang fuehren kann - ein
+    // pay/withdraw/refund-Link bleibt blosser Linktext statt einer Karte, die
+    // dauerhaft "unbekannt" zeigen wuerde (siehe TalerPaymentTracker).
+    val uris = urisFromMessageBody(messageBody).filter { TalerPaymentTracker.isTrackable(it) }
 
     // Deckt auch den Fall ab, dass ein Chat mit einer laengst getrackten URI
     // nur geoeffnet/gescrollt wird (kein neuer Sende-/Empfangs-Hook noetig,
@@ -551,9 +554,6 @@ object TalerPaymentCardPresenter {
       TalerPaymentStatus.ABGELAUFEN -> R.string.TalerFork_status_compact_expired
       TalerPaymentStatus.UNBEKANNT_OFFLINE -> R.string.TalerFork_status_compact_checking
       TalerPaymentStatus.UNGUELTIG -> R.string.TalerFork_status_compact_invalid
-      TalerPaymentStatus.TALER_NICHT_VERBUNDEN -> R.string.TalerFork_status_compact_not_connected
-      TalerPaymentStatus.NICHT_INSTALLIERT -> R.string.TalerFork_status_compact_not_installed
-      TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> R.string.TalerFork_status_compact_untrusted
     }
     return context.getString(textRes)
   }
@@ -643,9 +643,6 @@ object TalerPaymentCardPresenter {
       TalerPaymentStatus.ABGELAUFEN -> R.string.TalerFork_status_icon_expired
       TalerPaymentStatus.UNBEKANNT_OFFLINE -> R.string.TalerFork_status_icon_checking
       TalerPaymentStatus.UNGUELTIG -> R.string.TalerFork_status_icon_invalid
-      TalerPaymentStatus.TALER_NICHT_VERBUNDEN -> R.string.TalerFork_status_icon_not_connected
-      TalerPaymentStatus.NICHT_INSTALLIERT -> R.string.TalerFork_status_icon_not_installed
-      TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> R.string.TalerFork_status_icon_untrusted
     }
     
     val textRes = when (status) {
@@ -656,15 +653,12 @@ object TalerPaymentCardPresenter {
       TalerPaymentStatus.ABGELAUFEN -> R.string.TalerFork_status_compact_expired
       TalerPaymentStatus.UNBEKANNT_OFFLINE -> R.string.TalerFork_status_compact_checking
       TalerPaymentStatus.UNGUELTIG -> R.string.TalerFork_status_compact_invalid
-      TalerPaymentStatus.TALER_NICHT_VERBUNDEN -> R.string.TalerFork_status_compact_not_connected
-      TalerPaymentStatus.NICHT_INSTALLIERT -> R.string.TalerFork_status_compact_not_installed
-      TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG -> R.string.TalerFork_status_compact_untrusted
     }
 
     // Farben basierend auf Status-Kategorie
     val (iconColorRes, textColorRes) = when (status) {
       TalerPaymentStatus.ANGENOMMEN -> Pair(R.color.taler_status_ok_light, R.color.taler_status_ok_light)
-      TalerPaymentStatus.LOKAL_ABGELEHNT, TalerPaymentStatus.LOKAL_ABGEBROCHEN, TalerPaymentStatus.ABGELAUFEN, TalerPaymentStatus.UNGUELTIG, TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG ->
+      TalerPaymentStatus.LOKAL_ABGELEHNT, TalerPaymentStatus.LOKAL_ABGEBROCHEN, TalerPaymentStatus.ABGELAUFEN, TalerPaymentStatus.UNGUELTIG ->
         Pair(R.color.taler_status_bad_light, R.color.taler_status_bad_light)
       else -> Pair(R.color.taler_status_neutral_light, R.color.taler_status_neutral_light)
     }

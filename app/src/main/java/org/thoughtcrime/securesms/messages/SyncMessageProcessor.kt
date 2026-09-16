@@ -964,9 +964,9 @@ object SyncMessageProcessor {
     // Linked Devices nie erschienen sind.
     val talerPayment = dataMessage.talerPayment
     if (talerPayment != null) {
-      TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId, threadId)
+      TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId, threadId, isOwnPayment = true)
     } else {
-      TalerPaymentTracker.trackUrisInBody(body, threadId)
+      TalerPaymentTracker.trackUrisInBody(body, threadId, isOwnPayment = true)
     }
 
     SignalDatabase.messages.markAsSent(messageId)

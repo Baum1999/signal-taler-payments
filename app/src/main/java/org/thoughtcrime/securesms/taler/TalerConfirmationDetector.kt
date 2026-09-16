@@ -22,12 +22,12 @@ data class TalerConfirmationMatch(val uri: String, val kind: TalerUriKind)
  * findet.
  */
 object TalerConfirmationDetector {
+  // Nur die beiden Peer-Arten: zu pay/withdraw/refund fuehrt Signal keinen
+  // Vorgang mehr, ein Treffer koennte also nie gegen einen Datensatz
+  // abgeglichen werden (siehe TalerPaymentTracker).
   private val MATCHABLE_KINDS = listOf(
     R.string.TalerFork_kind_pay_push to TalerUriKind.PAY_PUSH,
     R.string.TalerFork_kind_pay_pull to TalerUriKind.PAY_PULL,
-    R.string.TalerFork_kind_pay to TalerUriKind.PAY,
-    R.string.TalerFork_kind_withdraw to TalerUriKind.WITHDRAW,
-    R.string.TalerFork_kind_refund to TalerUriKind.REFUND,
   )
 
   fun match(context: Context, text: String): TalerConfirmationMatch? {

@@ -10036,9 +10036,6 @@
     <string name="TalerFork_status_expired">Abgelaufen</string>
     <string name="TalerFork_status_checking">Wird geprüft…</string>
     <string name="TalerFork_status_invalid">Zahlung fehlgeschlagen</string>
-    <string name="TalerFork_status_not_connected">GNU Taler nicht verbunden</string>
-    <string name="TalerFork_status_not_installed">GNU Taler ist nicht installiert</string>
-    <string name="TalerFork_status_untrusted">GNU Taler: unerwartete App-Signatur, Verbindung blockiert</string>
 
     <string name="TalerFork_action_accept">Annehmen</string>
     <string name="TalerFork_action_reject">Ablehnen</string>
@@ -10049,10 +10046,10 @@
     <string name="TalerFork_decline_dialog_confirm">Ablehnen</string>
     <string name="TalerFork_decline_dialog_cancel">Abbrechen</string>
 
-    <string name="TalerFork_settings_row_label">GNU Taler (Verbindungstest)</string>
-    <string name="TalerFork_settings_connected">GNU Taler: verbunden</string>
-    <string name="TalerFork_settings_connection_error">GNU Taler: Verbindungsversuch fehlgeschlagen</string>
-    <string name="TalerFork_settings_connection_error_detail">GNU Taler: Verbindungsversuch fehlgeschlagen (%1$s)</string>
+    <string name="TalerFork_settings_row_label">GNU-Taler-Wallet</string>
+    <string name="TalerFork_settings_wallet_installed">Installiert</string>
+    <string name="TalerFork_settings_wallet_not_installed">Nicht installiert</string>
+    <string name="TalerFork_settings_wallet_untrusted">Unerwartete App-Signatur</string>
 
     <string name="TalerFork_update_accepted">Taler-Zahlung angenommen</string>
     <string name="TalerFork_update_declined">Taler-Zahlung auf diesem Gerät abgelehnt</string>

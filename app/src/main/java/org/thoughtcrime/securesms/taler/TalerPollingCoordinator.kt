@@ -37,11 +37,11 @@ object TalerPollingCoordinator {
   // den Extremfall (Chat-Flut mit vielen URIs) nach oben.
   private const val POLL_CAP = 200
 
-  // TTL fuer die beiden unsicheren Zustaende UNBEKANNT_OFFLINE/
-  // TALER_NICHT_VERBUNDEN (nicht fuer OFFEN, siehe getPollCandidates()).
-  // 24 Stunden wie im Review vorgeschlagen: lang genug, dass ein Nutzer, der
-  // Taler erst am Folgetag verbindet/installiert, die Karte noch aktuell
-  // sieht - kurz genug, dass ein Chat mit vielen nie beantworteten Links
+  // TTL fuer den unsicheren Zustand UNBEKANNT_OFFLINE (nicht fuer OFFEN,
+  // siehe getPollCandidates()).
+  // 24 Stunden wie im Review vorgeschlagen: lang genug, dass eine Karte nach
+  // einem laengeren Netzausfall noch aktuell wird - kurz genug, dass ein Chat
+  // mit vielen nie beantworteten Links
   // nicht auf Dauer mitgepollt wird. Die Karte bleibt sichtbar
   // (Tombstone-Prinzip, docs/API.md 1.4), es wird nur das Polling
   // eingestellt.

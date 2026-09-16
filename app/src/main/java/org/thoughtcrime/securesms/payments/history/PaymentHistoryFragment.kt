@@ -521,9 +521,6 @@ fun StatusFilter(viewModel: PaymentHistoryViewModel) {
                         PaymentStatus.LOCAL_REJECTED -> "Lokal abgelehnt"
                         PaymentStatus.LOCAL_CANCELLED -> "Lokal abgebrochen"
                         PaymentStatus.UNKNOWN_OFFLINE -> "Unbekannt (offline)"
-                        PaymentStatus.TALER_NOT_CONNECTED -> "Taler nicht verbunden"
-                        PaymentStatus.NOT_INSTALLED -> "Nicht installiert"
-                        PaymentStatus.NOT_TRUSTED -> "Nicht vertrauenswürdig"
                         PaymentStatus.EXPIRED -> "Abgelaufen"
                     },
                     maxLines = 1,
@@ -698,9 +695,6 @@ fun StatusBadge(status: PaymentStatus) {
         PaymentStatus.LOCAL_REJECTED -> MaterialTheme.colorScheme.errorContainer to "Abgelehnt"
         PaymentStatus.LOCAL_CANCELLED -> MaterialTheme.colorScheme.errorContainer to "Abgebrochen"
         PaymentStatus.UNKNOWN_OFFLINE -> MaterialTheme.colorScheme.surfaceVariant to "Unbekannt"
-        PaymentStatus.TALER_NOT_CONNECTED -> MaterialTheme.colorScheme.surfaceVariant to "Nicht verbunden"
-        PaymentStatus.NOT_INSTALLED -> MaterialTheme.colorScheme.surfaceVariant to "Nicht installiert"
-        PaymentStatus.NOT_TRUSTED -> MaterialTheme.colorScheme.surfaceVariant to "Nicht vertrauenswürdig"
         PaymentStatus.EXPIRED -> MaterialTheme.colorScheme.surfaceVariant to "Abgelaufen"
     }
     
