@@ -69,7 +69,8 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
     attachmentKeyboardView = view.findViewById(R.id.attachment_keyboard)
     attachmentKeyboardView.apply {
       setCallback(this@AttachmentKeyboardFragment)
-      applyButtonFilters(SignalStore.payments.paymentsAvailability.isSendAllowed, talerConnected)
+      // Taler-Button erst nach der Empfaengerpruefung in updateButtonsAvailable() zeigen.
+      applyButtonFilters(SignalStore.payments.paymentsAvailability.isSendAllowed, false)
     }
 
     viewModel.getRecentMedia()

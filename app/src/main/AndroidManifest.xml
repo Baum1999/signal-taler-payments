@@ -1650,8 +1650,9 @@
     </application>
 
     <queries>
-        <!-- fuer die Cert-Pruefung der Taler-App vor dem Bind an ihre lokale
-             Schnittstelle, siehe docs/API.md -->
+        <!-- fuer die Installations- und Cert-Pruefung der Taler-App
+             (TalerInstallation) und die expliziten Intents an sie; ohne
+             diesen Eintrag sieht der PackageManager sie ab Android 11 nicht -->
         <package android:name="de.lenkenhoff.talerfuersignal.fdroid" />
     </queries>
 </manifest>

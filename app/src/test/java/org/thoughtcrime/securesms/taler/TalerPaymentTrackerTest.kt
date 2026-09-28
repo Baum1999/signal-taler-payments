@@ -36,9 +36,9 @@ class TalerPaymentTrackerTest {
 
   @Test
   fun trackUrisInBody_ignoresBlankBody() {
-    TalerPaymentTracker.trackUrisInBody(null, threadId = 1)
-    TalerPaymentTracker.trackUrisInBody("", threadId = 1)
-    TalerPaymentTracker.trackUrisInBody("   ", threadId = 1)
+    TalerPaymentTracker.trackUrisInBody(null, threadId = 1, isOwnPayment = false)
+    TalerPaymentTracker.trackUrisInBody("", threadId = 1, isOwnPayment = false)
+    TalerPaymentTracker.trackUrisInBody("   ", threadId = 1, isOwnPayment = false)
     // Kein Crash ist der eigentliche Test hier - es gibt keine URI, deren
     // Abwesenheit sich sonst pruefen liesse.
   }
@@ -47,7 +47,7 @@ class TalerPaymentTrackerTest {
   fun trackUrisInBody_createsAPaymentRowForANewUri() {
     val uri = "taler://pay-push/exchange.demo.taler.net/trackerA"
 
-    TalerPaymentTracker.trackUrisInBody(uri, threadId = 1)
+    TalerPaymentTracker.trackUrisInBody(uri, threadId = 1, isOwnPayment = false)
 
     val record = SignalDatabase.talerPayments.getByUri(uri)
     assertNotNull(record)
@@ -59,13 +59,47 @@ class TalerPaymentTrackerTest {
   fun trackUrisInBody_doesNotDuplicateAnAlreadyKnownUri() {
     val uri = "taler://pay-push/exchange.demo.taler.net/trackerB"
 
-    TalerPaymentTracker.trackUrisInBody(uri, threadId = 1)
+    TalerPaymentTracker.trackUrisInBody(uri, threadId = 1, isOwnPayment = false)
     SignalDatabase.talerPayments.updateStatus(uri, TalerPaymentStatus.ANGENOMMEN)
-    TalerPaymentTracker.trackUrisInBody(uri, threadId = 1)
+    TalerPaymentTracker.trackUrisInBody(uri, threadId = 1, isOwnPayment = false)
 
     // Ein zweiter Aufruf mit derselben URI darf den bereits fortgeschrittenen
     // Status nicht zuruecksetzen (upsertDetected nutzt CONFLICT_IGNORE).
     assertEquals(TalerPaymentStatus.ANGENOMMEN, SignalDatabase.talerPayments.getByUri(uri)?.status)
+  }
+
+  @Test
+  fun trackUrisInBody_recordsDirectionAsOwnPayment() {
+    val incoming = "taler://pay-push/exchange.demo.taler.net/trackerIncoming"
+    val outgoing = "taler://pay-push/exchange.demo.taler.net/trackerOutgoing"
+
+    TalerPaymentTracker.trackUrisInBody(incoming, threadId = 1, isOwnPayment = false)
+    TalerPaymentTracker.trackUrisInBody(outgoing, threadId = 1, isOwnPayment = true)
+
+    assertEquals(false, SignalDatabase.talerPayments.getByUri(incoming)?.isOwnPayment)
+    assertEquals(true, SignalDatabase.talerPayments.getByUri(outgoing)?.isOwnPayment)
+  }
+
+  @Test
+  fun trackUrisInBody_ignoresKindsSignalCannotResolve() {
+    val pay = "taler://pay/merchant.example/order-1/"
+    val withdraw = "taler://withdraw/bank.example/api/wid-1"
+    val refund = "taler://refund/merchant.example/order-2/"
+
+    TalerPaymentTracker.trackUrisInBody("$pay\n\n$withdraw\n\n$refund", threadId = 1, isOwnPayment = false)
+
+    assertNull(SignalDatabase.talerPayments.getByUri(pay))
+    assertNull(SignalDatabase.talerPayments.getByUri(withdraw))
+    assertNull(SignalDatabase.talerPayments.getByUri(refund))
+  }
+
+  @Test
+  fun trackUrisInBody_tracksPayPullLikePayPush() {
+    val uri = "taler://pay-pull/exchange.demo.taler.net/trackerPull"
+
+    TalerPaymentTracker.trackUrisInBody(uri, threadId = 1, isOwnPayment = false)
+
+    assertNotNull(SignalDatabase.talerPayments.getByUri(uri))
   }
 
   @Test
@@ -82,7 +116,7 @@ class TalerPaymentTrackerTest {
       totalAmount = "9.00",
     )
 
-    TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId = 42, threadId = 1)
+    TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId = 42, threadId = 1, isOwnPayment = true)
 
     val stored = SignalDatabase.talerPaymentMessages.getByMessageId(42)
     assertNotNull(stored)
@@ -98,7 +132,7 @@ class TalerPaymentTrackerTest {
   fun trackStructuredPayment_doesNothingForEmptyUriList() {
     val talerPayment = DataMessage.TalerPayment(uris = emptyList(), version = 1)
 
-    TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId = 43, threadId = 1)
+    TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId = 43, threadId = 1, isOwnPayment = true)
 
     assertNull(SignalDatabase.talerPaymentMessages.getByMessageId(43))
   }

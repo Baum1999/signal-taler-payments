@@ -15,12 +15,9 @@ import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.taler.crypto.Crockford
 import org.thoughtcrime.securesms.taler.crypto.Ed25519
-import org.thoughtcrime.securesms.taler.crypto.TalerCrypto
-import org.thoughtcrime.securesms.taler.crypto.TalerKdf
-import org.thoughtcrime.securesms.taler.crypto.XSalsa20Poly1305
+import org.thoughtcrime.securesms.taler.crypto.TalerContractCrypto
 import java.io.IOException
 import java.util.Locale
-import java.util.zip.Inflater
 
 /**
  * Loest `pay-push`/`pay-pull`-URIs ohne die Taler-App auf: Contract-Chiffrat
@@ -56,8 +53,14 @@ class TalerPeerContractResolver(
       ?: return TalerContractResolution.Fehlgeschlagen(TalerPaymentStatus.ABGELAUFEN)
     val contract = JSON.decodeFromString(ContractResponse.serializer(), contractBody)
 
-    val terms = decryptContractTerms(parsed, Crockford.decode(contract.pursePublicKey), Crockford.decode(contract.encryptedContract))
-      ?: return TalerContractResolution.Fehlgeschlagen(TalerPaymentStatus.UNGUELTIG)
+    val direction = if (parsed.kind == TalerUriKind.PAY_PUSH) TalerContractCrypto.Direction.MERGE else TalerContractCrypto.Direction.DEPOSIT
+    val termsJson = TalerContractCrypto.decrypt(
+      encryptedContract = Crockford.decode(contract.encryptedContract),
+      pursePublicKey = Crockford.decode(contract.pursePublicKey),
+      contractPrivateKey = parsed.contractPrivateKey,
+      direction = direction
+    ) ?: return TalerContractResolution.Fehlgeschlagen(TalerPaymentStatus.UNGUELTIG)
+    val terms = JSON.decodeFromString(ContractTerms.serializer(), termsJson)
 
     val expiration = timestampMillis(terms.purseExpiration)
     if (expiration != null && expiration <= System.currentTimeMillis()) {
@@ -93,67 +96,6 @@ class TalerPeerContractResolver(
   private fun isSettled(kind: TalerUriKind, status: PurseStatusResponse): Boolean {
     val timestamp = if (kind == TalerUriKind.PAY_PUSH) status.mergeTimestamp else status.depositTimestamp
     return timestampMillis(timestamp) != null
-  }
-
-  private fun decryptContractTerms(parsed: ParsedPeerUri, pursePublicKey: ByteArray, encryptedContract: ByteArray): ContractTerms? {
-    if (encryptedContract.size <= NONCE_SIZE) {
-      return null
-    }
-    val keySeed = TalerCrypto.keyExchangeEcdhEddsa(parsed.contractPrivateKey, pursePublicKey)
-    val nonce = encryptedContract.copyOf(NONCE_SIZE)
-    val info = if (parsed.kind == TalerUriKind.PAY_PUSH) MERGE_INFO else DEPOSIT_INFO
-    val key = TalerKdf.derive(32, keySeed, nonce, info.toByteArray(Charsets.UTF_8))
-
-    val plaintext = XSalsa20Poly1305.open(
-      encryptedContract.copyOfRange(NONCE_SIZE, encryptedContract.size),
-      nonce,
-      key
-    ) ?: return null
-
-    if (plaintext.size < HEADER_SIZE) {
-      return null
-    }
-    val expectedTag = if (parsed.kind == TalerUriKind.PAY_PUSH) TAG_PAYMENT_OFFER else TAG_PAYMENT_REQUEST
-    if (readUint32(plaintext, 0) != expectedTag) {
-      return null
-    }
-    val contentLength = readUint32(plaintext, 4)
-    if (contentLength < 1 || contentLength > MAX_CONTRACT_TERMS_LENGTH) {
-      return null
-    }
-    val payloadOffset = if (parsed.kind == TalerUriKind.PAY_PUSH) HEADER_SIZE + 32 else HEADER_SIZE
-    if (plaintext.size <= payloadOffset) {
-      return null
-    }
-
-    val inflated = inflate(plaintext.copyOfRange(payloadOffset, plaintext.size), contentLength.toInt())
-    val json = String(inflated, 0, inflated.size - 1, Charsets.UTF_8)
-    return JSON.decodeFromString(ContractTerms.serializer(), json)
-  }
-
-  /**
-   * zlib, nicht gzip - wallet-core komprimiert mit `fflate.zlibSync`, also mit
-   * zlib-Header. Die deklarierte Laenge stammt aus dem Chiffrat der Gegenseite
-   * und begrenzt bewusst, wie viel Speicher sie uns abverlangen kann.
-   */
-  private fun inflate(compressed: ByteArray, expectedLength: Int): ByteArray {
-    val inflater = Inflater()
-    try {
-      inflater.setInput(compressed)
-      val out = ByteArray(expectedLength)
-      var written = 0
-      while (written < expectedLength && !inflater.finished()) {
-        val count = inflater.inflate(out, written, expectedLength - written)
-        if (count == 0 && (inflater.needsInput() || inflater.needsDictionary())) {
-          break
-        }
-        written += count
-      }
-      require(written == expectedLength) { "dekomprimierte Laenge weicht ab" }
-      return out
-    } finally {
-      inflater.end()
-    }
   }
 
   /** Gibt `null` zurueck, wenn der Exchange die Ressource nicht (mehr) kennt. */
@@ -220,13 +162,6 @@ class TalerPeerContractResolver(
     return seconds * 1000
   }
 
-  private fun readUint32(source: ByteArray, offset: Int): Long {
-    return ((source[offset].toLong() and 0xff) shl 24) or
-      ((source[offset + 1].toLong() and 0xff) shl 16) or
-      ((source[offset + 2].toLong() and 0xff) shl 8) or
-      (source[offset + 3].toLong() and 0xff)
-  }
-
   private class ParsedPeerUri(
     val kind: TalerUriKind,
     val exchangeBaseUrl: String,
@@ -261,13 +196,6 @@ class TalerPeerContractResolver(
   companion object {
     private val TAG = Log.tag(TalerPeerContractResolver::class.java)
 
-    private const val NONCE_SIZE = 24
-    private const val HEADER_SIZE = 8
-    private const val TAG_PAYMENT_OFFER = 0L
-    private const val TAG_PAYMENT_REQUEST = 1L
-    private const val MAX_CONTRACT_TERMS_LENGTH = 1024L * 1024L * 40L
-    private const val MERGE_INFO = "p2p-merge-contract"
-    private const val DEPOSIT_INFO = "p2p-deposit-contract"
 
     private val JSON = Json { ignoreUnknownKeys = true }
   }

@@ -33,17 +33,15 @@ class TalerPaymentStatusTest {
 
   @Test
   fun localOnlyStatesAreNotProducedByFromTalerStatus() {
-    // LOKAL_ABGELEHNT und TALER_NICHT_VERBUNDEN/NICHT_INSTALLIERT/
-    // NICHT_VERTRAUENSWUERDIG liefert Taler nie (docs/API.md Abschnitt
-    // "Zustaende") - fromTalerStatus() kann sie schon vom Eingabetyp her
-    // (TalerOperationStatus) nicht zurueckgeben. Dieser Test haelt das
-    // Contract explizit fest, falls TalerPaymentStatus je vereinfacht wird.
+    // LOKAL_ABGELEHNT/LOKAL_ABGEBROCHEN entstehen nur durch lokale
+    // Nutzeraktionen (docs/API.md Abschnitt "Zustaende") - fromTalerStatus()
+    // kann sie schon vom Eingabetyp her (TalerOperationStatus) nicht
+    // zurueckgeben. Dieser Test haelt das Contract explizit fest, falls
+    // TalerPaymentStatus je vereinfacht wird.
     val talerOnlyReachable = TalerOperationStatus.entries.map { expected(it) }.toSet()
     val localOnly = setOf(
       TalerPaymentStatus.LOKAL_ABGELEHNT,
-      TalerPaymentStatus.TALER_NICHT_VERBUNDEN,
-      TalerPaymentStatus.NICHT_INSTALLIERT,
-      TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG,
+      TalerPaymentStatus.LOKAL_ABGEBROCHEN,
     )
     assertEquals(emptySet<TalerPaymentStatus>(), talerOnlyReachable.intersect(localOnly))
   }

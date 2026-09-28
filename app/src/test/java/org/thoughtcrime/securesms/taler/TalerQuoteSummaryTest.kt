@@ -66,7 +66,7 @@ class TalerQuoteSummaryTest {
   @Test
   fun showsAmountAndStatusForKnownSingleUriWithoutExposingTheUri() {
     val uri = "taler://pay-push/exchange.demo.taler.net/quoteC"
-    SignalDatabase.talerPayments.upsertDetected(uri, threadId = 1)
+    SignalDatabase.talerPayments.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     SignalDatabase.talerPayments.updateFromPreview(
       uri = uri,
       uriKind = "PAY_PUSH",

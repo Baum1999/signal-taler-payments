@@ -64,7 +64,7 @@ class TalerAcceptRejectActionsTest {
   fun cancelCancelablePaymentsForDeletedMessages_leavesIncomingPaymentUntouched() {
     val uri = "taler://pay-push/exchange.demo.taler.net/deleteCancelC"
     val record = insertOwnMessageWithUri(uri)
-    table.upsertDetected(uri, threadId = record.threadId)
+    table.upsertDetected(uri, threadId = record.threadId, isOwnPayment = false)
     table.updateFromPreview(
       uri = uri,
       uriKind = "PAY_PUSH",
@@ -85,7 +85,7 @@ class TalerAcceptRejectActionsTest {
   fun cancelCancelablePaymentsForDeletedMessages_leavesAlreadyAcceptedPaymentUntouched() {
     val uri = "taler://pay-push/exchange.demo.taler.net/deleteCancelD"
     val record = insertOwnMessageWithUri(uri)
-    table.upsertDetected(uri, threadId = record.threadId)
+    table.upsertDetected(uri, threadId = record.threadId, isOwnPayment = false)
     table.updateFromPreview(
       uri = uri,
       uriKind = "PAY_PUSH",
@@ -109,7 +109,7 @@ class TalerAcceptRejectActionsTest {
   }
 
   private fun markOwnOpenPayPush(uri: String, threadId: Long) {
-    table.upsertDetected(uri, threadId = threadId)
+    table.upsertDetected(uri, threadId = threadId, isOwnPayment = false)
     table.updateFromPreview(
       uri = uri,
       uriKind = "PAY_PUSH",

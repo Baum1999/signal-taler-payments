@@ -62,7 +62,7 @@ class TalerPaymentTableTest {
   @Test
   fun getPollCandidates_includesRecentTtlSubjectRow() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionA"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.UNBEKANNT_OFFLINE)
 
     val candidates = table.getPollCandidates(limit = 200, ttlCutoffMillis = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(24))
@@ -74,8 +74,7 @@ class TalerPaymentTableTest {
   @Test
   fun getPollCandidates_excludesStaleTtlSubjectRow() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionB"
-    table.upsertDetected(uri, threadId = 1)
-    table.updateStatus(uri, TalerPaymentStatus.TALER_NICHT_VERBUNDEN)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     setLastCheckedAt(uri, System.currentTimeMillis() - TimeUnit.DAYS.toMillis(30))
 
     val candidates = table.getPollCandidates(limit = 200, ttlCutoffMillis = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(24))
@@ -86,7 +85,7 @@ class TalerPaymentTableTest {
   @Test
   fun getPollCandidates_includesOffenRegardlessOfAge() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionC"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.OFFEN)
     setLastCheckedAt(uri, System.currentTimeMillis() - TimeUnit.DAYS.toMillis(30))
 
@@ -98,7 +97,7 @@ class TalerPaymentTableTest {
   @Test
   fun getPollCandidates_excludesTerminalStatus() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionD"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.ANGENOMMEN)
 
     val candidates = table.getPollCandidates(limit = 200, ttlCutoffMillis = System.currentTimeMillis() - TimeUnit.HOURS.toMillis(24))
@@ -109,7 +108,7 @@ class TalerPaymentTableTest {
   @Test
   fun insertLocalStatusLine_insertsAnUpdateMessageInTheGivenThread() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionE"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
 
     table.insertLocalStatusLine(threadId = 1, status = TalerPaymentStatus.ANGENOMMEN)
 
@@ -134,7 +133,7 @@ class TalerPaymentTableTest {
   @Test
   fun updateStatus_doesNotOverwriteExistingLokalAbgelehnt() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionF"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
 
     table.updateStatus(uri, TalerPaymentStatus.OFFEN)
@@ -149,7 +148,7 @@ class TalerPaymentTableTest {
   @Test
   fun updateStatus_allowsReapplyingLokalAbgelehnt() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionG"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
 
     table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
@@ -166,7 +165,7 @@ class TalerPaymentTableTest {
   @Test
   fun updateFromPreview_doesNotOverwriteExistingLokalAbgelehnt() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionH"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
 
     table.updateFromPreview(
@@ -194,7 +193,7 @@ class TalerPaymentTableTest {
   @Test
   fun insertLocalStatusLine_insertsAnAlreadyReadMessage() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionI"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
 
     table.insertLocalStatusLine(threadId = 1, status = TalerPaymentStatus.LOKAL_ABGELEHNT)
 
@@ -219,7 +218,7 @@ class TalerPaymentTableTest {
   @Test
   fun updateStatus_doesNotOverwriteExistingLokalAbgebrochen() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionJ"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGEBROCHEN)
 
     table.updateStatus(uri, TalerPaymentStatus.OFFEN)
@@ -230,7 +229,7 @@ class TalerPaymentTableTest {
   @Test
   fun updateFromPreview_doesNotOverwriteExistingLokalAbgebrochen() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionK"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGEBROCHEN)
 
     table.updateFromPreview(
@@ -262,7 +261,7 @@ class TalerPaymentTableTest {
   @Test
   fun applyPreviewAndRecordTransition_concurrentCallsToSameTerminalStatusInsertLineOnlyOnce() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionRace"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.OFFEN)
 
     val barrier = CyclicBarrier(2)
@@ -306,7 +305,7 @@ class TalerPaymentTableTest {
   @Test
   fun applyPreviewAndRecordTransition_doesNotOverwriteExistingLokalAbgelehnt() {
     val uri = "taler://pay-push/exchange.demo.taler.net/regressionM"
-    table.upsertDetected(uri, threadId = 1)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
     table.updateStatus(uri, TalerPaymentStatus.LOKAL_ABGELEHNT)
 
     table.applyPreviewAndRecordTransition(

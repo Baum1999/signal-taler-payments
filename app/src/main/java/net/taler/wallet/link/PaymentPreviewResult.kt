@@ -19,13 +19,11 @@ package net.taler.wallet.link
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize
 
-// Diese Datei muss identisch auch im Signal-Repo vorliegen, siehe ITalerLink.aidl.
+// Diese Datei muss identisch auch im Signal-Repo vorliegen, siehe scripts/sync-aidl.sh.
 //
-// exchangeBaseUrl und expirationTimestamp fuer PAY_PUSH/PAY_PULL kommen nicht
-// aus preparePeerPushCredit/preparePeerPullDebit direkt (die liefern das nicht
-// vollstaendig), sondern aus einem zweiten Aufruf getTransactionById(transactionId)
-// - siehe TalerLinkService.detailsFor(). Fuer PAY/WITHDRAW/REFUND (noch nicht an
-// wallet-core angebunden) bleiben alle Felder null.
+// Beide Apps fuellen dieselbe Form aus unterschiedlichen Quellen: Taler aus
+// wallet-core (TalerPaymentPreviewer), Signal direkt beim Exchange
+// (TalerPeerContractResolver).
 //
 // isOwnPayment gibt an, ob die URI zu einer eigenen ausgehenden Zahlung des Nutzers
 // gehoert (true) oder eine eingehende Zahlungsanfrage von jemand anderem ist (false).

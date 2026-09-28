@@ -121,9 +121,9 @@ class TalerUriDetectorTest {
   @Test
   fun `payto uri alone still returns true - detector is pattern-only, not kind-restricted`() {
     // isExactlyOneUri only proves "well-formed Taler-ish URI, whole string" -
-    // rejecting non-pay-push kinds is a separate, additional check the caller
-    // (TalerReturnActivity) performs afterwards via TalerLinkClient.previewForUri()
-    // (an authoritative AIDL round-trip to Taler), not here.
+    // rejecting non-peer kinds is a separate, additional check the caller
+    // (TalerReturnActivity) performs afterwards via TalerUriParser.classify(),
+    // not here.
     assertTrue(TalerUriDetector.isExactlyOneUri("payto://iban/DE1234567890/?message=test"))
   }
 }

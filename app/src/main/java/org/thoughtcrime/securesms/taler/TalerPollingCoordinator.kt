@@ -47,10 +47,10 @@ object TalerPollingCoordinator {
   // eingestellt.
   private val TTL_MS = TimeUnit.HOURS.toMillis(24)
 
-  // Exponentieller Backoff pro URI nach Fehlschlaegen (TalerLinkResult.Fehler,
-  // siehe TalerUriRefreshJob/TalerPaymentTable.recordFailure) statt eines
-  // flachen 20s-Intervalls fuer alle. Wer schon mehrfach hintereinander
-  // fehlgeschlagen ist (z.B. Taler-App haengt, Binder-Fehler), wird seltener
+  // Exponentieller Backoff pro URI nach Fehlschlaegen (Exchange nicht
+  // erreichbar, siehe TalerUriRefreshJob/TalerPaymentTable.recordFailure) statt
+  // eines flachen 20s-Intervalls fuer alle. Wer schon mehrfach hintereinander
+  // fehlgeschlagen ist, wird seltener
   // angefragt - erfolgreiche/verbindungsbezogene Statuswechsel setzen den
   // Zaehler zurueck (TalerPaymentTable.updateFromPreview/updateStatus).
   private val MAX_BACKOFF_MS = TimeUnit.MINUTES.toMillis(20)

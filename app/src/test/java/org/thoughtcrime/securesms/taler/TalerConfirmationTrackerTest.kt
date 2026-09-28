@@ -44,7 +44,7 @@ class TalerConfirmationTrackerTest {
   )
 
   private fun markOwnPayPush(uri: String, threadId: Long, isOwnPayment: Boolean = true, uriKind: String = TalerUriKind.PAY_PUSH.name) {
-    SignalDatabase.talerPayments.upsertDetected(uri, threadId = threadId)
+    SignalDatabase.talerPayments.upsertDetected(uri, threadId = threadId, isOwnPayment = false)
     SignalDatabase.talerPayments.updateFromPreview(
       uri = uri,
       uriKind = uriKind,

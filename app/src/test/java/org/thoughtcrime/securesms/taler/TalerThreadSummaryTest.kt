@@ -232,8 +232,8 @@ class TalerThreadSummaryTest {
       TalerHeadline.WaitingForMe(1),
       headlineFor(
         record(TalerPaymentStatus.OFFEN, isOwnPayment = false),
-        record(TalerPaymentStatus.TALER_NICHT_VERBUNDEN),
-        record(TalerPaymentStatus.NICHT_INSTALLIERT),
+        record(TalerPaymentStatus.UNBEKANNT_OFFLINE),
+        record(TalerPaymentStatus.UNBEKANNT_OFFLINE),
       )
     )
   }
@@ -263,18 +263,17 @@ class TalerThreadSummaryTest {
   }
 
   @Test
-  fun aggregate_countsAllFourUnverifiableStates() {
+  fun aggregate_countsOnlyOfflineAsUnverifiable() {
     val result = TalerThreadSummary.aggregate(
       listOf(
         record(TalerPaymentStatus.UNBEKANNT_OFFLINE),
-        record(TalerPaymentStatus.TALER_NICHT_VERBUNDEN),
-        record(TalerPaymentStatus.NICHT_INSTALLIERT),
-        record(TalerPaymentStatus.NICHT_VERTRAUENSWUERDIG),
+        record(TalerPaymentStatus.UNBEKANNT_OFFLINE),
+        record(TalerPaymentStatus.UNGUELTIG),
         record(TalerPaymentStatus.ANGENOMMEN),
         record(TalerPaymentStatus.ABGELAUFEN),
       )
     )
 
-    assertEquals(4, result.unverifiable)
+    assertEquals(2, result.unverifiable)
   }
 }

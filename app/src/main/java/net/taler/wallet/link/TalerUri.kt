@@ -16,12 +16,10 @@
 
 package net.taler.wallet.link
 
-// Diese Datei muss identisch auch im Signal-Repo vorliegen, siehe ITalerLink.aidl.
-
-enum class TalerUriValidity { GUELTIG, UNGUELTIG }
+// Diese Datei muss identisch auch im Signal-Repo vorliegen, siehe scripts/sync-aidl.sh.
 
 enum class TalerUriKind { PAY_PUSH, PAY_PULL, PAY, WITHDRAW, REFUND }
 
-// LOKAL_ABGELEHNT und TALER_NICHT_VERBUNDEN sind reine Signal-Zustaende,
-// werden von Taler nie geliefert (siehe docs/API.md, Abschnitt 2.4).
+// Signal fuehrt darueber hinaus rein lokale Zustaende (LOKAL_ABGELEHNT,
+// LOKAL_ABGEBROCHEN), die hier bewusst fehlen (siehe docs/API.md, Abschnitt 2.4).
 enum class TalerOperationStatus { OFFEN, ANGENOMMEN, ABGELAUFEN, UNGUELTIG, UNBEKANNT_OFFLINE }
