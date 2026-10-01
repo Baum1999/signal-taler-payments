@@ -1,9 +1,11 @@
 package org.thoughtcrime.securesms.taler
 
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import net.taler.wallet.link.TalerUriKind
+import org.thoughtcrime.securesms.providers.AvatarProvider
 import org.thoughtcrime.securesms.recipients.Recipient
 
 /**
@@ -34,6 +36,13 @@ object TalerSendActions {
     val correlationId = java.util.UUID.randomUUID().toString()
     TalerCorrelationStore.put(correlationId, TalerCorrelationIntent.SEND, uri = null, threadId = threadId)
 
+    // AvatarProvider liefert bereits eine content://-URI ueber den
+    // vorhandenen, nur intern (exported=false) exportierten Avatar-Provider
+    // (grantUriPermissions=true) - kein eigener Temp-File-/FileProvider-Weg
+    // noetig. Wie recipientHint nur ein unbedenklicher Anzeige-Hinweis
+    // (Regel: Signal gibt nur Kontext mit, nie Betrags-/Guthabendaten).
+    val avatarUri = AvatarProvider.getContentUri(recipient.id)
+
     val link = Uri.Builder()
       .scheme("talerlink")
       .authority("compose-send")
@@ -43,6 +52,7 @@ object TalerSendActions {
       .appendQueryParameter("disappearingMessagesSeconds", recipient.expiresInSeconds.toString())
       .appendQueryParameter("correlationId", correlationId)
       .appendQueryParameter("returnUri", "signalfuergnu://taler-return")
+      .appendQueryParameter("avatarUri", avatarUri.toString())
       .apply {
         if (recipient.isGroup) {
           appendQueryParameter("memberCount", recipient.participantIds.size.toString())
@@ -53,6 +63,13 @@ object TalerSendActions {
     val intent = Intent(Intent.ACTION_VIEW, link).apply {
       setClassName(TalerAllowlist.PACKAGE, "net.taler.wallet.main.MainActivity")
       setPackage(TalerAllowlist.PACKAGE)
+      // avatarUri steht nur als String im Query-Teil von "link" - das
+      // Leserecht fuer den exported=false-Provider muss separat erteilt
+      // werden. ClipData + FLAG_GRANT_READ_URI_PERMISSION auf einem
+      // expliziten Intent grantet es dem Zielpaket automatisch beim
+      // Zustellen, ohne manuelles grantUriPermission/revoke.
+      clipData = ClipData.newRawUri("avatar", avatarUri)
+      addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
     // Taler koennte zwischen Anzeige des Menuepunkts und diesem Aufruf
     // deinstalliert oder die Ziel-Activity umbenannt worden sein - eine
