@@ -32,6 +32,11 @@ class TalerPaymentOverviewFragment : Fragment(R.layout.fragment_taler_payment_ov
   companion object {
     private const val THREAD_ID_ARG = "thread_id"
 
+    // MediaTable.ALL_THREADS ist ein Int-Konstante (-1); Kotlin weitet das
+    // anders als Java nicht automatisch auf Long, deshalb hier einmalig
+    // konvertiert statt an jeder Vergleichsstelle erneut.
+    private val ALL_THREADS: Long = MediaTable.ALL_THREADS.toLong()
+
     fun newInstance(threadId: Long): Fragment {
       val fragment = TalerPaymentOverviewFragment()
       fragment.arguments = Bundle().apply { putLong(THREAD_ID_ARG, threadId) }
@@ -39,13 +44,13 @@ class TalerPaymentOverviewFragment : Fragment(R.layout.fragment_taler_payment_ov
     }
   }
 
-  private var threadId: Long = MediaTable.ALL_THREADS
+  private var threadId: Long = ALL_THREADS
   private lateinit var container: LinearLayout
   private lateinit var emptyView: TextView
 
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
     super.onViewCreated(view, savedInstanceState)
-    threadId = requireArguments().getLong(THREAD_ID_ARG, MediaTable.ALL_THREADS)
+    threadId = requireArguments().getLong(THREAD_ID_ARG, ALL_THREADS)
     container = view.findViewById(R.id.taler_payment_overview_container)
     emptyView = view.findViewById(R.id.taler_payment_overview_empty)
   }
@@ -58,12 +63,19 @@ class TalerPaymentOverviewFragment : Fragment(R.layout.fragment_taler_payment_ov
   private fun loadAndRender() {
     SimpleTask.run(
       {
-        val records = if (threadId == MediaTable.ALL_THREADS) {
+        val records = if (threadId == ALL_THREADS) {
           SignalDatabase.talerPayments.getAll()
         } else {
           SignalDatabase.talerPayments.getForThread(threadId)
         }
-        TalerMediaOverviewSort.newestFirst(records)
+        val sorted = TalerMediaOverviewSort.newestFirst(records)
+        // Recipient-Aufloesung/DisplayName fuer jede betroffene threadId schon
+        // hier im Hintergrund anstossen (Recipient.resolved cached) - renderStandalone
+        // (ueber TalerPaymentCardPresenter.getCompactStatus) loest das sonst pro
+        // Karte synchron auf dem Main-Thread auf, was bei vielen Zahlungen im
+        // Alle-Threads-Modus spuerbar ruckeln kann.
+        sorted.map { it.threadId }.distinct().forEach { SignalDatabase.threads.getRecipientForThreadId(it) }
+        sorted
       },
       { sorted -> renderRecords(sorted) }
     )
@@ -91,8 +103,15 @@ class TalerPaymentOverviewFragment : Fragment(R.layout.fragment_taler_payment_ov
   }
 
   private fun navigateToChat(targetThreadId: Long) {
-    val recipient = SignalDatabase.threads.getRecipientForThreadId(targetThreadId) ?: return
-    val intent = ConversationIntents.createBuilderSync(requireContext(), recipient.id, targetThreadId).build()
-    startActivity(intent)
+    SimpleTask.run(
+      viewLifecycleOwner.lifecycle,
+      { SignalDatabase.threads.getRecipientForThreadId(targetThreadId) },
+      { recipient ->
+        if (recipient != null) {
+          val intent = ConversationIntents.createBuilderSync(requireContext(), recipient.id, targetThreadId).build()
+          startActivity(intent)
+        }
+      }
+    )
   }
 }

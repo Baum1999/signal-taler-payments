@@ -1756,7 +1756,7 @@
     <string name="MediaOverviewActivity_Links">Links</string>
     <string name="MediaOverviewActivity_link">Link</string>
     <string name="MediaOverviewActivity_Taler">Taler</string>
-    <string name="MediaOverviewActivity_Taler_empty">Keine Taler-Zahlungen</string>
+    <string name="MediaOverviewActivity_Taler_empty">No Taler payments</string>
     <plurals name="MediaOverviewActivity_Media_delete_confirm_title">
         <item quantity="one">Delete selected item?</item>
         <item quantity="other">Delete selected items?</item>
