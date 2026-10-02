@@ -269,10 +269,11 @@ public final class MediaOverviewActivity extends PassphraseRequiredActivity {
 
       boolean allThreads = threadId == MediaTable.ALL_THREADS;
 
-      pages = new ArrayList<>(allThreads ? 4 : 5);
+      pages = new ArrayList<>(allThreads ? 5 : 6);
       pages.add(new Pair<>(MediaLoader.MediaType.GALLERY,  getString(R.string.MediaOverviewActivity_Media)));
       pages.add(new Pair<>(MediaLoader.MediaType.DOCUMENT, getString(R.string.MediaOverviewActivity_Files)));
       pages.add(new Pair<>(MediaLoader.MediaType.AUDIO,    getString(R.string.MediaOverviewActivity_Audio)));
+      pages.add(new Pair<>(MediaLoader.MediaType.TALER,    getString(R.string.MediaOverviewActivity_Taler)));
       if (!allThreads) {
         pages.add(new Pair<>(MediaLoader.MediaType.LINK,   getString(R.string.MediaOverviewActivity_Links)));
       }
@@ -281,11 +282,17 @@ public final class MediaOverviewActivity extends PassphraseRequiredActivity {
 
     @Override
     public  @NonNull Fragment getItem(int position) {
+      MediaLoader.MediaType mediaType = pages.get(position).getFirst();
+
+      if (mediaType == MediaLoader.MediaType.TALER) {
+        return TalerPaymentOverviewFragment.newInstance(threadId);
+      }
+
       MediaOverviewPageFragment.GridMode gridMode = allowGridSelectionOnPage(position)
                                                        ? MediaOverviewPageFragment.GridMode.FOLLOW_MODEL
                                                        : MediaOverviewPageFragment.GridMode.FIXED_DETAIL;
 
-      return MediaOverviewPageFragment.newInstance(threadId, pages.get(position).getFirst(), gridMode);
+      return MediaOverviewPageFragment.newInstance(threadId, mediaType, gridMode);
     }
 
     @Override
