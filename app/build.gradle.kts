@@ -244,11 +244,6 @@ android {
     versionCode = (canonicalVersionCode * maxHotfixVersions) + possibleHotfixVersions[currentHotfixVersion]
     versionName = canonicalVersionName
 
-    // GNU-Fork: eigene applicationId, damit die App neben dem Original installierbar ist.
-    // namespace bleibt bewusst org.thoughtcrime.securesms - daran haengen Layout-XML,
-    // Manifest-Klassennamen und ComponentName-Konstruktionen.
-    applicationId = "de.lenkenhoff.signalfuergnu"
-
     if (isInstrumentationTestRun) {
       applicationIdSuffix = ".test_run"
     }

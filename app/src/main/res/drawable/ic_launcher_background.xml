@@ -14,12 +14,11 @@
             android:startY="0"
             android:endX="54"
             android:endY="108">
-          <!-- GNU-Fork: Orange statt Signal-Blau, zur Unterscheidung im Launcher. -->
           <item
-              android:color="#FFFF9F43"
+              android:color="#FF3B45FD"
               android:offset="0"/>
           <item
-              android:color="#FFE8590C"
+              android:color="#FF1F2AFD"
               android:offset="1"/>
         </gradient>
       </aapt:attr>
