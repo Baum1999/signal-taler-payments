@@ -1529,6 +1529,8 @@
     <string name="MediaOverviewActivity_All">Alle</string>
     <string name="MediaOverviewActivity_Links">Links</string>
     <string name="MediaOverviewActivity_link">Link</string>
+    <string name="MediaOverviewActivity_Taler">Taler</string>
+    <string name="MediaOverviewActivity_Taler_empty">Keine Taler-Zahlungen</string>
     <plurals name="MediaOverviewActivity_Media_delete_confirm_title">
         <item quantity="one">Ausgewähltes Element löschen?</item>
         <item quantity="other">Ausgewählte Elemente löschen?</item>
@@ -8669,5 +8671,130 @@
     <!-- Dialog body shown when the recovery key change limit is exhausted and the user does not have backups enabled. -->
     <string name="BackupKeyRotationDialogs__limit_exceeded_body_no_backups">Du hast die Anzahl der neuen Schlüssel, die erstellt werden dürfen, aufgebraucht. Du kannst in 7 Tagen einen neuen Wiederherstellungsschlüssel erstellen.</string>
 
+    <!-- GNU-Fork (Signal-Taler-Integration, docs/API.md): Strings ausschliesslich fuer diesen Fork, nicht Teil von Signal upstream. -->
+
+    <string name="TalerFork_kind_pay_push">Taler-Zahlungslink</string>
+    <string name="TalerFork_kind_pay_pull">Taler-Zahlungsanfrage</string>
+    <string name="TalerFork_kind_pay">Taler-Zahlung</string>
+    <string name="TalerFork_kind_withdraw">Taler-Abhebungslink</string>
+    <string name="TalerFork_kind_refund">Taler-Erstattungslink</string>
+    <string name="TalerFork_kind_unknown">Taler-Link</string>
+    <!-- Vorschau-Label in Chatliste und Benachrichtigungs-Banner fuer eine Gruppen-Split-Zahlungsnachricht (mehrere Taler-URIs). Ersetzt den Rohtext inkl. der URIs; Details liefert die Karte im Chat -->
+    <string name="TalerFork_preview_group_split">Taler-Gruppenzahlung</string>
+
+    <string name="TalerFork_status_open">Offen</string>
+    <!-- Status-Text auf einer Zahlungskarte: für eingehende PAY_PUSH, wartet darauf, dass der Nutzer annimmt -->
+    <string name="TalerFork_status_waiting_for_acceptance">Wartet auf Annahme</string>
+    <!-- Status-Text auf einer Zahlungskarte: für ausgehende PAY_PUSH, wartet auf Bestätigung des Empfängers. %1$s ist der Empfänger-Name. -->
+    <string name="TalerFork_status_waiting_for_recipient">Wartet auf Bestätigung von %1$s</string>
+    <string name="TalerFork_status_accepted">Angenommen</string>
+    <!-- Status text on a payment card: for incoming PAY_PUSH that was accepted, %1$s is the sender name -->
+    <string name="TalerFork_status_accepted_by_sender">Angenommen von %1$s</string>
+    <!-- Status text on a payment card: for outgoing PAY_PUSH that was confirmed, %1$s is the recipient name -->
+    <string name="TalerFork_status_sent_confirmed">Von dir gesendet an %1$s (bestätigt)</string>
+    <!-- Amount line with sender and recipient: %1$s is sender, %2$s is recipient, %3$s is amount, %4$s is currency -->
+    <string name="TalerFork_amount_with_parties">%1$s → %2$s: %3$s %4$s</string>
+    <!-- Short form of "you" for use in payment card amount line -->
+    <string name="TalerFork_you">Du</string>
+    <string name="TalerFork_status_declined">Abgelehnt</string>
+    <string name="TalerFork_status_expired">Abgelaufen</string>
+    <string name="TalerFork_status_checking">Wird geprüft…</string>
+    <string name="TalerFork_status_invalid">Zahlung fehlgeschlagen</string>
+
+    <string name="TalerFork_action_accept">Annehmen</string>
+    <string name="TalerFork_action_reject">Ablehnen</string>
+    <string name="TalerFork_action_cancel">Abbrechen</string>
+    <string name="TalerFork_action_refresh">Aktualisieren</string>
+    <string name="TalerFork_decline_dialog_title">Diese Zahlung ablehnen?</string>
+    <string name="TalerFork_decline_dialog_message">Dies bewirkt nur, dass dieses Gerät die Zahlung nicht mehr verfolgt. Der Absender wird nicht benachrichtigt und es fließt kein Geld zurück.</string>
+    <string name="TalerFork_decline_dialog_confirm">Ablehnen</string>
+    <string name="TalerFork_decline_dialog_cancel">Abbrechen</string>
+
+    <string name="TalerFork_settings_row_label">GNU-Taler-Wallet</string>
+    <string name="TalerFork_settings_wallet_installed">Installiert</string>
+    <string name="TalerFork_settings_wallet_not_installed">Nicht installiert</string>
+    <string name="TalerFork_settings_wallet_untrusted">Unerwartete App-Signatur</string>
+
+    <string name="TalerFork_update_accepted">Taler-Zahlung angenommen</string>
+    <string name="TalerFork_update_declined">Taler-Zahlung auf diesem Gerät abgelehnt</string>
+    <string name="TalerFork_update_cancelled">Taler-Zahlung durch Löschen der Nachricht abgebrochen</string>
+    <string name="TalerFork_update_expired">Taler-Zahlungslink abgelaufen</string>
+
+    <!-- Vom Parser (TalerConfirmationDetector) exakt erkannter Text - %1$s muss mit einem der TalerFork_kind_*-Werte uebereinstimmen, %2$s ist die urspruengliche Taler-URI (eindeutige Referenz fuer die Zuordnung beim Empfaenger) -->
+    <string name="TalerFork_accept_confirmation_message">Zahlung für %1$s akzeptiert (%2$s)</string>
+
+    <string name="TalerFork_confirmation_icon_content_description">GNU-Taler-Zahlungsbestätigung</string>
+
+    <!-- Klartext, den Signal vor die Taler-URIs einer Zahlungsnachricht setzt. Muss identisch zu TalerPreviewText.LEGACY_TEXT_DE bleiben. -->
+    <string name="TalerFork_payment_legacy_text">Dies ist ein GNU-Taler-Link. Aktualisieren Sie Signal oder kopieren Sie den unten stehenden URI in die GNU-Taler-App, um die Zahlung durchzuführen.</string>
+
+    <!-- Header vor dem Klartext/der Rückerstattungs-URI im Entwurf, der nach dem Erstellen einer Rückerstattung vorbereitet wird - %1$s ist TalerFork_payment_legacy_text, bzw. ohne talerPaymentData von Taler die rohe Rückerstattungs-URI -->
+    <string name="TalerFork_refund_message">Rückerstattung: %1$s</string>
+
+    <string name="TalerFork_action_refund">Rückerstatten</string>
+    <string name="TalerFork_send_dialog_cancel">Abbrechen</string>
+
+    <string name="TalerFork_forward_choice_title">Taler-Zahlung weiterleiten</string>
+    <string name="TalerFork_forward_as_text">Als Transkript weiterleiten</string>
+    <string name="TalerFork_forward_as_image">Als Bild weiterleiten</string>
+    <string name="TalerFork_forward_payment_warning">Dies leitet eine noch nicht eingelöste Zahlung weiter. Wer den Link zuerst öffnet, kann das Geld beanspruchen.</string>
+
+    <string name="TalerFork_copy_as_image">Als Bild kopieren</string>
+    <string name="TalerFork_copy_as_text">Als Transkript kopieren</string>
+
+    <string name="TalerFork_details_uri_label">Zahlungslink</string>
+    <string name="TalerFork_details_total_label">Gesamtbetrag</string>
+    <string name="TalerFork_details_detected_at">Auf diesem Gerät erkannt am</string>
+    <string name="TalerFork_details_status_pending">Status wird geprüft…</string>
+    <string name="TalerFork_details_group_privacy_note">In Gruppen wird nicht erfasst, wer bezahlt hat – nur, dass die Zahlung abgeschlossen wurde.</string>
+
+    <string name="TalerFork_quote_group_summary">Geteilte Zahlung · %1$d Anteile</string>
+
     <!-- EOF -->
+    <string name="payment_history">Zahlungshistorie</string>
+    <string name="payment_history_view_all">Alle Zahlungen anzeigen</string>
+    <string name="payment_history_filter_all_time">Alle Zeiten</string>
+    <string name="payment_history_filter_last_7_days">Letzte 7 Tage</string>
+    <string name="payment_history_filter_last_30_days">Letzte 30 Tage</string>
+    <string name="payment_history_filter_last_90_days">Letzte 90 Tage</string>
+    <string name="payment_history_filter_inflow">Eingehend</string>
+    <string name="payment_history_filter_outflow">Ausgehend</string>
+    <string name="payment_history_filter_all_directions">Alle Richtungen</string>
+    <string name="payment_history_status_pending">Ausstehend</string>
+    <string name="payment_history_status_completed">Abgeschlossen</string>
+    <string name="payment_history_status_refunded">Erstattet</string>
+    <string name="payment_history_status_failed">Fehlgeschlagen</string>
+    <string name="payment_history_status_unknown">Unbekannt</string>
+    <string name="payment_history_action_view_chat">Zum Chat</string>
+    <string name="payment_history_empty_state">Keine Zahlungen in der Historie</string>
+    <string name="payment_history_error_loading">Fehler beim Laden der Zahlungshistorie</string>
+    <string name="TalerFork_party_to_you">an dich</string>
+    <string name="TalerFork_party_from_you">von dir</string>
+    <string name="TalerFork_status_compact_open">Offen</string>
+    <string name="TalerFork_status_compact_waiting_acceptance">Wartet auf Annahme</string>
+    <string name="TalerFork_status_compact_waiting_recipient">Wartet auf Bestätigung</string>
+    <string name="TalerFork_status_compact_accepted">Angenommen</string>
+    <string name="TalerFork_status_compact_confirmed">Bestätigt</string>
+    <string name="TalerFork_status_compact_declined">Abgelehnt</string>
+    <string name="TalerFork_status_compact_cancelled">Abgebrochen</string>
+    <string name="TalerFork_status_compact_expired">Abgelaufen</string>
+    <string name="TalerFork_status_compact_checking">Wird geprüft…</string>
+    <string name="TalerFork_status_compact_invalid">Zahlung fehlgeschlagen</string>
+    <string name="TalerFork_delivery_status_paid">Zahlung abgeschlossen</string>
+    <string name="TalerFork_split_preview_badge">Vorschau: Split</string>
+    <string name="TalerFork_split_note_with_self">Gesamt %1$s %2$s \u00f7 %3$d Personen (inkl. dir) \u2022 %4$d Links verschickt</string>
+    <string name="TalerFork_split_note_without_self">Gesamt %1$s %2$s \u00f7 %3$d Personen (ohne dich)</string>
+    <string name="TalerFork_split_all_done_pay_push">Alle haben angenommen</string>
+    <string name="TalerFork_split_all_done_pay_pull">Alle haben bezahlt</string>
+    <string name="TalerFork_split_progress">%1$d von %2$d haben %3$s</string>
+    <string name="TalerFork_split_warning">⚠ Du hast das schon %s — trotzdem nochmal möglich</string>
+    <string name="TalerFork_split_warning_accepted">angenommen</string>
+    <string name="TalerFork_split_warning_paid">bezahlt</string>
+    <plurals name="payment_history_count">
+        <item quantity="one">%d Zahlung</item>
+        <item quantity="other">%d Zahlungen</item>
+    </plurals>
+    <string name="payment_history_one_payment_received">1 Zahlung: %1$s erhalten</string>
+    <string name="payment_history_one_payment_sent">1 Zahlung: %1$s gesendet</string>
+    <string name="payment_history_last_payment">Letzte Zahlung: %1$s</string>
 </resources>

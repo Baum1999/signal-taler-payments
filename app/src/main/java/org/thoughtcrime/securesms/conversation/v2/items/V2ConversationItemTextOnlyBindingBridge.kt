@@ -7,6 +7,7 @@ package org.thoughtcrime.securesms.conversation.v2.items
 
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewStub
 import android.widget.ImageView
 import android.widget.Space
 import android.widget.TextView
@@ -47,7 +48,17 @@ data class V2ConversationItemTextOnlyBindingBridge(
   val footerStarred: ImageView,
   val starredSource: TextView?,
   val starredSourceWrapper: View?,
-  val starredSourceAvatar: AvatarImageView?
+  val starredSourceAvatar: AvatarImageView?,
+  // GNU-Fork (Signal-Taler-Integration), siehe docs/API.md. Null fuer den
+  // Media-Bridge-Pfad (V2ConversationItemMediaBindingBridge.kt), dessen
+  // Layouts keinen taler_card_stub haben - presentTalerCard() wird dort
+  // ohnehin nie aufgerufen (nur von V2ConversationItemTextOnlyViewHolder).
+  val talerCardStub: ViewStub? = null,
+  // GNU-Fork (Signal-Taler-Integration): Bestaetigungs-Icon fuer erkannte
+  // "Zahlung fuer [Kind] akzeptiert"-Nachrichten (TalerConfirmationDetector).
+  // Null im Outgoing-Layout und im Media-Bridge-Pfad - presentTalerConfirmationIcon()
+  // wird dort ohnehin nie mit sichtbarem Effekt aufgerufen, siehe talerCardStub oben.
+  val talerConfirmationIcon: ImageView? = null
 )
 
 /**
@@ -74,7 +85,9 @@ fun V2ConversationItemTextOnlyIncomingBinding.bridge(): V2ConversationItemTextOn
     footerStarred = conversationItemFooterStarred,
     starredSource = conversationItemStarredSource,
     starredSourceWrapper = conversationItemStarredSourceWrapper,
-    starredSourceAvatar = conversationItemStarredSourceAvatar
+    starredSourceAvatar = conversationItemStarredSourceAvatar,
+    talerCardStub = talerCardStub,
+    talerConfirmationIcon = talerConfirmationIcon
   )
 }
 
@@ -102,6 +115,7 @@ fun V2ConversationItemTextOnlyOutgoingBinding.bridge(): V2ConversationItemTextOn
     footerStarred = conversationItemFooterStarred,
     starredSource = null,
     starredSourceWrapper = null,
-    starredSourceAvatar = null
+    starredSourceAvatar = null,
+    talerCardStub = talerCardStub
   )
 }

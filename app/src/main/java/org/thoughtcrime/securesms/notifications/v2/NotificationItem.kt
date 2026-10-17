@@ -31,6 +31,7 @@ import org.thoughtcrime.securesms.polls.PollVote
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.recipients.RecipientUtil
 import org.thoughtcrime.securesms.service.KeyCachingService
+import org.thoughtcrime.securesms.taler.TalerPreviewText
 import org.thoughtcrime.securesms.util.AvatarUtil
 import org.thoughtcrime.securesms.util.MediaUtil
 import org.thoughtcrime.securesms.util.hasGiftBadge
@@ -268,7 +269,16 @@ class MessageNotification(threadRecipient: Recipient, record: MessageRecord, val
     } else if (isReplyToSelf) {
       ThreadBodyUtil.getFormattedBodyForReply(context, getBodyWithMentionsAndStyles(context, record))
     } else {
-      getBodyWithMentionsAndStyles(context, record)
+      // Taler-Zahlungsnachricht: kursives Label statt Rohtext mit voller taler://-URI
+      // (Plan 2026-10-02-taler-preview-chatlist-notification). MmsReader dekodiert
+      // MESSAGE_EXTRAS (MessageTable), der strukturierte Payload ist hier also
+      // zusaetzlich zur Body-Heuristik verfuegbar.
+      val talerLabelRes = TalerPreviewText.labelRes(context, TalerPreviewText.payloadFrom(record.messageExtras), record.body)
+      if (talerLabelRes != null) {
+        SpanUtil.italic(context.getString(talerLabelRes))
+      } else {
+        getBodyWithMentionsAndStyles(context, record)
+      }
     }
   }
 
@@ -366,6 +376,9 @@ class ReactionNotification(threadRecipient: Recipient, record: MessageRecord, va
   private fun getReactionMessageBody(context: Context): CharSequence {
     val body: CharSequence = getBodyWithMentionsAndStyles(context, record)
     val bodyIsEmpty: Boolean = TextUtils.isEmpty(body)
+    // Taler-Zahlungsnachricht: Label statt Rohtext - auch im Reaktions-Banner darf
+    // die taler://-URI nicht erscheinen (Plan 2026-10-02-taler-preview-chatlist-notification).
+    val talerLabelRes: Int? = TalerPreviewText.labelRes(context, TalerPreviewText.payloadFrom(record.messageExtras), record.body)
 
     return if (record.hasSharedContact()) {
       val contact: Contact = (record as MmsMessageRecord).sharedContacts[0]
@@ -377,6 +390,8 @@ class ReactionNotification(threadRecipient: Recipient, record: MessageRecord, va
       context.getString(R.string.MessageNotifier_reacted_s_to_your_view_once_media, EMOJI_REPLACEMENT_STRING)
     } else if (record.isPaymentNotification || record.isPaymentTombstone) {
       context.getString(R.string.MessageNotifier_reacted_s_to_your_payment, EMOJI_REPLACEMENT_STRING)
+    } else if (talerLabelRes != null) {
+      context.getString(R.string.MessageNotifier_reacted_s_to_s, EMOJI_REPLACEMENT_STRING, context.getString(talerLabelRes))
     } else if (!bodyIsEmpty) {
       context.getString(R.string.MessageNotifier_reacted_s_to_s, EMOJI_REPLACEMENT_STRING, body)
     } else if (record.isMediaMessage() && MediaUtil.isVideoType(getMessageContentType((record as MmsMessageRecord)))) {

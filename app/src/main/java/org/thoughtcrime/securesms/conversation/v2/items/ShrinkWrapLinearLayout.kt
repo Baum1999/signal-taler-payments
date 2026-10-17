@@ -18,7 +18,18 @@ class ShrinkWrapLinearLayout @JvmOverloads constructor(
   context: Context,
   attrs: AttributeSet? = null
 ) : LinearLayoutCompat(context, attrs) {
+
+  // GNU-Fork (Signal-Taler-Integration): Die EXACTLY->AT_MOST-Umschreibung
+  // unten laesst match_parent-Kinder (z.B. die Taler-Karte) ebenfalls auf
+  // AT_MOST schrumpfen, obwohl sie die volle verfuegbare Breite nutzen
+  // sollen - siehe TalerCardMeasureListener in
+  // V2ConversationItemTextOnlyViewHolder, der diesen Wert nach dem ersten
+  // Messpass ausliest, um die Kartenbreite explizit zu erzwingen.
+  var availableWidth: Int = 0
+    private set
+
   override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
+    availableWidth = MeasureSpec.getSize(widthMeasureSpec)
     val shrinkWrapWidthSpec = shrinkWrapWidthMeasureSpec(widthMeasureSpec)
     super.onMeasure(shrinkWrapWidthSpec, heightMeasureSpec)
   }

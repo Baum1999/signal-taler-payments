@@ -22,6 +22,7 @@ import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import androidx.core.view.updateLayoutParams
 import androidx.lifecycle.Observer
@@ -43,11 +44,18 @@ import org.thoughtcrime.securesms.conversation.mutiselect.MultiselectPart
 import org.thoughtcrime.securesms.conversation.mutiselect.Multiselectable
 import org.thoughtcrime.securesms.conversation.v2.computed.FormattedDate
 import org.thoughtcrime.securesms.conversation.v2.data.ConversationMessageElement
+import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.model.MessageRecord
 import org.thoughtcrime.securesms.database.model.MmsMessageRecord
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
+import org.thoughtcrime.securesms.taler.TalerAcceptRejectActions
+import org.thoughtcrime.securesms.taler.TalerConfirmationIconPresenter
+import org.thoughtcrime.securesms.taler.TalerDeliveryStatusPresenter
+import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
+import org.thoughtcrime.securesms.taler.TalerPaymentStatus
+import org.thoughtcrime.securesms.taler.urisFromMessageBody
 import org.thoughtcrime.securesms.util.InterceptableLongClickCopyLinkSpan
 import org.thoughtcrime.securesms.util.LongClickMovementMethod
 import org.thoughtcrime.securesms.util.MAX_BODY_DISPLAY_LENGTH
@@ -110,6 +118,11 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
   override val badgeImageView: View? = binding.senderBadge
 
   private var reactionMeasureListener: ReactionMeasureListener = ReactionMeasureListener()
+
+  // GNU-Fork (Signal-Taler-Integration): erzwingt die Breite der Taler-Karte
+  // auf eingehenden Nachrichten explizit auf den von ShrinkWrapLinearLayout
+  // tatsaechlich verfuegbaren Platz - siehe TalerCardMeasureListener unten.
+  private val talerCardMeasureListener: TalerCardMeasureListener = TalerCardMeasureListener()
   private var formattedDate: FormattedDate? = null
 
   private val bodyBubbleDrawable = ChatColorsDrawable(conversationContext::getChatColorsData)
@@ -142,6 +155,13 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
 
   init {
     binding.root.addOnMeasureListener(footerDelegate)
+    // GNU-Fork (Signal-Taler-Integration): nur eingehende Bubbles nutzen
+    // ShrinkWrapLinearLayout als bodyWrapper (siehe
+    // v2_conversation_item_text_only_incoming.xml) - ausgehend ist der
+    // Wrapper eine normale LinearLayout, dort braucht der Fix nichts.
+    if (binding.isIncoming) {
+      binding.root.addOnMeasureListener(talerCardMeasureListener)
+    }
     binding.bodyWrapper.addOnLayoutChangeListener { _, _, top, _, bottom, _, _, _, _ ->
       val wrapperHeight = bottom - top
       val yTranslation = (wrapperHeight - 38.dp) / 2f
@@ -263,6 +283,8 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
     }
 
     presentBody()
+    presentTalerCard()
+    presentTalerConfirmationIcon()
     presentDate()
     presentDeliveryStatus()
     presentFooterBackground()
@@ -400,6 +422,27 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
     binding.body.setLinkTextColor(themeDelegate.getBodyTextColor(conversationMessage))
 
     val record = conversationMessage.messageRecord
+
+    // GNU-Fork (Signal-Taler-Integration): erkannte Bestaetigungsnachrichten
+    // ("Zahlung fuer [Kind] akzeptiert") zeigen statt des Rohtexts nur das
+    // Icon aus presentTalerConfirmationIcon() - der Rohtext wird verworfen,
+    // nicht nur versteckt (kein Overflow/Highlight-Handling noetig).
+    if (SignalDatabase.talerConfirmationMessages.getByMessageId(record.id) != null) {
+      binding.body.visible = false
+      binding.body.setOverflowText(null)
+      return
+    }
+
+    // GNU-Fork (Signal-Taler-Integration): Nachrichten mit Taler-Zahlungs-URI(s)
+    // zeigen ausschliesslich die Karte aus presentTalerCard() - der Rohtext
+    // (Klartext-URI bzw. JSON-Payload) bleibt weiterhin in record.body
+    // gespeichert, damit Legacy-Clients ohne Taler-Unterstuetzung ihn lesen
+    // koennen, wird hier aber nicht mehr zusaetzlich zur Karte angezeigt.
+    if (urisFromMessageBody(record.body).isNotEmpty()) {
+      binding.body.visible = false
+      binding.body.setOverflowText(null)
+      return
+    }
     var styledText: Spannable = conversationMessage.getDisplayBody(context)
     if (conversationContext.isMessageRequestAccepted) {
       linkifyMessageBody(styledText)
@@ -425,6 +468,33 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
 
     binding.body.visible = bodyText.isNotEmpty()
     binding.body.text = bodyText
+  }
+
+  // GNU-Fork (Signal-Taler-Integration, docs/API.md; REVIEW.md H4): Aufbau
+  // und Bindung der Zahlungskarte(n) leben in TalerPaymentCardPresenter, um
+  // diesen Eingriff in eine Upstream-Datei klein zu halten.
+  private fun presentTalerCard() {
+    TalerPaymentCardPresenter.present(
+      root,
+      binding.talerCardStub,
+      conversationMessage.messageRecord.body,
+      messageId = conversationMessage.messageRecord.id,
+      threadId = conversationMessage.messageRecord.threadId,
+      sender = conversationMessage.messageRecord.fromRecipient,
+      onAccept = { uri, threadId -> TalerAcceptRejectActions.onAcceptClicked(root.context, uri, threadId) },
+      // Deckt die eigene ausgehende Bubble ab: totalAmount/includeSelf landen
+      // fuer die dort nur lokal in MessageExtras.talerPayment, nicht in der
+      // TalerPaymentMessageTable (siehe Kommentar in bindGroupCard).
+      messageExtrasTalerPayment = conversationMessage.messageRecord.messageExtras?.talerPayment,
+    )
+  }
+
+  private fun presentTalerConfirmationIcon() {
+    TalerConfirmationIconPresenter.present(
+      binding.talerConfirmationIcon,
+      conversationMessage.messageRecord.id,
+      themeDelegate.getFooterForegroundColor(conversationMessage),
+    )
   }
 
   private fun linkifyMessageBody(messageBody: Spannable) {
@@ -820,8 +890,22 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
       return
     }
 
+    if (record.isPending) {
+      deliveryStatus.setPending()
+      return
+    }
+
+    // GNU-Fork (Signal-Taler-Integration): Taler-Zahlungsnachrichten sind reiner
+    // Text und laufen deshalb ueber diesen ViewHolder statt ueber
+    // ConversationItemFooter - dieselbe Kreis-Logik wie dort (presentDeliveryStatus).
+    val talerStatus = TalerDeliveryStatusPresenter.statusFor(record.body)
     when {
-      record.isPending -> deliveryStatus.setPending()
+      talerStatus == TalerPaymentStatus.ANGENOMMEN -> deliveryStatus.setTalerPaid()
+      talerStatus != null -> when {
+        record.hasReadReceipt() -> deliveryStatus.setTalerRead()
+        record.isDelivered -> deliveryStatus.setTalerDelivered()
+        else -> deliveryStatus.setTalerSent()
+      }
       record.hasReadReceipt() -> deliveryStatus.setRead()
       record.isDelivered -> deliveryStatus.setDelivered()
       else -> deliveryStatus.setSent()
@@ -867,6 +951,29 @@ open class V2ConversationItemTextOnlyViewHolder<Model : MappingModel<Model>>(
 
     override fun onPostMeasure(): Boolean {
       return binding.reactions.setBubbleWidth(binding.bodyWrapper.measuredWidth)
+    }
+  }
+
+  // GNU-Fork (Signal-Taler-Integration): bodyWrapper.measuredWidth ist hier
+  // unbrauchbar, weil genau dieses Schrumpfen das Problem ist (siehe
+  // ShrinkWrapLinearLayout.availableWidth) - stattdessen wird die vor dem
+  // Schrumpfen verfuegbare Breite ausgelesen und der Karte danach explizit
+  // (als fixer Pixelwert statt match_parent) zugewiesen, damit der zweite
+  // Messpass sie unabhaengig vom AT_MOST-Zwang des Wrappers auf diese Breite
+  // bringt.
+  private inner class TalerCardMeasureListener : V2ConversationItemLayout.OnMeasureListener {
+    override fun onPreMeasure() = Unit
+
+    override fun onPostMeasure(): Boolean {
+      val wrapper = binding.bodyWrapper as? ShrinkWrapLinearLayout ?: return false
+      val container = binding.root.findViewById<LinearLayout?>(R.id.taler_payment_cards) ?: return false
+      if (container.visibility != View.VISIBLE) return false
+
+      val target = wrapper.availableWidth
+      if (target <= 0 || container.layoutParams.width == target) return false
+
+      container.layoutParams = container.layoutParams.apply { width = target }
+      return true
     }
   }
 

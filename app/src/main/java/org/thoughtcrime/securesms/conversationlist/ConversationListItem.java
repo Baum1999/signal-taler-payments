@@ -80,6 +80,7 @@ import org.thoughtcrime.securesms.glide.targets.GlideLiveDataTarget;
 import org.thoughtcrime.securesms.recipients.LiveRecipient;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.search.MessageResult;
+import org.thoughtcrime.securesms.taler.TalerPreviewText;
 import org.thoughtcrime.securesms.util.DateUtils;
 import org.signal.core.ui.util.ExpirationUtil;
 import org.thoughtcrime.securesms.util.MediaUtil;
@@ -693,6 +694,16 @@ public final class ConversationListItem extends ConstraintLayout implements Bind
     } else if (MessageTypes.isPinnedMessageUpdate(thread.getType())) {
       return emphasisAdded(context, thread.getBody(), Glyph.PIN, defaultTint);
     } else {
+      // Taler-Zahlungsnachricht: kurzes Label statt Rohtext mit voller taler://-URI
+      // (Plan 2026-10-02-taler-preview-chatlist-notification). Vor allen Media-/ViewOnce-
+      // Verzweigungen unnoetig: Taler-Zahlungen sind immer Text-nur. Erkennung vor dem
+      // Snippet-Fallback, nach allen Typ-Verzweigungen - eine Stelle deckt Listen-, Archiv-
+      // und Ordner-Rows ab (alle laufen ueber getThreadDisplayBody).
+      Integer talerLabelRes = TalerPreviewText.INSTANCE.labelRes(context, TalerPreviewText.INSTANCE.payloadFrom(thread.getMessageExtras()), thread.getBody());
+      if (talerLabelRes != null) {
+        return LiveDataUtil.just(createTalerPreviewSpannable(context, context.getString(talerLabelRes), defaultTint));
+      }
+
       ThreadTable.Extra extra = thread.getExtra();
       if (extra != null && extra.isViewOnce()) {
         return emphasisAdded(context, getViewOnceDescription(context, thread.getContentType()), defaultTint);
@@ -779,6 +790,28 @@ public final class ConversationListItem extends ConstraintLayout implements Bind
           .append(thumbnailSpan)
           .append(bodyWithoutMediaPrefix);
     });
+  }
+
+  /**
+   * Vorschau einer Taler-Zahlungsnachricht: kursives Label mit vorangestelltem
+   * Inline-Taler-Icon (Muster: der Verified-Badge-Suffix-Span weiter oben,
+   * 16dp wie die anderen Inline-Icons dieser Row) statt des Rohtexts mit der
+   * vollen taler://-URI. Kein Async-Loading noetig - ic_taler_logo_24 ist ein
+   * monochromes Vector-Drawable und wird auf defaultTint gefaerbt.
+   */
+  private static SpannableString createTalerPreviewSpannable(@NonNull Context context, @NonNull String label, @ColorInt int defaultTint) {
+    SpannableStringBuilder builder = new SpannableStringBuilder();
+
+    Drawable talerIcon = ContextCompat.getDrawable(context, R.drawable.ic_taler_logo_24);
+    if (talerIcon != null) {
+      talerIcon.setTint(defaultTint);
+      SpanUtil.appendCenteredImageSpan(builder, talerIcon, 16, 16);
+    }
+    builder.append(label);
+
+    SpannableString spannable = new SpannableString(builder);
+    spannable.setSpan(new StyleSpan(Typeface.ITALIC), 0, spannable.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+    return spannable;
   }
 
   private static SpannableString createGroupMessageUpdateString(@NonNull Context context,

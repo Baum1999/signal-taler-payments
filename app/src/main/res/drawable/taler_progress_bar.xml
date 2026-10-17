@@ -1,0 +1,29 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background track -->
+    <item android:id="@android:id/background">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/taler_progress_bar_track_light" />
+            <corners android:radius="999dp" />
+        </shape>
+    </item>
+    
+    <!-- Secondary progress (not used, but required) -->
+    <item android:id="@android:id/secondaryProgress">
+        <clip>
+            <shape android:shape="rectangle">
+                <solid android:color="@color/taler_progress_bar_track_light" />
+                <corners android:radius="999dp" />
+            </shape>
+        </clip>
+    </item>
+    
+    <!-- Primary progress -->
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape android:shape="rectangle">
+                <solid android:color="@color/taler_progress_bar_fill_light" />
+                <corners android:radius="999dp" />
+            </shape>
+        </clip>
+    </item>
+</layer-list>

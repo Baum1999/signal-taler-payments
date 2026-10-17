@@ -1531,6 +1531,8 @@
     <string name="MediaOverviewActivity_All">All</string>
     <string name="MediaOverviewActivity_Links">Links</string>
     <string name="MediaOverviewActivity_link">Link</string>
+    <string name="MediaOverviewActivity_Taler">Taler</string>
+    <string name="MediaOverviewActivity_Taler_empty">No Taler payments</string>
     <plurals name="MediaOverviewActivity_Media_delete_confirm_title">
         <item quantity="one">Delete selected item?</item>
         <item quantity="other">Delete selected items?</item>
@@ -8667,6 +8669,222 @@
     <string name="ResetRecoveryKeyBottomSheet__continue">Continue</string>
     <!-- Dialog body shown when the recovery key change limit is exhausted and the user does not have backups enabled. -->
     <string name="BackupKeyRotationDialogs__limit_exceeded_body_no_backups">You\'ve exhausted the number of new keys you can create. You will be able to create a new recovery key in 7 days.</string>
+
+    <!-- GNU Taler integration -->
+
+    <!-- Label on a payment card under a message, for a taler://pay-push/... link -->
+    <string name="TalerFork_kind_pay_push">Taler payment link</string>
+    <!-- Label on a payment card under a message, for a taler://pay-pull/... link -->
+    <string name="TalerFork_kind_pay_pull">Taler payment request</string>
+    <!-- Label on a payment card under a message, for a taler://pay/... link -->
+    <string name="TalerFork_kind_pay">Taler payment</string>
+    <!-- Label on a payment card under a message, for a taler://withdraw/... link -->
+    <string name="TalerFork_kind_withdraw">Taler withdrawal link</string>
+    <!-- Label on a payment card under a message, for a taler://refund/... link -->
+    <string name="TalerFork_kind_refund">Taler refund link</string>
+    <!-- Label on a payment card under a message, for a recognized but not yet categorized Taler link -->
+    <string name="TalerFork_kind_unknown">Taler link</string>
+    <!-- Preview label in the chat list and notification banner for a group-split payment message (multiple Taler URIs). Replaces the raw text incl. the URIs; details stay on the in-chat card -->
+    <string name="TalerFork_preview_group_split">Taler group payment</string>
+
+    <!-- Status text on a payment card: Taler confirmed the payment/request is still open, waiting for a decision -->
+    <string name="TalerFork_status_open">Open</string>
+    <!-- Status text on a payment card: for incoming PAY_PUSH, waiting for user to accept -->
+    <string name="TalerFork_status_waiting_for_acceptance">Waiting for acceptance</string>
+    <!-- Status text on a payment card: for outgoing PAY_PUSH, waiting for recipient to accept. %1$s is the recipient name. -->
+    <string name="TalerFork_status_waiting_for_recipient">Waiting for confirmation from %1$s</string>
+    <!-- Status text on a payment card: the payment/request was accepted -->
+    <string name="TalerFork_status_accepted">Accepted</string>
+    <!-- Status text on a payment card: for incoming PAY_PUSH that was accepted, %1$s is the sender name -->
+    <string name="TalerFork_status_accepted_by_sender">Accepted from %1$s</string>
+    <!-- Status text on a payment card: for outgoing PAY_PUSH that was confirmed, %1$s is the recipient name -->
+    <string name="TalerFork_status_sent_confirmed">Sent by you to %1$s (confirmed)</string>
+    <!-- Amount line with sender and recipient: %1$s is sender, %2$s is recipient, %3$s is amount, %4$s is currency -->
+    <string name="TalerFork_amount_with_parties">%1$s → %2$s: %3$s %4$s</string>
+    <!-- Short form of "you" for use in payment card amount line -->
+    <string name="TalerFork_you">You</string>
+    <!-- Status text on a payment card: the user declined the payment/request in this Signal installation only - does not claim any funds moved -->
+    <string name="TalerFork_status_declined">Declined</string>
+    <!-- Status text on a payment card: the payment/request has expired -->
+    <string name="TalerFork_status_expired">Expired</string>
+    <!-- Status text on a payment card while the local status is not yet known, e.g. right after the link was detected -->
+    <string name="TalerFork_status_checking">Checking…</string>
+    <!-- Status text on a payment card: the link is not a valid Taler link -->
+    <string name="TalerFork_status_invalid">Payment failed</string>
+
+    <!-- Section header for the Taler payments section in conversation settings -->
+    <string name="TalerFork_payments">Payments</string>
+
+    <!-- Button on a payment card: accept an incoming Taler payment, opens GNU Taler's own confirmation UI -->
+    <string name="TalerFork_action_accept">Accept</string>
+    <!-- Button on a payment card: locally decline an incoming Taler payment, no network traffic -->
+    <string name="TalerFork_action_reject">Decline</string>
+    <!-- Button on a payment card: cancel an outgoing Taler payment -->
+    <string name="TalerFork_action_cancel">Cancel</string>
+    <!-- Button on a payment card: refresh the status of an outgoing Taler payment -->
+    <string name="TalerFork_action_refresh">Refresh</string>
+    <!-- Button on an accepted incoming Taler payment card: start a refund (a new payment back to the sender), opens GNU Taler's own confirmation UI -->
+    <string name="TalerFork_action_refund">Refund</string>
+    <!-- Title of the confirmation dialog before locally declining a Taler payment -->
+    <string name="TalerFork_decline_dialog_title">Decline this payment?</string>
+    <!-- Body of the decline confirmation dialog - must never imply money moves, only that this device stops tracking -->
+    <string name="TalerFork_decline_dialog_message">This only stops this device from tracking the payment. It does not notify the sender and does not return any funds.</string>
+    <!-- Confirm button in the decline dialog -->
+    <string name="TalerFork_decline_dialog_confirm">Decline</string>
+    <!-- Cancel button in the decline dialog -->
+    <string name="TalerFork_decline_dialog_cancel">Cancel</string>
+
+    <!-- Row label in app settings for the GNU Taler wallet status entry -->
+    <string name="TalerFork_settings_row_label">GNU Taler wallet</string>
+    <!-- Status line of the wallet settings row when the wallet app is present on this device -->
+    <string name="TalerFork_settings_wallet_installed">Installed</string>
+    <!-- Status line of the wallet settings row when no wallet app is present on this device -->
+    <string name="TalerFork_settings_wallet_not_installed">Not installed</string>
+    <!-- Status line of the wallet settings row when an app of that name is installed but signed with an unexpected certificate. Security warning, must read differently from TalerFork_settings_wallet_not_installed -->
+    <string name="TalerFork_settings_wallet_untrusted">Unexpected app signature</string>
+
+    <!-- Local system-message line shown when this device accepted an incoming Taler payment (docs/API.md 2.10) -->
+    <string name="TalerFork_update_accepted">Taler payment accepted</string>
+    <!-- Local system-message line shown when this device locally declined an incoming Taler payment - wording must never imply money moved, only that this device stopped tracking the transaction -->
+    <string name="TalerFork_update_declined">Taler payment declined on this device</string>
+    <string name="TalerFork_update_cancelled">Taler payment cancelled by deleting the message</string>
+    <!-- Local system-message line shown when a Taler payment link expired before being accepted or declined -->
+    <string name="TalerFork_update_expired">Taler payment link expired</string>
+
+    <!-- Real outgoing 1:1 chat message sent automatically after this device accepted an incoming Taler payment and Taler confirmed the acceptance; %1$s is the link kind label (e.g. TalerFork_kind_pay_push), %2$s is the original Taler URI - included so the recipient's client can unambiguously match this confirmation to the exact payment (TalerConfirmationDetector) -->
+    <string name="TalerFork_accept_confirmation_message">Payment for %1$s accepted (%2$s)</string>
+
+    <!-- Real outgoing 1:1 chat message sent after this device composed a new outgoing Taler payment via the attachment menu and Taler confirmed creation; %1$s is the link kind label (e.g. TalerFork_kind_pay_push), %2$s is the new Taler URI -->
+    <string name="TalerFork_send_message">Payment sent: %1$s (%2$s)</string>
+    <string name="TalerFork_request_message">Payment requested: %1$s (%2$s)</string>
+
+    <!-- Plain-text line Signal puts before the Taler URIs of a payment message, for clients that do not understand the structured talerPayment field. Must stay identical to TalerPreviewText.LEGACY_TEXT_EN, otherwise chat list and notifications show the raw URI. -->
+    <string name="TalerFork_payment_legacy_text">This is a GNU Taler link. Update Signal or copy the URI below into the GNU Taler app to make the payment.</string>
+
+    <!-- Header prefixed to the text/refund URI in the message draft prepared after composing a refund (Refund-Redesign, TalerReturnActivity); %1$s is TalerFork_payment_legacy_text, or the raw refund URI when Taler returned no talerPaymentData. Sent as a quote-reply to the original payment message where the refund was triggered from the chat's long-press menu. -->
+    <string name="TalerFork_refund_message">Refund: %1$s</string>
+
+    <!-- Accessibility label for the small icon shown instead of the raw text on a recognized accept-confirmation message; gray while unconfirmed, blue once Taler confirms the payment as accepted -->
+    <string name="TalerFork_confirmation_icon_content_description">GNU Taler payment confirmation</string>
+
+    <!-- Attachment menu entry that opens Taler directly to start an outgoing payment (1:1 or group); Taler itself asks for the amount -->
+    <string name="AttachmentKeyboard_taler_send">Send with Taler</string>
+    <!-- Generic "Cancel" label reused across Taler dialogs (e.g. the forward-choice dialog in TalerForwardGate) -->
+    <string name="TalerFork_send_dialog_cancel">Cancel</string>
+
+    <!-- Refund and forward -->
+
+    <!-- Title of the interstitial dialog shown when forwarding a message that contains exactly one Taler payment link -->
+    <string name="TalerFork_forward_choice_title">Forward Taler payment</string>
+    <!-- Option to forward the original message text unchanged, including the live, redeemable payment link -->
+    <string name="TalerFork_forward_as_text">Forward as text</string>
+    <!-- Option to forward a static image snapshot of the payment card instead of the live payment link -->
+    <string name="TalerFork_forward_as_image">Forward as image</string>
+    <!-- Warning shown before forwarding a still-open (unclaimed) payment link as text, since whoever opens it first can claim the money -->
+    <string name="TalerFork_forward_payment_warning">This forwards an unclaimed payment. Whoever opens it first can claim the money.</string>
+
+    <!-- Long-press menu entry on a Taler payment message: copy a static image snapshot of the payment card to the clipboard -->
+    <string name="TalerFork_copy_as_image">Copy as image</string>
+    <!-- Long-press menu entry on a Taler payment message: copy the message text (including the live, redeemable payment link) to the clipboard -->
+    <string name="TalerFork_copy_as_text">Copy as transcript</string>
+
+    <!-- Message-details screen: short label preceding a Taler payment link's shortened URI -->
+    <string name="TalerFork_details_uri_label">Payment link</string>
+    <!-- Message-details screen: label for the total amount of a group-split payment, shown only once verified against the per-share amounts -->
+    <string name="TalerFork_details_total_label">Total</string>
+    <!-- Message-details screen: label for when this device first locally detected the payment link - NOT when Taler itself created or settled the payment, since that timestamp isn't available locally -->
+    <string name="TalerFork_details_detected_at">Detected on this device</string>
+    <!-- Message-details screen: placeholder shown for a Taler payment link whose status hasn't been resolved by Taler yet -->
+    <string name="TalerFork_details_status_pending">Checking status…</string>
+    <!-- Message-details screen: shown below a Taler payment's details in a group chat, clarifying that the app only tracks whether the payment as a whole was completed, not which individual group member paid their share -->
+    <string name="TalerFork_details_group_privacy_note">In groups, it isn\'t recorded who paid — only that the payment was completed.</string>
+
+    <!-- Quote/reply preview (compose bar and in-chat quote bubble) for a group-split Taler payment message, replacing the raw payment links; %1$d is the number of shares -->
+    <string name="TalerFork_quote_group_summary">Split payment · %1$d shares</string>
+
+    <!-- Payment History -->
+    <string name="payment_history">Payment history</string>
+    <!-- Conversation settings, payment history summary row: number of Taler payments in this chat -->
+    <plurals name="payment_history_count">
+        <item quantity="one">%d payment</item>
+        <item quantity="other">%d payments</item>
+    </plurals>
+    <!-- Conversation settings, payment history summary row for a single received payment; %1$s is amount and currency -->
+    <string name="payment_history_one_payment_received">1 payment: %1$s received</string>
+    <!-- Conversation settings, payment history summary row for a single sent payment; %1$s is amount and currency -->
+    <string name="payment_history_one_payment_sent">1 payment: %1$s sent</string>
+    <!-- Conversation settings, payment history summary row subtitle; %1$s is the date of the latest payment -->
+    <string name="payment_history_last_payment">Last payment: %1$s</string>
+    <string name="payment_history_view_all">View all payments</string>
+    <string name="payment_history_filter_all_time">All time</string>
+    <string name="payment_history_filter_last_7_days">Last 7 days</string>
+    <string name="payment_history_filter_last_30_days">Last 30 days</string>
+    <string name="payment_history_filter_last_90_days">Last 90 days</string>
+    <string name="payment_history_filter_inflow">Incoming</string>
+    <string name="payment_history_filter_outflow">Outgoing</string>
+    <string name="payment_history_filter_all_directions">All directions</string>
+    <string name="payment_history_status_pending">Pending</string>
+    <string name="payment_history_status_completed">Completed</string>
+    <string name="payment_history_status_refunded">Refunded</string>
+    <string name="payment_history_status_failed">Failed</string>
+    <string name="payment_history_status_unknown">Unknown</string>
+    <string name="payment_history_action_refund">Refund</string>
+    <string name="payment_history_action_view_chat">Go to chat</string>
+    <string name="payment_history_empty_state">No payments in the history</string>
+    <string name="payment_history_error_loading">Could not load the payment history</string>
+
+        <!-- Party direction -->
+    <string name="TalerFork_party_to_you">to you</string>
+    <string name="TalerFork_party_from_you">from you</string>
+    
+    <!-- Compact status labels on the payment card -->
+    <string name="TalerFork_status_compact_open">Open</string>
+    <string name="TalerFork_status_compact_waiting_acceptance">Waiting for acceptance</string>
+    <string name="TalerFork_status_compact_waiting_recipient">Waiting for confirmation</string>
+    <string name="TalerFork_status_compact_accepted">Accepted</string>
+    <string name="TalerFork_status_compact_confirmed">Confirmed</string>
+    <string name="TalerFork_status_compact_declined">Declined</string>
+    <string name="TalerFork_status_compact_cancelled">Cancelled</string>
+    <string name="TalerFork_status_compact_expired">Expired</string>
+    <string name="TalerFork_status_compact_checking">Checking…</string>
+    <string name="TalerFork_status_compact_invalid">Payment failed</string>
+
+    <!-- Screen reader description of the fourth circle icon in the message footer (DeliveryStatusView.setTalerPaid) -->
+    <string name="TalerFork_delivery_status_paid">Payment completed</string>
+
+    <!-- Status Icons (Unicode) -->
+    <string name="TalerFork_status_icon_open" translatable="false">○</string>
+    <string name="TalerFork_status_icon_waiting" translatable="false">⏳</string>
+    <string name="TalerFork_status_icon_accepted" translatable="false">✓</string>
+    <string name="TalerFork_status_icon_confirmed" translatable="false">✓</string>
+    <string name="TalerFork_status_icon_declined" translatable="false">✕</string>
+    <string name="TalerFork_status_icon_cancelled" translatable="false">⊘</string>
+    <string name="TalerFork_status_icon_expired" translatable="false">⏱</string>
+    <string name="TalerFork_status_icon_checking" translatable="false">…</string>
+    <string name="TalerFork_status_icon_invalid" translatable="false">!</string>
+    
+    <!-- Direction arrows -->
+    <string name="TalerFork_direction_in" translatable="false">↓</string>
+    <string name="TalerFork_direction_out" translatable="false">↑</string>
+    
+    <!-- Currency symbols -->
+    <string name="TalerFork_currency_symbol_KUDOS" translatable="false">ク</string>
+    <string name="TalerFork_currency_symbol_EUR" translatable="false">€</string>
+    <string name="TalerFork_currency_symbol_USD" translatable="false">$</string>
+    
+    <!-- Split Feature -->
+    <string name="TalerFork_split_preview_badge">Preview: split</string>
+    <string name="TalerFork_split_note_with_self">Total %1$s %2$s \u00f7 %3$d people (including you) \u2022 %4$d links sent</string>
+    <string name="TalerFork_split_note_without_self">Total %1$s %2$s \u00f7 %3$d people (not including you)</string>
+    <string name="TalerFork_split_all_done_pay_push">Everyone accepted</string>
+    <string name="TalerFork_split_all_done_pay_pull">Everyone paid</string>
+    <string name="TalerFork_split_progress">%1$d of %2$d have %3$s</string>
+    <string name="TalerFork_split_warning">⚠ You already %s this — you can still do it again</string>
+    <string name="TalerFork_split_warning_accepted">accepted</string>
+    <string name="TalerFork_split_warning_paid">paid</string>
+    
+    <!-- Exchange Chip -->
+    <string name="TalerFork_exchange_chip_icon" translatable="false">⇄</string>
 
     <!-- EOF -->
 </resources>
