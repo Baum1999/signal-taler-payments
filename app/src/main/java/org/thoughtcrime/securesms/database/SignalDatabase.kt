@@ -76,6 +76,10 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
   val pollTable: PollTables = PollTables(context, this)
   val lastResortKeyTuples: LastResortKeyTupleTable = LastResortKeyTupleTable(context, this)
   val attachmentMetadataTable: AttachmentMetadataTable = AttachmentMetadataTable(context, this)
+  val talerPaymentTable: TalerPaymentTable = TalerPaymentTable(context, this)
+  val talerConfirmationMessageTable: TalerConfirmationMessageTable = TalerConfirmationMessageTable(context, this)
+  val talerPaymentMessageTable: TalerPaymentMessageTable = TalerPaymentMessageTable(context, this)
+  val paymentHistory: PaymentHistoryTable = PaymentHistoryTable(context, this)
 
   override fun onOpen(db: net.zetetic.database.sqlcipher.SQLiteDatabase) {
     db.setForeignKeyConstraintsEnabled(true)
@@ -134,6 +138,18 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     db.execSQL(BackupMediaSnapshotTable.CREATE_TABLE)
     db.execSQL(LastResortKeyTupleTable.CREATE_TABLE)
     db.execSQL(AttachmentMetadataTable.CREATE_TABLE)
+    db.execSQL(TalerPaymentTable.CREATE_TABLE)
+    db.execSQL(TalerPaymentTable.CREATE_INDEX)
+    db.execSQL(TalerConfirmationMessageTable.CREATE_TABLE)
+    db.execSQL(TalerConfirmationMessageTable.CREATE_INDEX)
+    db.execSQL(TalerPaymentMessageTable.CREATE_TABLE)
+    db.execSQL(TalerPaymentMessageTable.CREATE_INDEX)
+    db.execSQL(PaymentHistoryTable.CREATE_TABLE)
+    db.execSQL(PaymentHistoryTable.CREATE_INDEX_PAYMENT_ID)
+    db.execSQL(PaymentHistoryTable.CREATE_INDEX_CHAT_ID)
+    db.execSQL(PaymentHistoryTable.CREATE_INDEX_TIMESTAMP)
+    db.execSQL(PaymentHistoryTable.CREATE_INDEX_STATUS)
+    db.execSQL(PaymentHistoryTable.CREATE_INDEX_DIRECTION)
 
     executeStatements(db, RecipientTable.CREATE_INDEXS)
     executeStatements(db, MessageTable.CREATE_INDEXS)
@@ -571,5 +587,25 @@ open class SignalDatabase(private val context: Application, databaseSecret: Data
     @get:JvmName("attachmentMetadata")
     val attachmentMetadata: AttachmentMetadataTable
       get() = instance!!.attachmentMetadataTable
+
+    @get:JvmStatic
+    @get:JvmName("talerPayments")
+    val talerPayments: TalerPaymentTable
+      get() = instance!!.talerPaymentTable
+
+    @get:JvmStatic
+    @get:JvmName("talerConfirmationMessages")
+    val talerConfirmationMessages: TalerConfirmationMessageTable
+      get() = instance!!.talerConfirmationMessageTable
+
+    @get:JvmStatic
+    @get:JvmName("talerPaymentMessages")
+    val talerPaymentMessages: TalerPaymentMessageTable
+      get() = instance!!.talerPaymentMessageTable
+
+    @get:JvmStatic
+    @get:JvmName("paymentHistory")
+    val paymentHistory: PaymentHistoryTable
+      get() = instance!!.paymentHistory
   }
 }

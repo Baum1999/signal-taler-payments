@@ -122,6 +122,7 @@ import org.thoughtcrime.securesms.database.model.databaseprotos.PinnedMessage
 import org.thoughtcrime.securesms.database.model.databaseprotos.PollTerminate
 import org.thoughtcrime.securesms.database.model.databaseprotos.ProfileChangeDetails
 import org.thoughtcrime.securesms.database.model.databaseprotos.SessionSwitchoverEvent
+import org.thoughtcrime.securesms.database.model.databaseprotos.TalerPaymentExtra
 import org.thoughtcrime.securesms.database.model.databaseprotos.ThreadMergeEvent
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.groups.GroupMigrationMembershipChange
@@ -146,6 +147,7 @@ import org.thoughtcrime.securesms.revealable.ViewOnceExpirationInfo
 import org.thoughtcrime.securesms.service.UnreadReminderManager
 import org.thoughtcrime.securesms.sms.GroupV2UpdateMessageUtil
 import org.thoughtcrime.securesms.stories.Stories.isFeatureEnabled
+import org.thoughtcrime.securesms.taler.TalerPaymentPayload
 import org.thoughtcrime.securesms.util.DateUtils
 import org.thoughtcrime.securesms.util.MediaUtil
 import org.thoughtcrime.securesms.util.MessageConstraintsUtil
@@ -3106,28 +3108,37 @@ open class MessageTable(context: Context?, databaseHelper: SignalDatabase) : Dat
         val editedMessage = getPreviousRevisionId(messageId, cursor.requireLong(ORIGINAL_MESSAGE_ID))
 
         OutgoingMessage(
-          recipient = threadRecipient,
-          body = body,
+          threadRecipient = threadRecipient,
+          body = body ?: "",
           attachments = attachments,
-          timestamp = timestamp,
+          sentTimeMillis = timestamp,
           expiresIn = expiresIn,
           expireTimerVersion = expireTimerVersion,
-          viewOnce = viewOnce,
+          isViewOnce = viewOnce,
           distributionType = distributionType,
           storyType = storyType,
           parentStoryId = parentStoryId,
           isStoryReaction = MessageTypes.isStoryReaction(outboxType),
-          quote = quote,
-          contacts = contacts,
-          previews = previews,
+          outgoingQuote = quote,
+          sharedContacts = contacts,
+          linkPreviews = previews,
           mentions = mentions,
           networkFailures = networkFailures,
-          mismatches = mismatches,
+          identityKeyMismatches = mismatches,
           giftBadge = giftBadge,
           isSecure = MessageTypes.isSecureType(outboxType),
           bodyRanges = messageRanges,
           scheduledDate = scheduledDate,
-          messageToEdit = editedMessage
+          messageToEdit = editedMessage,
+          talerPayment = messageExtras?.talerPayment?.let {
+            TalerPaymentPayload(
+              uris = it.uris,
+              version = it.version ?: 1,
+              isGroupSplit = it.isGroupSplit ?: false,
+              includeSelf = it.includeSelf,
+              totalAmount = it.totalAmount
+            )
+          }
         )
       }
     } ?: throw NoSuchMessageException("No record found for id: $messageId")
@@ -3164,7 +3175,11 @@ open class MessageTable(context: Context?, databaseHelper: SignalDatabase) : Dat
       retrieved.type == MessageType.IDENTITY_VERIFIED ||
       retrieved.type == MessageType.IDENTITY_UPDATE
 
-    val read = silent || retrieved.type == MessageType.EXPIRATION_UPDATE
+    // TALER_PAYMENT_UPDATE ist wie EXPIRATION_UPDATE eine rein lokale
+    // Systemzeile fuer eine bereits vom Nutzer selbst getroffene Aktion
+    // (Annehmen/Ablehnen/Ablauf) - ungelesen zaehlen und benachrichtigen
+    // waere falsch, der Nutzer weiss ja bereits, was er getan hat.
+    val read = silent || retrieved.type == MessageType.EXPIRATION_UPDATE || retrieved.type == MessageType.TALER_PAYMENT_UPDATE
 
     val contentValues = contentValuesOf(
       DATE_SENT to retrieved.sentTimeMillis,
@@ -3639,7 +3654,26 @@ open class MessageTable(context: Context?, databaseHelper: SignalDatabase) : Dat
     contentValues.put(PARENT_STORY_ID, parentStoryId)
     contentValues.put(SCHEDULED_DATE, message.scheduledDate)
     contentValues.putNull(LATEST_REVISION_ID)
-    contentValues.put(MESSAGE_EXTRAS, message.messageExtras?.encode())
+
+    // talerPayment ist ein eigenes OutgoingMessage-Feld (nicht Teil von
+    // message.messageExtras), muss aber ueber dieselbe MESSAGE_EXTRAS-Spalte
+    // persistiert werden, sonst geht es beim DB-Roundtrip verloren: der
+    // eigentliche Sende-Job liest die Nachricht per getOutgoingMessage(id)
+    // neu aus der DB, nicht aus diesem in-memory OutgoingMessage-Objekt.
+    val messageExtrasToPersist = message.talerPayment?.let { talerPayment ->
+      (message.messageExtras ?: MessageExtras()).newBuilder()
+        .talerPayment(
+          TalerPaymentExtra(
+            uris = talerPayment.uris,
+            version = talerPayment.version,
+            isGroupSplit = talerPayment.isGroupSplit,
+            includeSelf = talerPayment.includeSelf,
+            totalAmount = talerPayment.totalAmount
+          )
+        )
+        .build()
+    } ?: message.messageExtras
+    contentValues.put(MESSAGE_EXTRAS, messageExtrasToPersist?.encode())
 
     if (editedMessage != null) {
       contentValues.put(ORIGINAL_MESSAGE_ID, editedMessage.getOriginalOrOwnMessageId().id)
@@ -6522,6 +6556,7 @@ open class MessageTable(context: Context?, databaseHelper: SignalDatabase) : Dat
       MessageType.IDENTITY_DEFAULT -> MessageTypes.KEY_EXCHANGE_IDENTITY_DEFAULT_BIT or MessageTypes.BASE_INBOX_TYPE
       MessageType.POLL_TERMINATE -> MessageTypes.SPECIAL_TYPE_POLL_TERMINATE or MessageTypes.BASE_INBOX_TYPE
       MessageType.PINNED_MESSAGE -> MessageTypes.SPECIAL_TYPE_PINNED_MESSAGE or MessageTypes.BASE_INBOX_TYPE
+      MessageType.TALER_PAYMENT_UPDATE -> MessageTypes.SPECIAL_TYPE_TALER_PAYMENT_UPDATE or MessageTypes.BASE_INBOX_TYPE
       MessageType.GROUP_UPDATE -> {
         val isOnlyGroupLeave = this.groupContext?.let { GroupV2UpdateMessageUtil.isJustAGroupLeave(it) } ?: false
 

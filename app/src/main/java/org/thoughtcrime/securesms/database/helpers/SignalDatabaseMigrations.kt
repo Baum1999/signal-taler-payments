@@ -183,6 +183,13 @@ import org.thoughtcrime.securesms.database.helpers.migration.V327_AddLastUnreadR
 import org.thoughtcrime.securesms.database.helpers.migration.V328_AddSharedNameToRecipientTable
 import org.thoughtcrime.securesms.database.helpers.migration.V329_AddStickerFavoriteColumns
 import org.thoughtcrime.securesms.database.helpers.migration.V330_AddHiddenPackColumns
+import org.thoughtcrime.securesms.database.helpers.migration.V331_AddTalerPaymentTable
+import org.thoughtcrime.securesms.database.helpers.migration.V332_AddTalerPaymentPollingColumns
+import org.thoughtcrime.securesms.database.helpers.migration.V333_AddTalerPaymentIsOwnPaymentColumn
+import org.thoughtcrime.securesms.database.helpers.migration.V334_AddTalerConfirmationMessageTable
+import org.thoughtcrime.securesms.database.helpers.migration.V335_AddPaymentHistoryTable
+import org.thoughtcrime.securesms.database.helpers.migration.V336_AddTalerPaymentMessageTable
+import org.thoughtcrime.securesms.database.helpers.migration.V337_NormalizeTalerConnectivityStatuses
 import org.thoughtcrime.securesms.database.SQLiteDatabase as SignalSqliteDatabase
 
 /**
@@ -373,10 +380,17 @@ object SignalDatabaseMigrations {
     327 to V327_AddLastUnreadReminderColumn,
     328 to V328_AddSharedNameToRecipientTable,
     329 to V329_AddStickerFavoriteColumns,
-    330 to V330_AddHiddenPackColumns
+    330 to V330_AddHiddenPackColumns,
+    331 to V331_AddTalerPaymentTable,
+    332 to V332_AddTalerPaymentPollingColumns,
+    333 to V333_AddTalerPaymentIsOwnPaymentColumn,
+    334 to V334_AddTalerConfirmationMessageTable,
+    335 to V335_AddPaymentHistoryTable,
+    336 to V336_AddTalerPaymentMessageTable,
+    337 to V337_NormalizeTalerConnectivityStatuses
   )
 
-  const val DATABASE_VERSION = 330
+  const val DATABASE_VERSION = 337
 
   @JvmStatic
   fun migrate(context: Application, db: SignalSqliteDatabase, oldVersion: Int, newVersion: Int) {
