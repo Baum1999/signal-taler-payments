@@ -12,6 +12,7 @@ import org.thoughtcrime.securesms.components.settings.conversation.shared.CallEn
 import org.thoughtcrime.securesms.components.settings.conversation.shared.CollapsibleList
 import org.thoughtcrime.securesms.components.settings.conversation.shared.GroupMember
 import org.thoughtcrime.securesms.components.settings.conversation.shared.LegacyGroupState
+import org.thoughtcrime.securesms.components.settings.conversation.shared.TalerPaymentsSummary
 import org.thoughtcrime.securesms.database.model.StoryViewState
 import org.thoughtcrime.securesms.groups.GroupId
 import org.thoughtcrime.securesms.groups.memberlabel.StyledMemberLabel
@@ -23,6 +24,7 @@ data class GroupSettingsState(
   /** Changed when recipient content changes, since Recipient.equals only compares IDs. */
   val recipientContentVersion: Int = 0,
   val threadId: Long = -1L,
+  val talerPayments: TalerPaymentsSummary = TalerPaymentsSummary(),
   val storyViewState: StoryViewState = StoryViewState.NONE,
   val isDeprecatedOrUnregistered: Boolean = false,
   val displayInternalRecipientDetails: Boolean = false,

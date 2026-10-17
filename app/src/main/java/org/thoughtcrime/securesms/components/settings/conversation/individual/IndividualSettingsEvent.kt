@@ -73,6 +73,9 @@ sealed interface IndividualSettingsEvent {
   /** The user tapped the starred messages row. */
   data object StarredMessagesClicked : IndividualSettingsEvent
 
+  /** The user tapped the row that opens the Taler payment history. */
+  data object TalerPaymentHistoryClicked : IndividualSettingsEvent
+
   /** The user tapped the row that opens the recipient's entry in the system contacts. */
   data object ContactDetailsClicked : IndividualSettingsEvent
 

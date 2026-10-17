@@ -88,6 +88,7 @@ object AppSettingsTestTags {
  * @param selectedRoute The section open beside this screen, whose row is highlighted. Null when nothing is beside it.
  * @param avatar The user's avatar and featured badge, drawn into an 80dp box beside their profile.
  * @param banner Shown above the list, for app-wide problems such as being unregistered.
+ * @param extraSection Rows the app adds above Help, followed by a divider. Null adds nothing.
  */
 @Composable
 fun AppSettingsScreen(
@@ -98,7 +99,8 @@ fun AppSettingsScreen(
   contentColor: Color = MaterialTheme.colorScheme.contentColorFor(containerColor).takeOrElse { MaterialTheme.colorScheme.onSurface },
   selectedRoute: AppSettingsRoute? = null,
   avatar: @Composable () -> Unit = {},
-  banner: @Composable () -> Unit = {}
+  banner: @Composable () -> Unit = {},
+  extraSection: (@Composable () -> Unit)? = null
 ) {
   LifecycleResumeEffect(Unit) {
     onEvent(AppSettingsEvent.ScreenResumed)
@@ -327,6 +329,16 @@ fun AppSettingsScreen(
 
         item {
           Dividers.Default()
+        }
+
+        if (extraSection != null) {
+          item {
+            extraSection()
+          }
+
+          item {
+            Dividers.Default()
+          }
         }
 
         item {

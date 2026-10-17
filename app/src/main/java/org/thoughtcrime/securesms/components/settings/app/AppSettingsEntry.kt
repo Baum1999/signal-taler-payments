@@ -31,6 +31,7 @@ import org.thoughtcrime.securesms.banner.banners.UnauthorizedBanner
 import org.thoughtcrime.securesms.components.settings.app.subscription.BadgeImageMedium
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.recipients.rememberRecipientField
+import org.thoughtcrime.securesms.taler.TalerConnectionTestRow
 import org.thoughtcrime.securesms.util.CommunicationActions
 
 /**
@@ -68,7 +69,9 @@ fun AppSettingsEntry(
     onEvent = viewModel::onEvent,
     selectedRoute = selectedRoute,
     avatar = { self?.let { SelfAvatar(it) } },
-    banner = { bannerManager.Banner() }
+    banner = { bannerManager.Banner() },
+    // GNU-Fork (Signal-Taler-Integration, docs/API.md): wallet status row above Help.
+    extraSection = { TalerConnectionTestRow() }
   )
 }
 

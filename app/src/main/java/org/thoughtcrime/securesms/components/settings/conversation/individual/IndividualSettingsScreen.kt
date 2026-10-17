@@ -51,6 +51,7 @@ import org.thoughtcrime.securesms.components.settings.conversation.shared.Unmute
 import org.thoughtcrime.securesms.components.settings.conversation.shared.callLogSection
 import org.thoughtcrime.securesms.components.settings.conversation.shared.previewRecipient
 import org.thoughtcrime.securesms.components.settings.conversation.shared.sharedMediaSection
+import org.thoughtcrime.securesms.components.settings.conversation.shared.talerPaymentsSection
 import org.thoughtcrime.securesms.profiles.ProfileName
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.signal.core.ui.R as CoreUiR
@@ -190,6 +191,11 @@ fun IndividualSettingsScreen(
     sharedMediaSection(
       state = state.mediaRail,
       onEvent = { onEvent(IndividualSettingsEvent.MediaRailEvent(it)) }
+    )
+
+    talerPaymentsSection(
+      summary = state.talerPayments,
+      onViewPaymentHistoryClick = { onEvent(IndividualSettingsEvent.TalerPaymentHistoryClicked) }
     )
 
     badgeSection(state, onEvent)

@@ -45,6 +45,8 @@ final class MessageDetailsAdapter extends ListAdapter<MessageDetailsAdapter.Mess
         return new RecipientViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.message_details_recipient, parent, false), callbacks);
       case MessageDetailsViewState.EDIT_HISTORY:
         return new ViewEditHistoryViewHolder(MessageDetailsViewEditHistoryBinding.inflate(LayoutInflater.from(parent.getContext()), parent, false), callbacks);
+      case MessageDetailsViewState.TALER_PAYMENT:
+        return new TalerPaymentDetailsViewHolder(LayoutInflater.from(parent.getContext()).inflate(R.layout.message_details_taler_payment_row, parent, false));
       default:
         throw new AssertionError("unknown view type");
     }
@@ -55,11 +57,13 @@ final class MessageDetailsAdapter extends ListAdapter<MessageDetailsAdapter.Mess
     if (holder instanceof MessageHeaderViewHolder) {
       ((MessageHeaderViewHolder) holder).bind(lifecycleOwner, (ConversationMessage) getItem(position).data);
     } else if (holder instanceof RecipientHeaderViewHolder) {
-      ((RecipientHeaderViewHolder) holder).bind((RecipientHeader) getItem(position).data);
+      ((RecipientHeaderViewHolder) holder).bind((RecipientHeaderState) getItem(position).data);
     } else if (holder instanceof RecipientViewHolder) {
       ((RecipientViewHolder) holder).bind((RecipientDeliveryStatus) getItem(position).data);
     } else if (holder instanceof ViewEditHistoryViewHolder) {
       ((ViewEditHistoryViewHolder) holder).bind((MessageRecord) getItem(position).data);
+    } else if (holder instanceof TalerPaymentDetailsViewHolder) {
+      ((TalerPaymentDetailsViewHolder) holder).bind((TalerPaymentDetailsRow) getItem(position).data);
     } else {
       throw new AssertionError("unknown view holder");
     }
@@ -80,9 +84,10 @@ final class MessageDetailsAdapter extends ListAdapter<MessageDetailsAdapter.Mess
         switch (oldItem.itemType) {
           case MessageDetailsViewState.MESSAGE_HEADER:
           case MessageDetailsViewState.EDIT_HISTORY:
+          case MessageDetailsViewState.TALER_PAYMENT:
             return true;
           case MessageDetailsViewState.RECIPIENT_HEADER:
-            return oldData == newData;
+            return ((RecipientHeaderState) oldData).getHeader() == ((RecipientHeaderState) newData).getHeader();
           case MessageDetailsViewState.RECIPIENT:
             return ((RecipientDeliveryStatus) oldData).getRecipient().getId().equals(((RecipientDeliveryStatus) newData).getRecipient().getId());
         }
@@ -106,6 +111,8 @@ final class MessageDetailsAdapter extends ListAdapter<MessageDetailsAdapter.Mess
             return true;
           case MessageDetailsViewState.RECIPIENT:
             return ((RecipientDeliveryStatus) oldData).getDeliveryStatus() == ((RecipientDeliveryStatus) newData).getDeliveryStatus();
+          case MessageDetailsViewState.TALER_PAYMENT:
+            return oldData.equals(newData);
         }
       }
 
@@ -118,6 +125,7 @@ final class MessageDetailsAdapter extends ListAdapter<MessageDetailsAdapter.Mess
     public static final int RECIPIENT_HEADER = 1;
     public static final int RECIPIENT        = 2;
     public static final int EDIT_HISTORY     = 3;
+    public static final int TALER_PAYMENT    = 4;
 
     private final T   data;
     private       int itemType;

@@ -92,6 +92,9 @@ sealed interface ConversationSettingsAction {
   /** Open the list of starred messages in this chat. */
   data class OpenStarredMessages(val threadId: Long) : ConversationSettingsAction
 
+  /** Open the Taler payment history of this chat. */
+  data class OpenTalerPaymentHistory(val threadId: Long) : ConversationSettingsAction
+
   /** Open the recipient's entry in the system contacts. */
   data class ViewContact(val contactUri: Uri?) : ConversationSettingsAction {
     override fun toString(): String = "ViewContact"

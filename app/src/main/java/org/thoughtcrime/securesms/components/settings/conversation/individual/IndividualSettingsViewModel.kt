@@ -32,6 +32,7 @@ import org.thoughtcrime.securesms.components.settings.conversation.shared.BlockA
 import org.thoughtcrime.securesms.components.settings.conversation.shared.CallBarState
 import org.thoughtcrime.securesms.components.settings.conversation.shared.SharedMediaLoader
 import org.thoughtcrime.securesms.components.settings.conversation.shared.toConversationSettingsAction
+import org.thoughtcrime.securesms.components.settings.conversation.shared.TalerPaymentsSummary
 import org.thoughtcrime.securesms.recipients.Recipient
 
 /**
@@ -180,6 +181,9 @@ class IndividualSettingsViewModel(
       IndividualSettingsEvent.StarredMessagesClicked -> {
         _actions.send(ConversationSettingsAction.OpenStarredMessages(state.threadId))
       }
+      IndividualSettingsEvent.TalerPaymentHistoryClicked -> {
+        _actions.send(ConversationSettingsAction.OpenTalerPaymentHistory(state.threadId))
+      }
       IndividualSettingsEvent.ContactDetailsClicked -> {
         _actions.send(ConversationSettingsAction.ViewContact(repository.getSystemContactUri(state.recipient)))
       }
@@ -254,6 +258,8 @@ class IndividualSettingsViewModel(
         if (showsSharedMedia) {
           mediaRailPresenter.onEvent(RecentMediaRailEvents.SourceChanged(event.threadId))
         }
+        val talerPayments = TalerPaymentsSummary.load(event.threadId)
+        _state.update { it.copy(talerPayments = talerPayments) }
       }
       is IndividualSettingsEvent.GroupsInCommonChanged -> {
         _state.update { it.copy(allGroupsInCommon = event.groupsInCommon) }

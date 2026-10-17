@@ -64,6 +64,7 @@ import org.thoughtcrime.securesms.components.settings.conversation.shared.Unmute
 import org.thoughtcrime.securesms.components.settings.conversation.shared.callLogSection
 import org.thoughtcrime.securesms.components.settings.conversation.shared.previewRecipient
 import org.thoughtcrime.securesms.components.settings.conversation.shared.sharedMediaSection
+import org.thoughtcrime.securesms.components.settings.conversation.shared.talerPaymentsSection
 import org.thoughtcrime.securesms.groups.memberlabel.MemberLabelPill
 import org.thoughtcrime.securesms.groups.memberlabel.StyledMemberLabel
 import org.thoughtcrime.securesms.profiles.ProfileName
@@ -199,6 +200,11 @@ fun GroupSettingsScreen(
     sharedMediaSection(
       state = state.mediaRail,
       onEvent = { onEvent(GroupSettingsEvent.MediaRailEvent(it)) }
+    )
+
+    talerPaymentsSection(
+      summary = state.talerPayments,
+      onViewPaymentHistoryClick = { onEvent(GroupSettingsEvent.TalerPaymentHistoryClicked) }
     )
 
     membershipSection(state, onEvent)

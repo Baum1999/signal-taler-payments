@@ -12,12 +12,14 @@ import org.thoughtcrime.securesms.components.settings.conversation.shared.Collap
 import org.thoughtcrime.securesms.database.model.IdentityRecord
 import org.thoughtcrime.securesms.database.model.StoryViewState
 import org.thoughtcrime.securesms.recipients.Recipient
+import org.thoughtcrime.securesms.components.settings.conversation.shared.TalerPaymentsSummary
 
 data class IndividualSettingsState(
   val recipient: Recipient = Recipient.UNKNOWN,
   /** Changed when recipient content changes, since Recipient.equals only compares IDs. */
   val recipientContentVersion: Int = 0,
   val threadId: Long = -1L,
+  val talerPayments: TalerPaymentsSummary = TalerPaymentsSummary(),
   val storyViewState: StoryViewState = StoryViewState.NONE,
   val isDeprecatedOrUnregistered: Boolean = false,
   val displayInternalRecipientDetails: Boolean = false,

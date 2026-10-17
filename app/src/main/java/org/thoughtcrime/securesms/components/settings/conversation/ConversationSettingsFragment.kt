@@ -407,6 +407,9 @@ class ConversationSettingsFragment : ComposeFragment() {
       is ConversationSettingsAction.OpenStarredMessages -> {
         startActivity(StarredMessagesActivity.createIntent(requireContext(), action.threadId))
       }
+      is ConversationSettingsAction.OpenTalerPaymentHistory -> {
+        navController.safeNavigate(ConversationSettingsFragmentDirections.actionConversationSettingsFragmentToPaymentHistoryFragment(action.threadId))
+      }
       is ConversationSettingsAction.ViewContact -> {
         startActivityForResult(Intent(Intent.ACTION_VIEW, action.contactUri), REQUEST_CODE_VIEW_CONTACT)
       }

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  PaymentHistory Navigation Graph
+  
+  Definiert die Navigation für die Zahlungshistorie.
+-->
+
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    
+    android:id="@+id/payments_history"
+    app:startDestination="@id/paymentHistoryFragment">
+
+    <fragment
+        android:id="@+id/paymentHistoryFragment"
+        android:name="org.thoughtcrime.securesms.payments.history.PaymentHistoryFragment"
+        android:label="Zahlungshistorie"
+        tools:layout="@layout/fragment_payment_history" />
+
+</navigation>

@@ -76,6 +76,9 @@ sealed interface GroupSettingsEvent {
   /** The user tapped the starred messages row. */
   data object StarredMessagesClicked : GroupSettingsEvent
 
+  /** The user tapped the row that opens the Taler payment history. */
+  data object TalerPaymentHistoryClicked : GroupSettingsEvent
+
   /** The user tapped the search button in the member list header. */
   data object MemberSearchClicked : GroupSettingsEvent
 

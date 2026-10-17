@@ -31,6 +31,7 @@ import org.thoughtcrime.securesms.conversation.colors.ColorizerV2
 import org.thoughtcrime.securesms.conversation.colors.RecyclerViewColorizer
 import org.thoughtcrime.securesms.conversation.mutiselect.MultiselectPart
 import org.thoughtcrime.securesms.conversation.ui.edit.EditMessageHistoryDialog.Companion.show
+import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.database.model.InMemoryMessageRecord
 import org.thoughtcrime.securesms.database.model.MessageId
 import org.thoughtcrime.securesms.database.model.MessageRecord
@@ -46,10 +47,17 @@ import org.thoughtcrime.securesms.polls.PollOption
 import org.thoughtcrime.securesms.polls.PollRecord
 import org.thoughtcrime.securesms.recipients.Recipient
 import org.thoughtcrime.securesms.safety.SafetyNumberBottomSheet.forOutgoingMessageRecord
+import org.thoughtcrime.securesms.taler.TalerPaymentCardPresenter
+import org.thoughtcrime.securesms.taler.computeVerifiedTotal
+import org.thoughtcrime.securesms.taler.parsePaymentDataOrNull
+import org.thoughtcrime.securesms.taler.urisFromMessageBody
+import org.thoughtcrime.securesms.util.DateUtils
 import org.thoughtcrime.securesms.util.Material3OnScrollHelper
 import org.thoughtcrime.securesms.util.SystemWindowInsetsSetter
 import org.thoughtcrime.securesms.util.fragments.requireListener
 import org.thoughtcrime.securesms.video.inline.InlineVideoController
+import java.util.Date
+import java.util.Locale
 
 class MessageDetailsFragment : Fragment(), MessageDetailsAdapter.Callbacks {
   private lateinit var requestManager: RequestManager
@@ -120,27 +128,87 @@ class MessageDetailsFragment : Fragment(), MessageDetailsAdapter.Callbacks {
       list.add(MessageDetailsViewState(details.conversationMessage.messageRecord, MessageDetailsViewState.EDIT_HISTORY))
     }
 
+    buildTalerPaymentDetailsRow(details.conversationMessage.messageRecord)?.let { row ->
+      list.add(MessageDetailsViewState(row, MessageDetailsViewState.TALER_PAYMENT))
+    }
+
+    val isTalerPayment = urisFromMessageBody(details.conversationMessage.messageRecord.body).isNotEmpty()
+
     if (details.conversationMessage.messageRecord.isOutgoing) {
-      addRecipients(list, RecipientHeader.NOT_SENT, details.notSent)
-      addRecipients(list, RecipientHeader.VIEWED, details.viewed)
-      addRecipients(list, RecipientHeader.READ, details.read)
-      addRecipients(list, RecipientHeader.DELIVERED, details.delivered)
-      addRecipients(list, RecipientHeader.SENT_TO, details.sent)
-      addRecipients(list, RecipientHeader.PENDING, details.pending)
-      addRecipients(list, RecipientHeader.SKIPPED, details.skipped)
+      addRecipients(list, RecipientHeader.NOT_SENT, details.notSent, isTalerPayment)
+      addRecipients(list, RecipientHeader.VIEWED, details.viewed, isTalerPayment)
+      addRecipients(list, RecipientHeader.READ, details.read, isTalerPayment)
+      addRecipients(list, RecipientHeader.DELIVERED, details.delivered, isTalerPayment)
+      addRecipients(list, RecipientHeader.SENT_TO, details.sent, isTalerPayment)
+      addRecipients(list, RecipientHeader.PENDING, details.pending, isTalerPayment)
+      addRecipients(list, RecipientHeader.SKIPPED, details.skipped, isTalerPayment)
     } else {
-      addRecipients(list, RecipientHeader.SENT_FROM, details.sent)
+      addRecipients(list, RecipientHeader.SENT_FROM, details.sent, isTalerPayment)
     }
 
     return list
   }
 
-  private fun addRecipients(list: MutableList<MessageDetailsViewState<*>>, header: RecipientHeader, recipients: Collection<RecipientDeliveryStatus>): Boolean {
+  /**
+   * GNU-Fork (Signal-Taler-Integration): pro Taler-URI der Nachricht eine
+   * Kurzinfo (URI/Status/Betrag/lokale Erkennungszeit) fuer den
+   * Nachrichtendetails-Screen - null, wenn der Nachrichtenkoerper keine
+   * Taler-URI traegt. Bei mehreren URIs (Gruppen-Split) zusaetzlich eine
+   * verifizierte Gesamtsumme, nur wenn GroupSplitCard.computeVerifiedTotal
+   * sie bestaetigen konnte (dieselbe Fail-Safe-Regel wie auf der
+   * Sammelkarte).
+   */
+  private fun buildTalerPaymentDetailsRow(messageRecord: MessageRecord): TalerPaymentDetailsRow? {
+    val uris = urisFromMessageBody(messageRecord.body)
+    if (uris.isEmpty()) return null
+
+    val context = requireContext()
+    val dateFormatter = DateUtils.getDetailedDateFormatter(context, Locale.getDefault())
+    val records = uris.map { SignalDatabase.talerPayments.getByUri(it) }
+
+    val entries = uris.zip(records).map { (uri, record) ->
+      TalerPaymentDetailsEntry(
+        shortUri = shortenTalerUri(uri),
+        statusLabel = record?.let { TalerPaymentCardPresenter.plainStatusLabel(context, it.status) }
+          ?: context.getString(R.string.TalerFork_details_status_pending),
+        amountLabel = record?.amount?.let { amount -> "${amount.replace(".", ",")} ${record.currency.orEmpty()}".trim() },
+        detectedAtLabel = record?.let { dateFormatter.format(Date(it.createdAt)) }
+      )
+    }
+
+    val totalLabel = if (uris.size > 1) {
+      val paymentData = parsePaymentDataOrNull(messageRecord.body)
+      val representativeRecord = records.firstNotNullOfOrNull { it }
+      val verifiedTotal = computeVerifiedTotal(
+        totalAmount = paymentData?.totalAmount,
+        includeSelf = paymentData?.includeSelf,
+        uriCount = uris.size,
+        perShareAmount = representativeRecord?.amount
+      )
+      verifiedTotal?.let { "${it.toPlainString().replace(".", ",")} ${representativeRecord?.currency.orEmpty()}".trim() }
+    } else {
+      null
+    }
+
+    val groupPrivacyNoteLabel = if (messageRecord.toRecipient.isGroup) {
+      context.getString(R.string.TalerFork_details_group_privacy_note)
+    } else {
+      null
+    }
+
+    return TalerPaymentDetailsRow(entries, totalLabel, groupPrivacyNoteLabel)
+  }
+
+  private fun shortenTalerUri(uri: String): String {
+    return if (uri.length <= 48) uri else uri.take(28) + "…" + uri.takeLast(12)
+  }
+
+  private fun addRecipients(list: MutableList<MessageDetailsViewState<*>>, header: RecipientHeader, recipients: Collection<RecipientDeliveryStatus>, isTalerPayment: Boolean): Boolean {
     if (recipients.isEmpty()) {
       return false
     }
 
-    list.add(MessageDetailsViewState(header, MessageDetailsViewState.RECIPIENT_HEADER))
+    list.add(MessageDetailsViewState(RecipientHeaderState(header, isTalerPayment), MessageDetailsViewState.RECIPIENT_HEADER))
     for (status in recipients) {
       list.add(MessageDetailsViewState(status, MessageDetailsViewState.RECIPIENT))
     }
