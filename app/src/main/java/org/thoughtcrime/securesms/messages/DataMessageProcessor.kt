@@ -95,6 +95,8 @@ import org.thoughtcrime.securesms.recipients.Recipient.HiddenState
 import org.thoughtcrime.securesms.recipients.RecipientIds
 import org.thoughtcrime.securesms.recipients.RecipientUtil
 import org.thoughtcrime.securesms.stickers.StickerLocator
+import org.thoughtcrime.securesms.taler.TalerConfirmationTracker
+import org.thoughtcrime.securesms.taler.TalerPaymentTracker
 import org.thoughtcrime.securesms.util.EarlyMessageCacheEntry
 import org.thoughtcrime.securesms.util.LinkUtil
 import org.thoughtcrime.securesms.util.MediaUtil
@@ -1046,6 +1048,25 @@ object DataMessageProcessor {
         batchCache.addIncomingMessageInsertThreadUpdate(insertResult.threadId)
       }
       AppDependencies.messageNotifier.updateNotification(context, ConversationId.forConversation(insertResult.threadId))
+      // Track Taler URIs in all chat types (1:1, group, self). Prefer the
+      // structured talerPayment field (9000) when present - only messages
+      // sent before this feature shipped (or by a foreign client) fall back
+      // to deriving URIs from the plaintext body.
+      val talerPayment = message.talerPayment
+      if (talerPayment != null) {
+        TalerPaymentTracker.trackStructuredPayment(talerPayment, insertResult.messageId, insertResult.threadId, isOwnPayment = false)
+      } else {
+        TalerPaymentTracker.trackUrisInBody(body, insertResult.threadId, isOwnPayment = false)
+      }
+      // Bestaetigungsnachricht ("Zahlung fuer [Kind] akzeptiert") nur in 1:1-Chats
+      // erkennen, spiegelbildlich zur Sendebedingung in
+      // TalerUriRefreshJob.maybeSendAcceptConfirmation. Bug 2 Fix: Self-Chat
+      // nicht mehr zusaetzlich ausgeschlossen (siehe Begruendung dort) -
+      // isOwnPayment beim zugehoerigen TalerPaymentTracker-Eintrag ist bereits
+      // die korrekte Unterscheidung.
+      if (threadRecipient.isIndividual) {
+        TalerConfirmationTracker.trackConfirmationInBody(context, body, insertResult.threadId, insertResult.messageId)
+      }
       insertResult
     } else {
       null

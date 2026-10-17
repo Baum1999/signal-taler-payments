@@ -1,0 +1,122 @@
+package org.thoughtcrime.securesms.taler
+
+import kotlinx.serialization.json.Json
+import org.junit.Assert.assertEquals
+import org.junit.Test
+
+/**
+ * urisFromMessageBody() existiert, weil TalerUriDetector.findUris() - reine
+ * \S+-Regex-Texterkennung ueber freien Text (siehe TalerUriDetectorTest,
+ * insb. "two uris glued together with no separator is a single greedy
+ * match") - an einem kompakten (leerzeichenfreien) kotlinx.serialization-
+ * JSON-Body scheitert: auf eine URI folgt dort direkt JSON-Syntax ohne
+ * trennendes Leerzeichen, was entweder Muell an die URI anhaengt oder -
+ * bei mehreren URIs im selben uri-Array - mehrere URIs zu einem einzigen
+ * unbrauchbaren "Treffer" verschmilzt (Meilenstein 2,
+ * PROMPT_parallel_group_split.md).
+ */
+class TalerPaymentDataTest {
+
+  @Test
+  fun `single uri JSON body returns exactly that uri, not a regex-mangled string`() {
+    val paymentData = TalerPaymentData(
+      legacyText = "fallback",
+      uri = listOf("taler://pay-push/exchange.example/AAA"),
+    )
+    val body = Json.encodeToString(paymentData)
+    assertEquals(listOf("taler://pay-push/exchange.example/AAA"), urisFromMessageBody(body))
+  }
+
+  @Test
+  fun `multi uri JSON body returns all uris in order, not glued into one`() {
+    val paymentData = TalerPaymentData(
+      legacyText = "fallback",
+      uri = listOf(
+        "taler://pay-push/exchange.example/AAA",
+        "taler://pay-push/exchange.example/BBB",
+        "taler://pay-push/exchange.example/CCC",
+      ),
+    )
+    val body = Json.encodeToString(paymentData)
+    assertEquals(
+      listOf(
+        "taler://pay-push/exchange.example/AAA",
+        "taler://pay-push/exchange.example/BBB",
+        "taler://pay-push/exchange.example/CCC",
+      ),
+      urisFromMessageBody(body),
+    )
+  }
+
+  @Test
+  fun `plain text legacy message without JSON falls back to regex detection`() {
+    val body = "Payment: taler://pay-push/exchange.example/AAA"
+    assertEquals(listOf("taler://pay-push/exchange.example/AAA"), urisFromMessageBody(body))
+  }
+
+  @Test
+  fun `unrelated JSON that does not parse as TalerPaymentData falls back to regex`() {
+    // Trailing Leerzeichen VOR dem schliessenden Anfuehrungszeichen ist
+    // hier absichtlich, nicht nur Zierde: TalerUriDetector.TRAILING_PUNCTUATION
+    // deckt kein schliessendes Anfuehrungszeichen ab (siehe Klassen-KDoc
+    // oben) - ohne das Leerzeichen wuerde \S+ bis "AAA"} matchen und
+    // trimEnd nur das } entfernen, das " aber stehen lassen. Das ist
+    // TalerUriDetectorTest vorbehalten, nicht Ziel dieses Falls hier.
+    val body = """{"foo":"taler://pay-push/exchange.example/AAA "}"""
+    assertEquals(listOf("taler://pay-push/exchange.example/AAA"), urisFromMessageBody(body))
+  }
+
+  @Test
+  fun `JSON with empty uri list falls back to regex, finding nothing`() {
+    val paymentData = TalerPaymentData(legacyText = "fallback", uri = emptyList())
+    val body = Json.encodeToString(paymentData)
+    assertEquals(emptyList<String>(), urisFromMessageBody(body))
+  }
+
+  @Test
+  fun `blank text returns empty list`() {
+    assertEquals(emptyList<String>(), urisFromMessageBody(""))
+  }
+
+  @Test
+  fun `plain text body with legacy text before the uri still finds it - TalerReturnActivity body order`() {
+    // Body-Reihenfolge seit dem Bugfix "Transkript kopieren -> Taler
+    // einfuegen" (TalerReturnActivity.kt: legacyText + uris statt
+    // andersherum, damit "copy the URI below" tatsaechlich stimmt). Kein
+    // JSON hier - genau der Klartext-Body, den sendComposedPaymentWithData
+    // jetzt tatsaechlich verschickt.
+    val body = "This is a GNU Taler link. Update Signal or copy the URI below " +
+      "into the GNU Taler app to make the payment.\n\n" +
+      "taler://pay-push/exchange.example/AAA"
+    assertEquals(listOf("taler://pay-push/exchange.example/AAA"), urisFromMessageBody(body))
+  }
+
+  @Test
+  fun `plain text body with legacy text before multiple uris finds all of them in order`() {
+    val body = "This is a GNU Taler link. Update Signal or copy the URI below " +
+      "into the GNU Taler app to make the payment.\n\n" +
+      "taler://pay-push/exchange.example/AAA\n\n" +
+      "taler://pay-push/exchange.example/BBB"
+    assertEquals(
+      listOf(
+        "taler://pay-push/exchange.example/AAA",
+        "taler://pay-push/exchange.example/BBB",
+      ),
+      urisFromMessageBody(body),
+    )
+  }
+
+  @Test
+  fun `payment data without legacyText (new Taler) decodes with all uris`() {
+    val json = """{"includeSelf":true,"totalAmount":"30","uri":["taler://pay-push/e/A","taler://pay-push/e/B","taler://pay-push/e/C"]}"""
+    val data = Json.decodeFromString<TalerPaymentData>(json)
+    assertEquals(null, data.legacyText)
+    assertEquals(3, data.uri.size)
+  }
+
+  @Test
+  fun `old message body with legacyText json still yields its uris`() {
+    val body = """{"legacyText":"This is a GNU Taler link.","uri":["taler://pay-push/e/A"]}"""
+    assertEquals(listOf("taler://pay-push/e/A"), urisFromMessageBody(body))
+  }
+}

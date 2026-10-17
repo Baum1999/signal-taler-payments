@@ -34,6 +34,7 @@ import org.thoughtcrime.securesms.mms.OutgoingMessage
 import org.thoughtcrime.securesms.mms.QuoteModel
 import org.thoughtcrime.securesms.polls.Poll
 import org.thoughtcrime.securesms.recipients.Recipient
+import org.thoughtcrime.securesms.taler.TalerPaymentPayload
 import org.whispersystems.signalservice.api.messages.SendMessageResult
 import org.whispersystems.signalservice.api.messages.SignalServiceAttachmentRemoteId
 import org.whispersystems.signalservice.api.push.SignalServiceAddress
@@ -68,6 +69,7 @@ fun OutgoingMessage.toDataMessage(): Either<DataMessageError, DataMessage> = eit
   builder.pollTerminate = messageExtras?.pollTerminate?.toProto()
   builder.pinMessage = messageExtras?.pinnedMessage?.toProto()?.bind()
   builder.payment = toPaymentProtoIfPresent().bind()
+  builder.talerPayment = talerPayment?.toProto()
   builder.isViewOnce = isViewOnce
   builder.flags = if (isExpirationUpdate) DataMessage.Flags.EXPIRATION_TIMER_UPDATE.value else null
   builder.expireTimer = (expiresIn / 1000).toInt()
@@ -335,6 +337,22 @@ private fun Poll.toProto(): DataMessage.PollCreate {
 
 private fun PollTerminate.toProto(): DataMessage.PollTerminate {
   return DataMessage.PollTerminate(targetSentTimestamp = this.targetTimestamp)
+}
+
+// GNU Taler payment, downstream fork only (Feld 9000, SignalService.proto).
+// Ohne diese Zuordnung baut IndividualSendJobV2 (anders als die
+// PushSendJob/getTalerPayment()-Variante der Gruppen- und Legacy-Einzel-Jobs)
+// ein DataMessage ohne das strukturierte Feld - Signal-Desktop verlaesst sich
+// beim Kartenrendering ausschliesslich darauf (kein Body-Text-Fallback wie
+// Android), die Karte blieb also auf synchten/empfangenen Geraeten aus.
+private fun TalerPaymentPayload.toProto(): DataMessage.TalerPayment {
+  return DataMessage.TalerPayment(
+    uris = uris,
+    version = version,
+    isGroupSplit = isGroupSplit,
+    includeSelf = includeSelf,
+    totalAmount = totalAmount
+  )
 }
 
 private fun PinnedMessage.toProto(): Either<DataMessageError, DataMessage.PinMessage> = either {

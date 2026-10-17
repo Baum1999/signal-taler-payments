@@ -66,6 +66,7 @@ import org.thoughtcrime.securesms.mms.OutgoingMessage;
 import org.thoughtcrime.securesms.recipients.Recipient;
 import org.thoughtcrime.securesms.recipients.RecipientUtil;
 import org.signal.core.util.ParcelUtil;
+import org.thoughtcrime.securesms.taler.TalerPaymentTracker;
 import org.thoughtcrime.securesms.util.SignalLocalMetrics;
 import org.whispersystems.signalservice.api.push.DistributionId;
 import org.signal.network.util.Preconditions;
@@ -228,6 +229,8 @@ public class MessageSender {
       InsertResult insertResult      = database.insertMessageOutbox(applyUniversalExpireTimerIfNecessary(context, recipient, message, allocatedThreadId), allocatedThreadId, sendType != SendType.SIGNAL, insertListener);
       long         messageId         = insertResult.getMessageId();
 
+      // Track Taler URIs in all chat types (1:1, group, self)
+      TalerPaymentTracker.trackUrisInBody(message.getBody(), allocatedThreadId, true);
 
       if (message.getThreadRecipient().isGroup()) {
         if (message.getAttachments().isEmpty() && message.getLinkPreviews().isEmpty() && message.getSharedContacts().isEmpty()) {
