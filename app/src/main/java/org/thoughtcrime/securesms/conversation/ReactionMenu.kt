@@ -10,6 +10,8 @@ import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.components.menu.ActionItem
 import org.thoughtcrime.securesms.database.model.MessageRecord
 import org.thoughtcrime.securesms.recipients.Recipient
+import org.thoughtcrime.securesms.taler.TalerMenuGate
+import org.thoughtcrime.securesms.taler.TalerMenuState
 import org.signal.core.ui.R as CoreUiR
 
 /**
@@ -50,6 +52,13 @@ object ReactionMenu {
       items += ActionItem(iconRes = iconRes, title = context.getString(titleRes), action = { onAction(action) })
     }
 
+    // For a Taler payment message the Taler entries below replace the standard
+    // forward/copy entries (MenuState already suppresses both via hasTalerPayment)
+    // and add reject/cancel/refresh/refund, which used to be buttons on the card.
+    val messageRecord = conversationMessage.messageRecord
+    val isTalerMessage = TalerMenuGate.messageHasTalerUris(messageRecord)
+    val talerMenuTargets = if (isTalerMessage) TalerMenuState.compute(context, messageRecord) else null
+
     if (menuState.shouldShowReplyAction()) {
       add(R.drawable.symbol_reply_24, R.string.conversation_selection__menu_reply, ReactionAction.REPLY)
     }
@@ -60,6 +69,11 @@ object ReactionMenu {
 
     if (menuState.shouldShowForwardAction()) {
       add(CoreUiR.drawable.symbol_forward_24, R.string.conversation_selection__menu_forward, ReactionAction.FORWARD)
+    }
+
+    if (isTalerMessage) {
+      add(CoreUiR.drawable.symbol_forward_24, R.string.TalerFork_forward_as_image, ReactionAction.TALER_FORWARD_IMAGE)
+      add(CoreUiR.drawable.symbol_forward_24, R.string.TalerFork_forward_as_text, ReactionAction.TALER_FORWARD_TEXT)
     }
 
     if (menuState.shouldShowResendAction()) {
@@ -78,8 +92,28 @@ object ReactionMenu {
       add(CoreUiR.drawable.symbol_copy_android_24, R.string.conversation_selection__menu_copy, ReactionAction.COPY)
     }
 
+    if (isTalerMessage) {
+      add(CoreUiR.drawable.symbol_copy_android_24, R.string.TalerFork_copy_as_image, ReactionAction.TALER_COPY_IMAGE)
+      add(CoreUiR.drawable.symbol_copy_android_24, R.string.TalerFork_copy_as_text, ReactionAction.TALER_COPY_TEXT)
+    }
+
     if (menuState.shouldShowPaymentDetails()) {
       add(CoreUiR.drawable.symbol_payment_24, R.string.conversation_selection__menu_payment_details, ReactionAction.PAYMENT_DETAILS)
+    }
+
+    if (talerMenuTargets != null) {
+      if (talerMenuTargets.showReject) {
+        add(CoreUiR.drawable.symbol_x_24, R.string.TalerFork_action_reject, ReactionAction.TALER_REJECT)
+      }
+      if (talerMenuTargets.showCancel) {
+        add(CoreUiR.drawable.symbol_x_24, R.string.TalerFork_action_cancel, ReactionAction.TALER_CANCEL)
+      }
+      if (talerMenuTargets.showRefresh) {
+        add(CoreUiR.drawable.symbol_refresh_24, R.string.TalerFork_action_refresh, ReactionAction.TALER_REFRESH)
+      }
+      if (talerMenuTargets.showRefund) {
+        add(R.drawable.symbol_payment_24, R.string.TalerFork_action_refund, ReactionAction.TALER_REFUND)
+      }
     }
 
     add(CoreUiR.drawable.symbol_check_circle_24, R.string.conversation_selection__menu_multi_select, ReactionAction.MULTISELECT)

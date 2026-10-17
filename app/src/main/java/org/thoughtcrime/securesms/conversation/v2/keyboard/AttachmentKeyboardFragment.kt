@@ -27,6 +27,7 @@ import org.thoughtcrime.securesms.conversation.ManageContextMenu
 import org.thoughtcrime.securesms.conversation.v2.ConversationViewModel
 import org.thoughtcrime.securesms.keyvalue.SignalStore
 import org.thoughtcrime.securesms.recipients.Recipient
+import org.thoughtcrime.securesms.taler.TalerInstallation
 import java.util.function.Predicate
 
 /**
@@ -47,7 +48,18 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
   private lateinit var attachmentKeyboardView: AttachmentKeyboard
 
   private val lifecycleDisposable = LifecycleDisposable()
-  private val removePaymentFilter: Predicate<AttachmentKeyboardButton> = Predicate { button -> button != AttachmentKeyboardButton.PAYMENT }
+
+  private fun applyButtonFilters(paymentsAvailable: Boolean, talerAvailable: Boolean) {
+    val hidden = buildSet {
+      if (!paymentsAvailable) add(AttachmentKeyboardButton.PAYMENT)
+      if (!talerAvailable) add(AttachmentKeyboardButton.TALER_SEND)
+    }
+    if (hidden.isEmpty()) {
+      attachmentKeyboardView.filterAttachmentKeyboardButtons(null)
+    } else {
+      attachmentKeyboardView.filterAttachmentKeyboardButtons(Predicate { button -> button !in hidden })
+    }
+  }
 
   @Suppress("ReplaceGetOrSet")
   override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -57,9 +69,8 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
     attachmentKeyboardView = view.findViewById(R.id.attachment_keyboard)
     attachmentKeyboardView.apply {
       setCallback(this@AttachmentKeyboardFragment)
-      if (!SignalStore.payments.paymentsAvailability.isSendAllowed) {
-        filterAttachmentKeyboardButtons(removePaymentFilter)
-      }
+      // Taler-Button erst nach der Empfaengerpruefung in updateButtonsAvailable() zeigen.
+      applyButtonFilters(SignalStore.payments.paymentsAvailability.isSendAllowed, false)
     }
 
     viewModel.getRecentMedia()
@@ -130,10 +141,20 @@ class AttachmentKeyboardFragment : LoggingFragment(R.layout.attachment_keyboard_
     val paymentsValues = SignalStore.payments
     val isPaymentsAvailable = paymentsValues.paymentsAvailability.isSendAllowed && !recipient.isSelf && !recipient.isGroup && recipient.isRegistered && SignalStore.account.isPrimaryDevice
 
-    if (!isPaymentsAvailable) {
-      attachmentKeyboardView.filterAttachmentKeyboardButtons(removePaymentFilter)
-    } else {
-      attachmentKeyboardView.filterAttachmentKeyboardButtons(null)
-    }
+    // Empfaenger-Einschraenkung fuer den Taler-Button: kein Self-Chat (Notiz
+    // an mich), registrierter Empfaenger. Anders als frueher AUCH in Gruppen
+    // erlaubt (siehe TalerReturnActivity.sendComposedPayment, das dieselbe
+    // Bedingung als Backstop nochmal prueft und dort ausfuehrlich begruendet,
+    // warum Gruppen jetzt erlaubt sind) - ein Taler-URI bleibt ein
+    // Inhaberpapier, das Compose-Send-Screen warnt bei Gruppen explizit
+    // ("wer zuerst bestaetigt"). KEIN isPrimaryDevice-Check: die Wallet liegt
+    // lokal auf diesem Geraet, unabhaengig von Signals Primaer/Verknuepft-
+    // Konzept (anders als isPaymentsAvailable oben, dessen MobileCoin-
+    // Schluessel nur auf dem primaeren Geraet liegen).
+    val isTalerRecipientAllowed = !recipient.isSelf && recipient.isRegistered
+
+    // Reiner PackageManager-Check, synchron - frueher ein asynchroner
+    // Binder-Roundtrip, der den Button bis zu seiner Antwort ausblendete.
+    applyButtonFilters(isPaymentsAvailable, TalerInstallation.isTrusted(requireContext()) && isTalerRecipientAllowed)
   }
 }
