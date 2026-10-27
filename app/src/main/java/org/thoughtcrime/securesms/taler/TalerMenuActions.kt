@@ -36,14 +36,14 @@ object TalerMenuActions {
     TalerAcceptRejectActions.onRejectClicked(context, uri, messageRecord.threadId)
   }
 
+  /** Ein compose-abort fuer alle eigenen offenen Anteile, siehe TalerAbortActions. */
   fun onCancelFromMenu(context: Context, messageRecord: MessageRecord) {
-    TalerMenuState.compute(context, messageRecord).cancelUris.forEach { uri ->
-      TalerAcceptRejectActions.onCancelClicked(context, uri, messageRecord.threadId)
-    }
+    val uris = TalerMenuState.compute(context, messageRecord).cancelUris
+    TalerAbortActions.onCancelFromMenu(context, messageRecord, uris)
   }
 
   fun onRefreshFromMenu(context: Context, messageRecord: MessageRecord) {
-    TalerMenuState.compute(context, messageRecord).cancelUris.forEach { uri ->
+    TalerMenuState.compute(context, messageRecord).refreshUris.forEach { uri ->
       TalerAcceptRejectActions.onRefreshClicked(context, uri, messageRecord.threadId)
     }
   }

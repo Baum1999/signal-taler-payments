@@ -14,7 +14,14 @@ import java.util.concurrent.TimeUnit
  * bereits committet, eine neue Zahlung mit neuer URI entsteht) - siehe
  * TalerReturnActivity).
  */
-enum class TalerCorrelationIntent { ACCEPT_OR_CANCEL, SEND, REFUND }
+enum class TalerCorrelationIntent {
+  ACCEPT_OR_CANCEL,
+  SEND,
+  REFUND,
+
+  /** compose-abort (link-protokoll.md Abschnitt 5): Ruecksprung traegt `result` je URI. */
+  ABORT,
+}
 
 /**
  * correlationId -> (intent, uri, threadId), TTL 15 Minuten (docs/API.md 2.10).
@@ -58,6 +65,7 @@ object TalerCorrelationStore {
     val threadId: Long,
     val quoteMessageId: Long? = null,
     val quoteAuthor: RecipientId? = null,
+    val abort: TalerAbortRequest? = null,
   )
 
   private data class StoredEntry(val entry: Entry, val createdAt: Long)
@@ -74,6 +82,14 @@ object TalerCorrelationStore {
     quoteAuthor: RecipientId? = null,
   ) {
     entries[correlationId] = StoredEntry(Entry(intent, uri, threadId, quoteMessageId, quoteAuthor), System.currentTimeMillis())
+  }
+
+  /** ABORT: [request] traegt die URIs dieses Stapels, gegen die der Ruecksprung geprueft wird. */
+  fun putAbort(correlationId: String, request: TalerAbortRequest) {
+    entries[correlationId] = StoredEntry(
+      Entry(TalerCorrelationIntent.ABORT, uri = null, threadId = request.threadId, abort = request),
+      System.currentTimeMillis()
+    )
   }
 
   fun take(correlationId: String, now: Long = System.currentTimeMillis()): Entry? {

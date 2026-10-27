@@ -24,6 +24,8 @@ data class TalerPaymentRecord(
   val lastCheckedAt: Long?,
   val consecutiveFailures: Int,
   val isOwnPayment: Boolean,
+  /** Eigene Zahlung, von einem anderen Geraet desselben Kontos gesendet - siehe TalerPaymentTable.SENT_FROM_OTHER_DEVICE. */
+  val sentFromOtherDevice: Boolean = false,
 )
 
 /**

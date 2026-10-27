@@ -12,15 +12,17 @@ import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.conversation.ConversationIntents
 import org.thoughtcrime.securesms.database.DraftTable
 import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.dependencies.AppDependencies
+import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob
 import org.thoughtcrime.securesms.mms.OutgoingMessage
 import org.thoughtcrime.securesms.mms.QuoteId
 import org.thoughtcrime.securesms.sms.MessageSender
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * Ruecksprungziel fuer Annehmen/Ablehnen/Abbrechen (docs/API.md 2.10,
- * Meilenstein 4), Compose-Send (Meilenstein 5) und Compose-Refund
- * (Meilenstein 6) - TalerAllowlist.RETURN_URI. Exportiert, aber die
+ * Ruecksprungziel fuer Annehmen (docs/API.md 2.10, Meilenstein 4),
+ * Compose-Send (Meilenstein 5), Compose-Refund (Meilenstein 6) und
+ * Compose-Abort (link-protokoll.md Abschnitt 9) - TalerAllowlist.RETURN_URI. Exportiert, aber die
  * eingehenden Parameter
  * sind ANGREIFERKONTROLLIERT (Regel: jede angezeigte Zahl/jeder Zustand
  * kommt aus dem Taler-AIDL-Aufruf, nie aus einem Intent-Extra) - `status`
@@ -64,11 +66,28 @@ class TalerReturnActivity : Activity() {
       }
 
       var draftText: String? = null
+      var nextAbortBatchLaunched = false
 
       when (entry.intent) {
         TalerCorrelationIntent.ACCEPT_OR_CANCEL -> {
           // Meilenstein 4: Annehmen/Ablehnen einer bereits bekannten URI.
           entry.uri?.let { TalerPollingCoordinator.requestFastPoll(it) }
+        }
+        TalerCorrelationIntent.ABORT -> {
+          // compose-abort (link-protokoll.md Abschnitt 9): nur `result` zaehlt,
+          // und nur fuer URIs dieses Stapels. Kein Ergebnis setzt UNGUELTIG
+          // direkt, `aborted` belegt erst der Exchange.
+          val request = entry.abort
+          if (request != null) {
+            val results = TalerAbortPlan.parseResults(
+              if (data?.isHierarchical == true) data.getQueryParameters("result") else emptyList()
+            )
+            applyAbortResults(TalerAbortPlan.apply(results, request.uris), request.threadId)
+            if (request.remainingBatches.isNotEmpty() && TalerAbortPlan.shouldContinue(results)) {
+              TalerAbortActions.launch(this, request.remainingBatches.first(), request.remainingBatches.drop(1), request.meta, request.threadId)
+              nextAbortBatchLaunched = true
+            }
+          }
         }
         TalerCorrelationIntent.SEND, TalerCorrelationIntent.REFUND -> {
           // Meilenstein 5 (SEND) / Refund-Redesign: Taler hat gerade erst
@@ -133,7 +152,9 @@ class TalerReturnActivity : Activity() {
         }
       }
 
-      val recipientId = SignalDatabase.threads.getRecipientIdForThreadId(entry.threadId)
+      // Laeuft schon der naechste Abbruch-Stapel, kehrt erst dessen
+      // Ruecksprung in den Chat zurueck.
+      val recipientId = if (nextAbortBatchLaunched) null else SignalDatabase.threads.getRecipientIdForThreadId(entry.threadId)
       if (recipientId != null) {
         val builder = ConversationIntents.createBuilderSync(this, recipientId, entry.threadId)
         val quoteMessageId = entry.quoteMessageId
@@ -161,6 +182,31 @@ class TalerReturnActivity : Activity() {
       }
     } finally {
       finish()
+    }
+  }
+
+  /**
+   * Folgeaktionen eines compose-abort-Ruecksprungs, siehe
+   * [TalerAbortPlan.apply]. Datenbank-Schreibzugriffe nicht auf dem
+   * Main-Thread, gleiches Muster wie [sendComposedPayment].
+   */
+  private fun applyAbortResults(followUps: List<Pair<String, TalerAbortFollowUp>>, threadId: Long) {
+    if (followUps.isEmpty()) return
+    SignalExecutors.BOUNDED.execute {
+      var statusChanged = false
+      followUps.forEach { (uri, followUp) ->
+        when (followUp) {
+          TalerAbortFollowUp.VerifyAbort -> AppDependencies.jobManager.add(TalerUriRefreshJob(uri, TalerUriRefreshJob.TriggerType.ABORT_CHECK))
+          is TalerAbortFollowUp.SetStatus -> {
+            SignalDatabase.talerPayments.updateStatus(uri, followUp.status)
+            statusChanged = true
+          }
+          TalerAbortFollowUp.Refresh -> TalerPollingCoordinator.requestFastPoll(uri)
+        }
+      }
+      if (statusChanged) {
+        AppDependencies.databaseObserver.notifyConversationListeners(threadId)
+      }
     }
   }
 

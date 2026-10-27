@@ -77,26 +77,6 @@ object TalerAcceptRejectActions {
   }
 
   /**
-   * Abbrechen einer eigenen ausgehenden Zahlung. Oeffnet Talers eigene UI
-   * zum Abbrechen der Zahlung.
-   */
-  fun onCancelClicked(context: Context, uri: String, threadId: Long) {
-    val correlationId = java.util.UUID.randomUUID().toString()
-    TalerCorrelationStore.put(correlationId, TalerCorrelationIntent.ACCEPT_OR_CANCEL, uri, threadId)
-
-    // Review-Fix: siehe onAcceptClicked oben fuer die Begruendung.
-    val unwrapped = TalerHttpsLink.unwrap(uri)
-    val returnUri = TalerAllowlist.RETURN_URI
-    val separator = if (unwrapped.contains("?")) "&" else "?"
-    val target = "$unwrapped${separator}correlationId=${Uri.encode(correlationId)}&returnUri=${Uri.encode(returnUri)}"
-
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
-      setPackage(TalerAllowlist.PACKAGE)
-    }
-    runCatching { context.startActivity(intent) }
-  }
-
-  /**
    * Manueller Refresh des Zahlungsstatus. Loest einen sofortigen
    * Polling-Zyklus fuer diese URI aus.
    */
@@ -117,7 +97,7 @@ object TalerAcceptRejectActions {
    * unabhaengig geprueft Abbrueche).
    *
    * Bewusst REIN LOKAL und sofort, ohne Talers eigene Abbrechen-UI zu oeffnen
-   * (anders als der manuelle Abbrechen-Button/onCancelClicked): Loeschen soll
+   * (anders als das Menue-Abbrechen ueber TalerAbortActions): Loeschen soll
    * den Vorgang ohne weitere Nutzerinteraktion beenden, und ein
    * startActivity() pro betroffener URI waere bei mehreren offenen Anteilen
    * (Gruppen-Split) ohnehin unzuverlaessig (nur der zuletzt gestartete Intent

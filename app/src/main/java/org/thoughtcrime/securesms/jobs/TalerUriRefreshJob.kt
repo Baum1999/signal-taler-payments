@@ -47,7 +47,14 @@ class TalerUriRefreshJob private constructor(
     /** Sofort-Refresh nach Ruecksprung aus Taler-App (Accept/Reject) */
     RETURN,
     /** Manueller Trigger (z.B. Pull-to-Refresh) */
-    MANUAL
+    MANUAL,
+    /**
+     * Taler hat per compose-abort `aborted` gemeldet (TalerReturnActivity).
+     * Die Behauptung allein aendert nichts: erst wenn der Exchange den Purse
+     * nicht mehr kennt, gilt der Abbruch als belegt und der Vorgang wird
+     * UNGUELTIG statt ABGELAUFEN (link-protokoll.md Abschnitt 9 Regel 4).
+     */
+    ABORT_CHECK
   }
 
   companion object {
@@ -76,7 +83,7 @@ class TalerUriRefreshJob private constructor(
       .addConstraint(NetworkConstraint.KEY)
       .setLifespan(TimeUnit.MINUTES.toMillis(5))
       .setMaxAttempts(3)
-      .setQueuePriority(if (triggerType == TriggerType.RETURN) Job.Parameters.PRIORITY_HIGH else Job.Parameters.PRIORITY_DEFAULT)
+      .setQueuePriority(if (triggerType == TriggerType.RETURN || triggerType == TriggerType.ABORT_CHECK) Job.Parameters.PRIORITY_HIGH else Job.Parameters.PRIORITY_DEFAULT)
       .build(),
     uri,
     triggerType,
@@ -90,7 +97,12 @@ class TalerUriRefreshJob private constructor(
         maybeSendAcceptConfirmation(previousStatus, newStatus)
       }
       is TalerContractResolution.Fehlgeschlagen -> {
-        SignalDatabase.talerPayments.updateStatus(uri, result.status)
+        val status = if (triggerType == TriggerType.ABORT_CHECK && result.status == TalerPaymentStatus.ABGELAUFEN) {
+          TalerPaymentStatus.UNGUELTIG
+        } else {
+          result.status
+        }
+        SignalDatabase.talerPayments.updateStatus(uri, status)
       }
       is TalerContractResolution.Offline -> {
         Log.w(TAG, "Exchange nicht erreichbar (uri=${TalerCorrelation.shortHash(uri)})")

@@ -52,6 +52,15 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     const val IS_OWN_PAYMENT = "is_own_payment"
 
     /**
+     * Eigene Zahlung, die ein anderes Geraet desselben Kontos gesendet hat
+     * (Sync-Transkript, siehe SyncMessageProcessor). Die Taler-Wallet dieses
+     * Geraets hat sie nie erzeugt und kann sie nicht abbrechen - "Abbrechen"
+     * wird dafuer nicht angeboten (TalerCardActionGate.showCancel). Erst mit
+     * V338_AddTalerPaymentSentFromOtherDeviceColumn hinzugekommen.
+     */
+    const val SENT_FROM_OTHER_DEVICE = "sent_from_other_device"
+
+    /**
      * Rein lokale Endzustaende (nie von Taler selbst geliefert, siehe
      * [TalerPaymentStatus.fromTalerStatus]) - ein Refresh darf sie nie
      * ueberschreiben, siehe [updateStatus]/[updateFromPreview].
@@ -78,7 +87,8 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
         $CREATED_AT INTEGER NOT NULL,
         $LAST_CHECKED_AT INTEGER DEFAULT NULL,
         $CONSECUTIVE_FAILURES INTEGER DEFAULT 0,
-        $IS_OWN_PAYMENT INTEGER DEFAULT 0
+        $IS_OWN_PAYMENT INTEGER DEFAULT 0,
+        $SENT_FROM_OTHER_DEVICE INTEGER DEFAULT 0
       )
     """
 
@@ -97,6 +107,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       lastCheckedAt = cursor.requireLongOrNull(LAST_CHECKED_AT),
       consecutiveFailures = cursor.requireInt(CONSECUTIVE_FAILURES),
       isOwnPayment = cursor.requireInt(IS_OWN_PAYMENT) != 0,
+      sentFromOtherDevice = cursor.requireInt(SENT_FROM_OTHER_DEVICE) != 0,
     )
   }
 
@@ -110,8 +121,11 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
    * empfangenen Nachricht nicht. Frueher lieferte Taler diese Unterscheidung
    * per Vorschau mit (OwnUriTracker); ohne die App-zu-App-Schnittstelle ist
    * die Nachrichtenrichtung die einzige verbleibende Quelle dafuer.
+   *
+   * [sentFromOtherDevice] nur fuer eigene Zahlungen aus einem Sync-Transkript
+   * (siehe [SENT_FROM_OTHER_DEVICE]).
    */
-  fun upsertDetected(uri: String, threadId: Long, isOwnPayment: Boolean): Boolean {
+  fun upsertDetected(uri: String, threadId: Long, isOwnPayment: Boolean, sentFromOtherDevice: Boolean = false): Boolean {
     val rowId = writableDatabase
       .insertInto(TABLE_NAME)
       .values(
@@ -119,6 +133,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
         THREAD_ID to threadId,
         STATUS to TalerPaymentStatus.UNBEKANNT_OFFLINE.name,
         IS_OWN_PAYMENT to if (isOwnPayment) 1 else 0,
+        SENT_FROM_OTHER_DEVICE to if (sentFromOtherDevice) 1 else 0,
         CREATED_AT to System.currentTimeMillis(),
       )
       .run(conflictStrategy = SQLiteDatabase.CONFLICT_IGNORE)

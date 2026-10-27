@@ -971,11 +971,14 @@ object SyncMessageProcessor {
     // Geraete, sent-Transkript der eigenen/einer anderen eigenen Geraete-Instanz)
     // hatte denselben Hook bisher nicht, wodurch Taler-Zahlungskarten auf
     // Linked Devices nie erschienen sind.
+    // sentFromOtherDevice: die Zahlung stammt aus der Taler-Wallet des
+    // sendenden Geraets, nicht aus der dieses Geraets - hier laesst sie sich
+    // nicht abbrechen (TalerCardActionGate.showCancel).
     val talerPayment = dataMessage.talerPayment
     if (talerPayment != null) {
-      TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId, threadId, isOwnPayment = true)
+      TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId, threadId, isOwnPayment = true, sentFromOtherDevice = true)
     } else {
-      TalerPaymentTracker.trackUrisInBody(body, threadId, isOwnPayment = true)
+      TalerPaymentTracker.trackUrisInBody(body, threadId, isOwnPayment = true, sentFromOtherDevice = true)
     }
 
     SignalDatabase.messages.markAsSent(messageId)

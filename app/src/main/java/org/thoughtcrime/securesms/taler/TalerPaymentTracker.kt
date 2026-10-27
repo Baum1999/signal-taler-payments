@@ -22,13 +22,19 @@ import org.whispersystems.signalservice.internal.push.DataMessage
  * Polling.
  */
 object TalerPaymentTracker {
+  /**
+   * [sentFromOtherDevice]: eigene Zahlung aus einem Sync-Transkript, gesendet
+   * von einem anderen Geraet desselben Kontos (siehe
+   * TalerPaymentTable.SENT_FROM_OTHER_DEVICE).
+   */
   @JvmStatic
-  fun trackUrisInBody(body: String?, threadId: Long, isOwnPayment: Boolean) {
+  @JvmOverloads
+  fun trackUrisInBody(body: String?, threadId: Long, isOwnPayment: Boolean, sentFromOtherDevice: Boolean = false) {
     if (body.isNullOrBlank()) return
     val uris = urisFromMessageBody(body)
     if (uris.isEmpty()) return
 
-    trackUris(uris, threadId, isOwnPayment)
+    trackUris(uris, threadId, isOwnPayment, sentFromOtherDevice)
   }
 
   /**
@@ -38,11 +44,13 @@ object TalerPaymentTracker {
    * Nachricht, damit das Rendern sie nicht mehr aus `body` herleiten muss.
    */
   @JvmStatic
+  @JvmOverloads
   fun trackStructuredPayment(
     talerPayment: DataMessage.TalerPayment,
     messageId: Long,
     threadId: Long,
-    isOwnPayment: Boolean
+    isOwnPayment: Boolean,
+    sentFromOtherDevice: Boolean = false
   ) {
     val uris = talerPayment.uris
     if (uris.isEmpty()) return
@@ -56,16 +64,16 @@ object TalerPaymentTracker {
       totalAmount = talerPayment.totalAmount,
     )
 
-    trackUris(uris, threadId, isOwnPayment)
+    trackUris(uris, threadId, isOwnPayment, sentFromOtherDevice)
   }
 
-  private fun trackUris(uris: List<String>, threadId: Long, isOwnPayment: Boolean) {
+  private fun trackUris(uris: List<String>, threadId: Long, isOwnPayment: Boolean, sentFromOtherDevice: Boolean) {
     val trackable = uris.filter { isTrackable(it) }
     if (trackable.isEmpty()) return
 
     TalerPollingCoordinator.ensureStarted()
     for (uri in trackable) {
-      val isNew = SignalDatabase.talerPayments.upsertDetected(uri, threadId, isOwnPayment)
+      val isNew = SignalDatabase.talerPayments.upsertDetected(uri, threadId, isOwnPayment, sentFromOtherDevice)
       if (isNew) {
         // Bug 3 Fix: ROUTINE-TriggerType fuer initialen Poll-Job.
         // Neue URIs werden mit ROUTINE gepollt, RETURN-Jobs (aus TalerReturnActivity)

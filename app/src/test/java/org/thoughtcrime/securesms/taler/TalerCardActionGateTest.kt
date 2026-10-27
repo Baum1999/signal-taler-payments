@@ -25,6 +25,7 @@ class TalerCardActionGateTest {
     status: TalerPaymentStatus = TalerPaymentStatus.OFFEN,
     uriKind: String? = TalerUriKind.PAY_PUSH.name,
     isOwnPayment: Boolean = false,
+    sentFromOtherDevice: Boolean = false,
   ) = TalerPaymentRecord(
     uri = "taler://pay-push/exchange.demo.taler.net/gateTest",
     threadId = 1,
@@ -38,6 +39,7 @@ class TalerCardActionGateTest {
     lastCheckedAt = null,
     consecutiveFailures = 0,
     isOwnPayment = isOwnPayment,
+    sentFromOtherDevice = sentFromOtherDevice,
   )
 
   // --- showAccept/showReject: eingehende, offene PAY_PUSH-Anfrage -----------
@@ -97,6 +99,18 @@ class TalerCardActionGateTest {
     val r = record(status = TalerPaymentStatus.LOKAL_ABGEBROCHEN, uriKind = TalerUriKind.PAY_PUSH.name, isOwnPayment = true)
     assertFalse(TalerCardActionGate.showCancel(r))
     assertFalse(TalerCardActionGate.showRefresh(r))
+  }
+
+  /**
+   * Zwei Handys, ein Signal-Konto, zwei Wallets: die von Handy 1 gesendete
+   * Zahlung kommt auf Handy 2 als Sync-Transkript an. Dessen Wallet hat sie
+   * nie erzeugt, "Abbrechen" entfaellt dort, "Aktualisieren" bleibt.
+   */
+  @Test
+  fun cancelHidden_refreshVisible_forPaymentSentFromOtherDevice() {
+    val r = record(status = TalerPaymentStatus.OFFEN, uriKind = TalerUriKind.PAY_PUSH.name, isOwnPayment = true, sentFromOtherDevice = true)
+    assertFalse(TalerCardActionGate.showCancel(r))
+    assertTrue(TalerCardActionGate.showRefresh(r))
   }
 
   @Test

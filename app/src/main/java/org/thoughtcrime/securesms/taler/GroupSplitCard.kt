@@ -75,11 +75,12 @@ fun countAccepted(statuses: List<TalerPaymentStatus?>): Int =
   statuses.count { it == TalerPaymentStatus.ANGENOMMEN }
 
 /**
- * Eigene, noch offene Anteile der Sammelkarte, fuer die "Abbrechen"/
- * "Aktualisieren" Sinn ergeben (siehe TalerCardActionGate.showCancel, dieselbe
- * Bedingung wie beim Einzel-URI-Pfad, nur pro Anteil angewendet). Liefert nur
- * fuer [GroupCardRole.Creator] etwas - Empfaenger und Nicht-Teilnehmer haben
- * nie eigene ausgehende Anteile in dieser Karte.
+ * Eigene, noch offene Anteile der Sammelkarte, fuer die "Abbrechen" Sinn
+ * ergibt (siehe TalerCardActionGate.showCancel, dieselbe Bedingung wie beim
+ * Einzel-URI-Pfad, nur pro Anteil angewendet). Liefert nur fuer
+ * [GroupCardRole.Creator] etwas - Empfaenger und Nicht-Teilnehmer haben nie
+ * eigene ausgehende Anteile in dieser Karte. Ein Split, den ein anderes
+ * eigenes Geraet gesendet hat, liefert nichts.
  */
 fun resolveCancelableUris(
   uris: List<String>,
@@ -89,6 +90,22 @@ fun resolveCancelableUris(
   if (role !is GroupCardRole.Creator) return emptyList()
   return uris.zip(records)
     .filter { (_, record) -> TalerCardActionGate.showCancel(record) }
+    .map { it.first }
+}
+
+/**
+ * Wie [resolveCancelableUris], aber fuer "Aktualisieren" - das geht auch fuer
+ * einen Split, den ein anderes eigenes Geraet gesendet hat
+ * (TalerCardActionGate.showRefresh).
+ */
+fun resolveRefreshableUris(
+  uris: List<String>,
+  records: List<TalerPaymentRecord?>,
+  role: GroupCardRole
+): List<String> {
+  if (role !is GroupCardRole.Creator) return emptyList()
+  return uris.zip(records)
+    .filter { (_, record) -> TalerCardActionGate.showRefresh(record) }
     .map { it.first }
 }
 

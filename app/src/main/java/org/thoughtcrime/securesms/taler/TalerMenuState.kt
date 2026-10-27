@@ -24,15 +24,16 @@ import org.thoughtcrime.securesms.keyvalue.SignalStore
 data class TalerMenuTargets(
   val rejectUri: String?,
   val cancelUris: List<String>,
+  val refreshUris: List<String>,
   val refundUris: List<String>,
 ) {
   val showReject: Boolean get() = rejectUri != null
   val showCancel: Boolean get() = cancelUris.isNotEmpty()
-  val showRefresh: Boolean get() = cancelUris.isNotEmpty()
+  val showRefresh: Boolean get() = refreshUris.isNotEmpty()
   val showRefund: Boolean get() = refundUris.isNotEmpty()
 
   companion object {
-    val NONE = TalerMenuTargets(rejectUri = null, cancelUris = emptyList(), refundUris = emptyList())
+    val NONE = TalerMenuTargets(rejectUri = null, cancelUris = emptyList(), refreshUris = emptyList(), refundUris = emptyList())
   }
 }
 
@@ -48,6 +49,7 @@ object TalerMenuState {
       TalerMenuTargets(
         rejectUri = if (TalerCardActionGate.showReject(record)) uri else null,
         cancelUris = if (TalerCardActionGate.showCancel(record)) listOf(uri) else emptyList(),
+        refreshUris = if (TalerCardActionGate.showRefresh(record)) listOf(uri) else emptyList(),
         refundUris = if (TalerCardActionGate.showRefund(record)) listOf(uri) else emptyList(),
       )
     } else {
@@ -85,6 +87,7 @@ object TalerMenuState {
     return TalerMenuTargets(
       rejectUri = rejectUri,
       cancelUris = resolveCancelableUris(uris, records, role),
+      refreshUris = resolveRefreshableUris(uris, records, role),
       refundUris = resolveRefundableUris(uris, records, claimTracker.claimedOf(uris)),
     )
   }

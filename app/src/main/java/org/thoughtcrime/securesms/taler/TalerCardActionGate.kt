@@ -26,13 +26,20 @@ object TalerCardActionGate {
 
   fun showReject(record: TalerPaymentRecord?): Boolean = showAccept(record)
 
-  /** Abbrechen/Aktualisieren fuer die eigene noch offene ausgehende Zahlung. */
-  fun showCancel(record: TalerPaymentRecord?): Boolean =
+  /** Aktualisieren fuer die eigene noch offene ausgehende Zahlung. */
+  fun showRefresh(record: TalerPaymentRecord?): Boolean =
     record?.status == TalerPaymentStatus.OFFEN &&
       record?.uriKind == TalerUriKind.PAY_PUSH.name &&
       record?.isOwnPayment == true
 
-  fun showRefresh(record: TalerPaymentRecord?): Boolean = showCancel(record)
+  /**
+   * Abbrechen nur, wenn die Wallet dieses Geraets die Zahlung erzeugt hat.
+   * Eine von einem anderen eigenen Geraet gesendete Zahlung (Sync-Transkript)
+   * liegt in der Wallet jenes Geraets; hier gibt es nichts abzubrechen, der
+   * Menuepunkt entfaellt deshalb ganz.
+   */
+  fun showCancel(record: TalerPaymentRecord?): Boolean =
+    showRefresh(record) && record?.sentFromOtherDevice == false
 
   /** Rueckerstatten fuer eine von der Gegenseite bereits angenommene Zahlung. */
   fun showRefund(record: TalerPaymentRecord?): Boolean =
