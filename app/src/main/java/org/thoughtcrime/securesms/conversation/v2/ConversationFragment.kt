@@ -3278,7 +3278,7 @@ class ConversationFragment :
       }
       if (talerMenuTargets.showRefresh) {
         items.add(
-          ActionItem(R.drawable.symbol_refresh_24, resources.getString(R.string.TalerFork_action_refresh)) {
+          ActionItem(CoreUiR.drawable.symbol_refresh_24, resources.getString(R.string.TalerFork_action_refresh)) {
             TalerMenuActions.onRefreshFromMenu(requireContext(), talerMessageRecord)
             finishActionMode()
           }
