@@ -37,12 +37,17 @@ object TalerPreviewText {
    * Versionen bekamen sie von der Taler-App (taler_payment_legacy_text).
    * Bewusst Konstanten statt getString: eine Nachricht eines deutschen
    * Absenders muss auch auf einem englischen Geraet erkannt werden.
-   * Spiegel: TalerStrings.legacyText (iOS, nur Englisch).
+   * Die ersten beiden sind der aktuelle Text (en/de), die uebrigen der bis
+   * 2026-10-27 versendete ("copy the URI below") fuer bereits empfangene
+   * Nachrichten.
+   * Spiegel: TalerStrings.legacyText/legacyTexts (iOS, nur Englisch).
    */
-  private const val LEGACY_TEXT_EN =
-    "This is a GNU Taler link. Update Signal or copy the URI below into the GNU Taler app to make the payment."
-  private const val LEGACY_TEXT_DE =
+  private val LEGACY_TEXTS = listOf(
+    "This is a GNU Taler link. Update Signal or open the link below with the GNU Taler app to make the payment.",
+    "Dies ist ein GNU-Taler-Link. Aktualisieren Sie Signal oder öffnen Sie den unten stehenden Link mit der GNU-Taler-App, um die Zahlung durchzuführen.",
+    "This is a GNU Taler link. Update Signal or copy the URI below into the GNU Taler app to make the payment.",
     "Dies ist ein GNU-Taler-Link. Aktualisieren Sie Signal oder kopieren Sie den unten stehenden URI in die GNU-Taler-App, um die Zahlung durchzuführen."
+  ).map { normalizeWhitespace(it) }
 
   /**
    * true, wenn [body]/[structured] eine Taler-Zahlungsnachricht beschreibt und
@@ -94,7 +99,7 @@ object TalerPreviewText {
       matchesFormat(context, rest, R.string.TalerFork_accept_confirmation_message) -> R.string.TalerFork_update_accepted
       matchesFormat(context, rest, R.string.TalerFork_send_message) -> labelForUris(uris)
       matchesFormat(context, rest, R.string.TalerFork_request_message) -> labelForUris(uris)
-      rest == normalizeWhitespace(LEGACY_TEXT_EN) || rest == normalizeWhitespace(LEGACY_TEXT_DE) -> labelForUris(uris)
+      rest in LEGACY_TEXTS -> labelForUris(uris)
       else -> null
     }
   }

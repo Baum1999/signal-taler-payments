@@ -7,6 +7,8 @@ package org.thoughtcrime.securesms.taler
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
+import net.taler.wallet.link.TalerHttpsLink
+import net.taler.wallet.link.TalerLinkHosts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -26,16 +28,35 @@ class TalerPaymentBodyTest {
   private val context = ApplicationProvider.getApplicationContext<Application>()
   private val a = "taler://pay-push/exchange.demo.taler.net/AAA"
   private val b = "taler://pay-push/exchange.demo.taler.net/BBB"
-  private val en = "This is a GNU Taler link. Update Signal or copy the URI below into the GNU Taler app to make the payment."
+  private val linkA = "https://${TalerLinkHosts.WRAP_HOST}/link#pay-push/exchange.demo.taler.net/AAA"
+  private val linkB = "https://${TalerLinkHosts.WRAP_HOST}/link#pay-push/exchange.demo.taler.net/BBB"
+  private val en = "This is a GNU Taler link. Update Signal or open the link below with the GNU Taler app to make the payment."
 
   @Test
-  fun `send body is signal text then uris separated by blank lines`() {
-    assertEquals("$en\n\n$a\n\n$b", TalerPaymentBody.send(context, listOf(a, b)))
+  fun `send body is signal text then https links separated by blank lines`() {
+    assertEquals("$en\n\n$linkA\n\n$linkB", TalerPaymentBody.send(context, listOf(a, b)))
   }
 
   @Test
   fun `refund draft prefixes signal text, not a taler supplied text`() {
-    assertEquals("Refund: $en\n\n$a", TalerPaymentBody.refundDraft(context, listOf(a)))
+    assertEquals("Refund: $en\n\n$linkA", TalerPaymentBody.refundDraft(context, listOf(a)))
+  }
+
+  @Test
+  fun `links in the body unwrap to the original uris`() {
+    assertEquals(listOf(a, b), TalerUriDetector.findUris(TalerPaymentBody.send(context, listOf(a, b))).map { TalerHttpsLink.unwrap(it) })
+  }
+
+  @Test
+  fun `non taler schemes stay raw`() {
+    val payto = "payto://iban/DE00"
+    assertEquals("$en\n\n$payto", TalerPaymentBody.send(context, listOf(payto)))
+  }
+
+  @Test
+  fun `preview still recognises the old uri text`() {
+    val body = "This is a GNU Taler link. Update Signal or copy the URI below into the GNU Taler app to make the payment.\n\n$a"
+    assertTrue(TalerPreviewText.isTalerMessage(context, null, body))
   }
 
   @Test

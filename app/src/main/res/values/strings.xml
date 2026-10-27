@@ -8758,8 +8758,8 @@
     <string name="TalerFork_send_message">Payment sent: %1$s (%2$s)</string>
     <string name="TalerFork_request_message">Payment requested: %1$s (%2$s)</string>
 
-    <!-- Plain-text line Signal puts before the Taler URIs of a payment message, for clients that do not understand the structured talerPayment field. Must stay identical to TalerPreviewText.LEGACY_TEXT_EN, otherwise chat list and notifications show the raw URI. -->
-    <string name="TalerFork_payment_legacy_text">This is a GNU Taler link. Update Signal or copy the URI below into the GNU Taler app to make the payment.</string>
+    <!-- Plain-text line Signal puts before the Taler links of a payment message, for clients that do not understand the structured talerPayment field. Must stay identical to the first entry of TalerPreviewText.LEGACY_TEXTS, otherwise chat list and notifications show the raw URI. -->
+    <string name="TalerFork_payment_legacy_text">This is a GNU Taler link. Update Signal or open the link below with the GNU Taler app to make the payment.</string>
 
     <!-- Header prefixed to the text/refund URI in the message draft prepared after composing a refund (Refund-Redesign, TalerReturnActivity); %1$s is TalerFork_payment_legacy_text, or the raw refund URI when Taler returned no talerPaymentData. Sent as a quote-reply to the original payment message where the refund was triggered from the chat's long-press menu. -->
     <string name="TalerFork_refund_message">Refund: %1$s</string>

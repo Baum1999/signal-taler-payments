@@ -8725,8 +8725,8 @@
 
     <string name="TalerFork_confirmation_icon_content_description">GNU-Taler-Zahlungsbestätigung</string>
 
-    <!-- Klartext, den Signal vor die Taler-URIs einer Zahlungsnachricht setzt. Muss identisch zu TalerPreviewText.LEGACY_TEXT_DE bleiben. -->
-    <string name="TalerFork_payment_legacy_text">Dies ist ein GNU-Taler-Link. Aktualisieren Sie Signal oder kopieren Sie den unten stehenden URI in die GNU-Taler-App, um die Zahlung durchzuführen.</string>
+    <!-- Klartext, den Signal vor die Taler-Links einer Zahlungsnachricht setzt. Muss identisch zum zweiten Eintrag von TalerPreviewText.LEGACY_TEXTS bleiben. -->
+    <string name="TalerFork_payment_legacy_text">Dies ist ein GNU-Taler-Link. Aktualisieren Sie Signal oder öffnen Sie den unten stehenden Link mit der GNU-Taler-App, um die Zahlung durchzuführen.</string>
 
     <!-- Header vor dem Klartext/der Rückerstattungs-URI im Entwurf, der nach dem Erstellen einer Rückerstattung vorbereitet wird - %1$s ist TalerFork_payment_legacy_text, bzw. ohne talerPaymentData von Taler die rohe Rückerstattungs-URI -->
     <string name="TalerFork_refund_message">Rückerstattung: %1$s</string>
