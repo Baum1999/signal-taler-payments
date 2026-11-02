@@ -66,8 +66,22 @@ class TalerCardActionGateTest {
   }
 
   @Test
-  fun acceptAndReject_hiddenForNonPayPushKind() {
+  fun acceptAndReject_visibleForIncomingOpenPayPull() {
     val r = record(status = TalerPaymentStatus.OFFEN, uriKind = TalerUriKind.PAY_PULL.name, isOwnPayment = false)
+    assertTrue(TalerCardActionGate.showAccept(r))
+    assertTrue(TalerCardActionGate.showReject(r))
+  }
+
+  @Test
+  fun acceptAndReject_hiddenForOwnPayPullRequest() {
+    val r = record(status = TalerPaymentStatus.OFFEN, uriKind = TalerUriKind.PAY_PULL.name, isOwnPayment = true)
+    assertFalse(TalerCardActionGate.showAccept(r))
+    assertFalse(TalerCardActionGate.showReject(r))
+  }
+
+  @Test
+  fun acceptAndReject_hiddenForNonPeerKind() {
+    val r = record(status = TalerPaymentStatus.OFFEN, uriKind = TalerUriKind.WITHDRAW.name, isOwnPayment = false)
     assertFalse(TalerCardActionGate.showAccept(r))
     assertFalse(TalerCardActionGate.showReject(r))
   }

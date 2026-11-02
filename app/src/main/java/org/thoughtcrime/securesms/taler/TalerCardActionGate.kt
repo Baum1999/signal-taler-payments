@@ -15,13 +15,14 @@ object TalerCardActionGate {
 
   /**
    * Annehmen/Ablehnen nur bei einer Karte mit konkretem DB-Eintrag im Zustand
-   * OFFEN, beschraenkt auf PAY_PUSH (der Taler-seitige Ruecksprung-Mechanismus
-   * ist bisher nur dafuer Ende-zu-Ende verdrahtet), und nur fuer die
-   * Nicht-Absenderseite.
+   * OFFEN, fuer PAY_PUSH (Empfaenger nimmt Geld an) und PAY_PULL (Schuldner
+   * bezahlt die Anforderung, N13; Taler hat den Ruecksprung dafuer bereits),
+   * und nur fuer die Nicht-Absenderseite - die eigene Anforderung bekommt
+   * keinen Annehmen-Knopf.
    */
   fun showAccept(record: TalerPaymentRecord?): Boolean =
     record?.status == TalerPaymentStatus.OFFEN &&
-      record?.uriKind == TalerUriKind.PAY_PUSH.name &&
+      (record?.uriKind == TalerUriKind.PAY_PUSH.name || record?.uriKind == TalerUriKind.PAY_PULL.name) &&
       record?.isOwnPayment == false
 
   fun showReject(record: TalerPaymentRecord?): Boolean = showAccept(record)

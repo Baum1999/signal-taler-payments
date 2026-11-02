@@ -153,7 +153,8 @@ class TalerUriRefreshJob private constructor(
     if (previous != TalerPaymentStatus.OFFEN || new != TalerPaymentStatus.ANGENOMMEN) return
 
     val record = SignalDatabase.talerPayments.getByUri(uri) ?: return
-    if (record.uriKind != TalerUriKind.PAY_PUSH.name || record.isOwnPayment) return
+    if (record.uriKind != TalerUriKind.PAY_PUSH.name && record.uriKind != TalerUriKind.PAY_PULL.name) return
+    if (record.isOwnPayment) return
 
     val recipient = SignalDatabase.threads.getRecipientForThreadId(record.threadId) ?: return
     if (!recipient.isIndividual) return
