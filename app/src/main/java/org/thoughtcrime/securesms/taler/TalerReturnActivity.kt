@@ -53,6 +53,13 @@ class TalerReturnActivity : Activity() {
     try {
       val data = intent?.data
       val correlationId = if (data?.isHierarchical == true) data.getQueryParameter("correlationId") else null
+      // Taler oeffnet den Chat zu einer Zahlung (link-protokoll.md Abschnitt 12):
+      // `open=<talerUri>`, ohne correlationId.
+      val openUri = if (correlationId == null && data?.isHierarchical == true) data.getQueryParameter("open") else null
+      if (openUri != null) {
+        openPaymentChat(openUri)
+        return
+      }
       val entry = correlationId?.let { TalerCorrelationStore.take(it) }
       if (entry == null) {
         // Kein Log mit der correlationId oder einer URI (Regel s.o.) - nur ein
@@ -183,6 +190,31 @@ class TalerReturnActivity : Activity() {
     } finally {
       finish()
     }
+  }
+
+  /**
+   * Oeffnet den Chat an der Nachricht mit [uri] und fragt den Status der
+   * Zahlung sofort neu ab ([TalerPollingCoordinator.requestFastPoll]). Nur
+   * eine URI, die Signal selbst kennt (TalerPaymentTable), oeffnet etwas;
+   * alles andere wird kommentarlos verworfen. Der Intent ist
+   * angreiferkontrolliert, bewirkt aber nur das Oeffnen eines vorhandenen
+   * Chats und einen Status-Abruf.
+   */
+  private fun openPaymentChat(uri: String) {
+    if (!TalerUriDetector.isExactlyOneUri(uri)) return
+    val record = SignalDatabase.talerPayments.getByUri(uri) ?: return
+    TalerPollingCoordinator.requestFastPoll(record.uri)
+    val recipientId = SignalDatabase.threads.getRecipientIdForThreadId(record.threadId) ?: return
+    // Letztes Pfadsegment (Schluessel der Zahlung) steht auch in einem DD-103-Link
+    // der Nachricht, die volle taler://-URI nicht unbedingt.
+    val key = record.uri.substringBefore('?').substringAfterLast('/').takeIf { it.length >= 16 } ?: record.uri
+    val receivedAt = SignalDatabase.talerPayments.findMessageReceivedAt(record.threadId, key)
+    val builder = ConversationIntents.createBuilderSync(this, recipientId, record.threadId)
+    if (receivedAt != null) {
+      val position = SignalDatabase.messages.getMessagePositionInConversation(record.threadId, receivedAt)
+      if (position >= 0) builder.withStartingPosition(position)
+    }
+    startActivity(builder.build())
   }
 
   /**

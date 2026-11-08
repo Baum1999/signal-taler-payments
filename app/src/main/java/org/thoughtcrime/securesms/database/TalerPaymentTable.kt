@@ -326,6 +326,22 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       .run()
       .readToSingleObject { readRecord(it) }
 
+  /**
+   * Empfangszeit der juengsten Nachricht im Thread, deren Text [needle]
+   * enthaelt - fuer den Sprung zur Zahlungsnachricht (TalerReturnActivity,
+   * `open=`). `instr` statt `LIKE`, damit `%`/`_` in der URI nicht als
+   * Platzhalter gelten. null, wenn keine Nachricht passt.
+   */
+  fun findMessageReceivedAt(threadId: Long, needle: String): Long? =
+    readableDatabase
+      .select(MessageTable.DATE_RECEIVED)
+      .from(MessageTable.TABLE_NAME)
+      .where("${MessageTable.THREAD_ID} = ? AND instr(${MessageTable.BODY}, ?) > 0", threadId, needle)
+      .orderBy("${MessageTable.DATE_RECEIVED} DESC")
+      .limit(1)
+      .run()
+      .readToSingleObject { it.requireLong(MessageTable.DATE_RECEIVED) }
+
   fun getForThread(threadId: Long): List<TalerPaymentRecord> =
     readableDatabase
       .select()
