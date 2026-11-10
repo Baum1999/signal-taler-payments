@@ -6,7 +6,7 @@
 
 package org.thoughtcrime.securesms.payments.history
 
-import org.thoughtcrime.securesms.recipients.RecipientId
+import org.signal.core.models.recipients.RecipientId
 import java.util.Date
 
 /**

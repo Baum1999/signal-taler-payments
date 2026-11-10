@@ -1,6 +1,6 @@
 package org.thoughtcrime.securesms.taler
 
-import org.thoughtcrime.securesms.recipients.RecipientId
+import org.signal.core.models.recipients.RecipientId
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 

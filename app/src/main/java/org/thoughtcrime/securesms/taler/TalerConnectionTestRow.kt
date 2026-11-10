@@ -6,6 +6,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import org.signal.core.ui.compose.Rows
 import org.thoughtcrime.securesms.R
+import org.signal.core.ui.R as CoreUiR
 
 /**
  * Zeigt in den App-Einstellungen an, ob die Taler-Wallet auf diesem Geraet
@@ -33,6 +34,6 @@ fun TalerConnectionTestRow() {
   Rows.TextRow(
     text = stringResource(R.string.TalerFork_settings_row_label),
     label = stringResource(statusRes),
-    icon = painterResource(R.drawable.symbol_payment_24)
+    icon = painterResource(CoreUiR.drawable.symbol_payment_24)
   )
 }

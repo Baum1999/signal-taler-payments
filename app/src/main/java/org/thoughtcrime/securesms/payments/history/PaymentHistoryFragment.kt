@@ -722,11 +722,11 @@ fun PaymentHistoryPreview() {
         currency = "EUR",
         direction = PaymentDirection.OUTFLOW,
         sender = PaymentParty(
-            id = org.thoughtcrime.securesms.recipients.RecipientId.from("test1"),
+            id = org.signal.core.models.recipients.RecipientId.from("test1"),
             name = "Max Mustermann"
         ),
         recipient = PaymentParty(
-            id = org.thoughtcrime.securesms.recipients.RecipientId.from("test2"),
+            id = org.signal.core.models.recipients.RecipientId.from("test2"),
             name = "Erika Mustermann"
         ),
         status = PaymentStatus.COMPLETED,

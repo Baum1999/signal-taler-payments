@@ -3,7 +3,7 @@ package org.thoughtcrime.securesms.taler
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import org.thoughtcrime.securesms.recipients.RecipientId
+import org.signal.core.models.recipients.RecipientId
 
 /**
  * Klick-Handler fuer den "Refund"-Button auf einer angenommenen, eingehenden

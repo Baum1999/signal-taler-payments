@@ -8,6 +8,7 @@ package org.thoughtcrime.securesms.database
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import org.signal.core.models.recipients.RecipientId
 import org.signal.core.util.delete
 import org.signal.core.util.insertInto
 import org.signal.core.util.readToList
@@ -23,7 +24,6 @@ import org.thoughtcrime.securesms.payments.history.PaymentDirection
 import org.thoughtcrime.securesms.payments.history.PaymentHistoryItem
 import org.thoughtcrime.securesms.payments.history.PaymentParty
 import org.thoughtcrime.securesms.payments.history.PaymentStatus
-import org.thoughtcrime.securesms.recipients.RecipientId
 import java.util.Date
 
 /**

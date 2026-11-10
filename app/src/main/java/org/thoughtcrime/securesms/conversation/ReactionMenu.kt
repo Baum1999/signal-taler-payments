@@ -112,7 +112,7 @@ object ReactionMenu {
         add(CoreUiR.drawable.symbol_refresh_24, R.string.TalerFork_action_refresh, ReactionAction.TALER_REFRESH)
       }
       if (talerMenuTargets.showRefund) {
-        add(R.drawable.symbol_payment_24, R.string.TalerFork_action_refund, ReactionAction.TALER_REFUND)
+        add(CoreUiR.drawable.symbol_payment_24, R.string.TalerFork_action_refund, ReactionAction.TALER_REFUND)
       }
     }
 

@@ -3286,7 +3286,7 @@ class ConversationFragment :
       }
       if (talerMenuTargets.showRefund) {
         items.add(
-          ActionItem(R.drawable.symbol_payment_24, resources.getString(R.string.TalerFork_action_refund)) {
+          ActionItem(CoreUiR.drawable.symbol_payment_24, resources.getString(R.string.TalerFork_action_refund)) {
             TalerMenuActions.onRefundFromMenu(requireContext(), talerMessageRecord)
             finishActionMode()
           }
