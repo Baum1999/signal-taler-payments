@@ -1,6 +1,7 @@
 package org.thoughtcrime.securesms.taler
 
 import android.app.AlertDialog
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -10,6 +11,7 @@ import org.thoughtcrime.securesms.database.model.MessageRecord
 import net.taler.wallet.link.TalerHttpsLink
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob
+import org.thoughtcrime.securesms.providers.AvatarProvider
 
 /**
  * Klick-Handler fuer die Annehmen-/Ablehnen-Buttons der Taler-Zahlungskarte -
@@ -36,10 +38,31 @@ object TalerAcceptRejectActions {
     val unwrapped = TalerHttpsLink.unwrap(uri)
     val returnUri = TalerAllowlist.RETURN_URI
     val separator = if (unwrapped.contains("?")) "&" else "?"
-    val target = "$unwrapped${separator}correlationId=${Uri.encode(correlationId)}&returnUri=${Uri.encode(returnUri)}"
+
+    // Chat-Kontext wie bei compose-send (TalerSendActions): Taler zeigt an der
+    // angenommenen Zahlung dauerhaft "Signal-Logo, Avatar, Name" und springt
+    // von dort zu dieser Nachricht (link-protokoll.md Abschnitte 6 und 12).
+    // Reine Anzeige-Hinweise, keine Betrags- oder Guthabendaten.
+    val recipient = SignalDatabase.threads.getRecipientForThreadId(threadId)
+    val avatarUri = recipient?.let { AvatarProvider.getContentUri(it.id) }
+    val contactParams = if (recipient != null && avatarUri != null) {
+      "&recipientHint=${Uri.encode(recipient.getDisplayName(context))}" +
+        "&senderAppName=Signal" +
+        "&isGroup=${recipient.isGroup}" +
+        "&avatarUri=${Uri.encode(avatarUri.toString())}"
+    } else {
+      ""
+    }
+    val target = "$unwrapped${separator}correlationId=${Uri.encode(correlationId)}&returnUri=${Uri.encode(returnUri)}$contactParams"
 
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(target)).apply {
       setPackage(TalerAllowlist.PACKAGE)
+      if (avatarUri != null) {
+        // Leserecht fuer den exported=false-Avatar-Provider, wie in
+        // TalerSendActions: ClipData + Flag gilt fuer das Zielpaket.
+        clipData = ClipData.newRawUri("avatar", avatarUri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+      }
     }
     // Taler koennte zwischen Anzeige der Karte und diesem Klick deinstalliert
     // worden sein - eine ActivityNotFoundException wuerde sonst ungefangen
