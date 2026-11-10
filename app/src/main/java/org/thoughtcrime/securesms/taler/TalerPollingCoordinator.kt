@@ -25,7 +25,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 object TalerPollingCoordinator {
   private val TAG = Log.tag(TalerPollingCoordinator::class.java)
   // 60 s statt 20 s: Beim Wechsel in den Vordergrund wird sofort gepollt,
-  // und Taler oeffnet den Chat zu einer Zahlung per `taler-return?open=`,
+  // und Taler oeffnet den Chat zu einer Zahlung per `taler-return?uriHash=`,
   // was die URI sofort und im Fast-Poll abfragt (TalerReturnActivity).
   private const val POLL_INTERVAL_MS = 60_000L
 

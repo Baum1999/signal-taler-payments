@@ -12,6 +12,7 @@ import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.conversation.ConversationIntents
 import org.thoughtcrime.securesms.database.DraftTable
 import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.database.TalerPaymentRecord
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobs.TalerUriRefreshJob
 import org.thoughtcrime.securesms.mms.OutgoingMessage
@@ -54,11 +55,19 @@ class TalerReturnActivity : Activity() {
       val data = intent?.data
       val correlationId = if (data?.isHierarchical == true) data.getQueryParameter("correlationId") else null
       // Taler oeffnet den Chat zu einer Zahlung (link-protokoll.md Abschnitt 12):
-      // `open=<talerUri>`, ohne correlationId.
-      val openUri = if (correlationId == null && data?.isHierarchical == true) data.getQueryParameter("open") else null
-      if (openUri != null) {
-        openPaymentChat(openUri)
-        return
+      // `uriHash=<hex>` (wiederholt), aeltere Taler-Versionen `open=<talerUri>`,
+      // beides ohne correlationId.
+      if (correlationId == null && data?.isHierarchical == true) {
+        val uriHashes = data.getQueryParameters(TalerOpenLink.URI_HASH_PARAM)
+        if (uriHashes.isNotEmpty()) {
+          openPaymentChatByHash(uriHashes)
+          return
+        }
+        val openUri = data.getQueryParameter("open")
+        if (openUri != null) {
+          openPaymentChat(openUri)
+          return
+        }
       }
       val entry = correlationId?.let { TalerCorrelationStore.take(it) }
       if (entry == null) {
@@ -204,6 +213,27 @@ class TalerReturnActivity : Activity() {
     if (!TalerUriDetector.isExactlyOneUri(uri)) return
     val record = SignalDatabase.talerPayments.getByUri(uri) ?: return
     TalerPollingCoordinator.requestFastPoll(record.uri)
+    openChatAtPayment(record)
+  }
+
+  /**
+   * Wie [openPaymentChat], aber per Hash ([TalerOpenLink]): Taler kennt die
+   * URI einer angenommenen, abgelaufenen oder abgebrochenen Zahlung nicht
+   * mehr, nur noch ihren Hash. Die erste bekannte Zahlung, deren Hash im
+   * Link steht (Link-Reihenfolge), bestimmt den Chat. Alle Zahlungen aus dem
+   * Link in diesem Chat (Anteile eines Gruppen-Splits) werden sofort neu
+   * abgefragt. Unbekannte Hashes werden kommentarlos verworfen.
+   */
+  private fun openPaymentChatByHash(values: List<String>) {
+    val hashes = TalerOpenLink.parseHashes(values)
+    if (hashes.isEmpty()) return
+    val matches = TalerOpenLink.matches(hashes, SignalDatabase.talerPayments.getAll()) { it.uri }
+    val record = matches.firstOrNull() ?: return
+    matches.filter { it.threadId == record.threadId }.forEach { TalerPollingCoordinator.requestFastPoll(it.uri) }
+    openChatAtPayment(record)
+  }
+
+  private fun openChatAtPayment(record: TalerPaymentRecord) {
     val recipientId = SignalDatabase.threads.getRecipientIdForThreadId(record.threadId) ?: return
     // Letztes Pfadsegment (Schluessel der Zahlung) steht auch in einem DD-103-Link
     // der Nachricht, die volle taler://-URI nicht unbedingt.
