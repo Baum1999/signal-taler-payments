@@ -191,6 +191,7 @@ import org.thoughtcrime.securesms.database.helpers.migration.V335_AddPaymentHist
 import org.thoughtcrime.securesms.database.helpers.migration.V336_AddTalerPaymentMessageTable
 import org.thoughtcrime.securesms.database.helpers.migration.V337_NormalizeTalerConnectivityStatuses
 import org.thoughtcrime.securesms.database.helpers.migration.V338_AddTalerPaymentSentFromOtherDeviceColumn
+import org.thoughtcrime.securesms.database.helpers.migration.V339_CanonicalTalerPaymentUris
 import org.thoughtcrime.securesms.database.SQLiteDatabase as SignalSqliteDatabase
 
 /**
@@ -389,10 +390,11 @@ object SignalDatabaseMigrations {
     335 to V335_AddPaymentHistoryTable,
     336 to V336_AddTalerPaymentMessageTable,
     337 to V337_NormalizeTalerConnectivityStatuses,
-    338 to V338_AddTalerPaymentSentFromOtherDeviceColumn
+    338 to V338_AddTalerPaymentSentFromOtherDeviceColumn,
+    339 to V339_CanonicalTalerPaymentUris
   )
 
-  const val DATABASE_VERSION = 338
+  const val DATABASE_VERSION = 339
 
   @JvmStatic
   fun migrate(context: Application, db: SignalSqliteDatabase, oldVersion: Int, newVersion: Int) {

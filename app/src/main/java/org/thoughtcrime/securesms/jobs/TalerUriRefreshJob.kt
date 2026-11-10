@@ -5,6 +5,7 @@ import net.taler.wallet.link.TalerUriKind
 import org.signal.core.util.logging.Log
 import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.SignalDatabase
+import org.thoughtcrime.securesms.database.TalerPaymentTable
 import org.thoughtcrime.securesms.dependencies.AppDependencies
 import org.thoughtcrime.securesms.jobmanager.Job
 import org.thoughtcrime.securesms.jobmanager.JsonJobData
@@ -73,8 +74,12 @@ class TalerUriRefreshJob private constructor(
     //
     // Bug 3 Fix: Getrennte Queues pro TriggerType, damit ein RETURN-Trigger
     // nicht durch einen laufenden ROUTINE-Job fuer dieselbe URI blockiert wird.
+    //
+    // Bug B1: Queue und Job arbeiten mit dem gemeinsamen Schluessel
+    // (taler://, TalerPaymentTable.canonicalUri) - ein DD-103-Link aus einem
+    // Body und die taler://-URI aus Feld 9000 sind derselbe Vorgang.
     Parameters.Builder()
-      .setQueue("TalerUriRefreshJob::${triggerType.name}::${TalerCorrelation.shortHash(uri)}")
+      .setQueue("TalerUriRefreshJob::${triggerType.name}::${TalerCorrelation.shortHash(TalerPaymentTable.canonicalUri(uri))}")
       .setMaxInstancesForQueue(1)
       // Seit der Abruf ueber das Netz statt ueber einen lokalen Binder laeuft:
       // ohne Verbindung gar nicht erst anlaufen, sonst zaehlt jeder Versuch
@@ -85,7 +90,7 @@ class TalerUriRefreshJob private constructor(
       .setMaxAttempts(3)
       .setQueuePriority(if (triggerType == TriggerType.RETURN || triggerType == TriggerType.ABORT_CHECK) Job.Parameters.PRIORITY_HIGH else Job.Parameters.PRIORITY_DEFAULT)
       .build(),
-    uri,
+    TalerPaymentTable.canonicalUri(uri),
     triggerType,
   )
 

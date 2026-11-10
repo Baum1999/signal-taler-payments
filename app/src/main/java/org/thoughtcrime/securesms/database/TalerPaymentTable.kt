@@ -1,6 +1,7 @@
 package org.thoughtcrime.securesms.database
 
 import android.content.Context
+import net.taler.wallet.link.TalerHttpsLink
 import org.signal.core.util.insertInto
 import org.signal.core.util.readToList
 import org.signal.core.util.readToSingleObject
@@ -21,6 +22,12 @@ import kotlin.time.Duration.Companion.seconds
  * zitierte und weitergeleitete Nachrichten mit derselben URI sind derselbe
  * Vorgang (siehe docs/API.md, Abschnitt "Zustaende"). [uri] ist deshalb der
  * eindeutige Schluessel, nicht die message-ID.
+ *
+ * Der Schluessel ist immer die `taler://`-Form ([canonicalUri]): Feld 9000
+ * traegt `taler://X`, der Body denselben Vorgang als DD-103-Link
+ * `https://<host>/link#X`. Jede Methode mit URI-Parameter nimmt beide
+ * Schreibweisen an und meint damit dieselbe Zeile (Bug B1,
+ * docs/nach-taler-abgabe/bugs.md).
  */
 class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : DatabaseTable(context, databaseHelper) {
 
@@ -109,6 +116,12 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
       isOwnPayment = cursor.requireInt(IS_OWN_PAYMENT) != 0,
       sentFromOtherDevice = cursor.requireInt(SENT_FROM_OTHER_DEVICE) != 0,
     )
+
+    /**
+     * Gemeinsamer Schluessel eines Vorgangs: ein DD-103-Link wird zu seiner
+     * `taler://`-URI entpackt, alles andere bleibt (getrimmt) wie es ist.
+     */
+    fun canonicalUri(uri: String): String = TalerHttpsLink.unwrap(uri)
   }
 
   /**
@@ -129,7 +142,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     val rowId = writableDatabase
       .insertInto(TABLE_NAME)
       .values(
-        URI to uri,
+        URI to canonicalUri(uri),
         THREAD_ID to threadId,
         STATUS to TalerPaymentStatus.UNBEKANNT_OFFLINE.name,
         IS_OWN_PAYMENT to if (isOwnPayment) 1 else 0,
@@ -175,7 +188,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
         // B2 (REVIEW.md): erfolgreicher Abruf setzt den Backoff zurueck.
         CONSECUTIVE_FAILURES to 0,
       )
-      .where("$URI = ?", uri)
+      .where("$URI = ?", canonicalUri(uri))
       .run()
   }
 
@@ -242,7 +255,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
           LAST_CHECKED_AT to System.currentTimeMillis(),
           CONSECUTIVE_FAILURES to 0,
         )
-        .where("$URI = ?", uri)
+        .where("$URI = ?", canonicalUri(uri))
         .run()
       if (status in STATUS_LINE_TERMINAL_STATUSES && previous != status) {
         getByUri(uri)?.let { insertLocalStatusLine(it.threadId, status) }
@@ -299,7 +312,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
         LAST_CHECKED_AT to System.currentTimeMillis(),
         CONSECUTIVE_FAILURES to 0,
       )
-      .where("$URI = ?", uri)
+      .where("$URI = ?", canonicalUri(uri))
       .run()
   }
 
@@ -314,7 +327,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     writableDatabase
       .execSQL(
         "UPDATE $TABLE_NAME SET $LAST_CHECKED_AT = ?, $CONSECUTIVE_FAILURES = $CONSECUTIVE_FAILURES + 1 WHERE $URI = ?",
-        arrayOf(System.currentTimeMillis(), uri)
+        arrayOf(System.currentTimeMillis(), canonicalUri(uri))
       )
   }
 
@@ -322,7 +335,7 @@ class TalerPaymentTable(context: Context, databaseHelper: SignalDatabase) : Data
     readableDatabase
       .select()
       .from(TABLE_NAME)
-      .where("$URI = ?", uri)
+      .where("$URI = ?", canonicalUri(uri))
       .run()
       .readToSingleObject { readRecord(it) }
 

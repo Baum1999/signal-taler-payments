@@ -6,6 +6,7 @@
 package org.thoughtcrime.securesms.taler
 
 import android.app.Application
+import net.taler.wallet.link.TalerHttpsLink
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -126,6 +127,36 @@ class TalerPaymentTrackerTest {
     assertEquals("9.00", stored?.totalAmount)
 
     uris.forEach { uri -> assertNotNull(SignalDatabase.talerPayments.getByUri(uri)) }
+  }
+
+  /**
+   * Bug B1 (docs/nach-taler-abgabe/bugs.md): Ein Sync-Transkript (oder eine
+   * empfangene Nachricht) traegt in Feld 9000 `taler://`, im Body denselben
+   * Vorgang als DD-103-Link. Die Karte liest die URI aus dem Body; vor dem
+   * Fix fand sie keinen Datensatz und zeigte "Taler-Link, 0, an dich".
+   */
+  @Test
+  fun trackStructuredPayment_paymentIsFoundViaTheLinkInTheBody() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/trackerSync"
+    val body = "Taler payment, open the link below.\n\n" + TalerHttpsLink.wrap(uri)
+    val talerPayment = DataMessage.TalerPayment(uris = listOf(uri), version = 1)
+
+    TalerPaymentTracker.trackStructuredPayment(talerPayment, messageId = 44, threadId = 1, isOwnPayment = true, sentFromOtherDevice = true)
+
+    val bodyUri = urisFromMessageBody(body).single()
+    val record = SignalDatabase.talerPayments.getByUri(bodyUri)
+    assertNotNull(record)
+    assertEquals(true, record?.isOwnPayment)
+    assertEquals(true, record?.sentFromOtherDevice)
+  }
+
+  @Test
+  fun trackUrisInBody_storesTheLinkInTheBodyAsTalerUri() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/trackerOwnLink"
+
+    TalerPaymentTracker.trackUrisInBody("Taler payment, open the link below.\n\n" + TalerHttpsLink.wrap(uri), threadId = 1, isOwnPayment = true)
+
+    assertEquals(uri, SignalDatabase.talerPayments.getByUri(uri)?.uri)
   }
 
   @Test

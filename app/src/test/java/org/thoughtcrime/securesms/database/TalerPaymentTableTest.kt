@@ -6,7 +6,9 @@
 package org.thoughtcrime.securesms.database
 
 import android.app.Application
+import net.taler.wallet.link.TalerHttpsLink
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -319,6 +321,104 @@ class TalerPaymentTableTest {
     )
 
     assertEquals(TalerPaymentStatus.LOKAL_ABGELEHNT, table.getByUri(uri)?.status)
+  }
+
+  /**
+   * Bug B1 (docs/nach-taler-abgabe/bugs.md): Feld 9000 traegt `taler://X`,
+   * der Body denselben Vorgang als DD-103-Link `https://<host>/link#X`. Der
+   * Sync-/Empfangspfad trackt die Feld-9000-Form, Karte, Menue und Annehmen
+   * schlagen mit der Body-Form nach. Beide Schreibweisen muessen deshalb auf
+   * dieselbe Zeile zeigen, gespeichert wird `taler://`.
+   */
+  @Test
+  fun getByUri_findsATalerUriPaymentViaItsHttpsLink() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/canonicalA"
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = true)
+
+    val record = table.getByUri(TalerHttpsLink.wrap(uri))
+
+    assertEquals(uri, record?.uri)
+    assertEquals(true, record?.isOwnPayment)
+  }
+
+  @Test
+  fun upsertDetected_storesAnHttpsLinkAsTalerUri() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/canonicalB"
+
+    table.upsertDetected(TalerHttpsLink.wrap(uri), threadId = 1, isOwnPayment = true)
+
+    assertEquals(uri, table.getByUri(uri)?.uri)
+  }
+
+  @Test
+  fun upsertDetected_treatsHttpsLinkAndTalerUriAsTheSamePayment() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/canonicalC"
+
+    val first = table.upsertDetected(TalerHttpsLink.wrap(uri), threadId = 1, isOwnPayment = true)
+    val second = table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
+
+    assertTrue(first)
+    assertFalse(second)
+    assertEquals(1, table.getForThread(1).count { it.uri == uri })
+  }
+
+  @Test
+  fun applyPreviewAndRecordTransition_viaHttpsLinkFillsTheTalerUriRow() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/canonicalD"
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = true)
+
+    table.applyPreviewAndRecordTransition(
+      uri = TalerHttpsLink.wrap(uri),
+      uriKind = "PAY_PUSH",
+      status = TalerPaymentStatus.OFFEN,
+      amount = "0.6",
+      currency = "KUDOS",
+      exchangeBaseUrl = "https://exchange.demo.taler.net/",
+      summary = "s",
+    )
+
+    val record = table.getByUri(uri)
+    assertEquals(TalerPaymentStatus.OFFEN, record?.status)
+    assertEquals("0.6", record?.amount)
+    assertEquals("PAY_PUSH", record?.uriKind)
+  }
+
+  @Test
+  fun updateFromPreview_viaHttpsLinkFillsTheTalerUriRow() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/canonicalE"
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
+
+    table.updateFromPreview(
+      uri = TalerHttpsLink.wrap(uri),
+      uriKind = "PAY_PUSH",
+      status = TalerPaymentStatus.OFFEN,
+      amount = "0.6",
+      currency = "KUDOS",
+      exchangeBaseUrl = "https://exchange.demo.taler.net/",
+      summary = "s",
+    )
+
+    assertEquals("0.6", table.getByUri(uri)?.amount)
+  }
+
+  @Test
+  fun updateStatus_viaHttpsLinkUpdatesTheTalerUriRow() {
+    val uri = "taler://pay-pull/exchange.demo.taler.net/canonicalF"
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
+
+    table.updateStatus(TalerHttpsLink.wrap(uri), TalerPaymentStatus.OFFEN)
+
+    assertEquals(TalerPaymentStatus.OFFEN, table.getByUri(uri)?.status)
+  }
+
+  @Test
+  fun recordFailure_viaHttpsLinkCountsOnTheTalerUriRow() {
+    val uri = "taler://pay-push/exchange.demo.taler.net/canonicalG"
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
+
+    table.recordFailure(TalerHttpsLink.wrap(uri))
+
+    assertEquals(1, table.getByUri(uri)?.consecutiveFailures)
   }
 
   private fun countStatusLines(threadId: Long, body: String): Int =
