@@ -4287,6 +4287,13 @@ class ConversationFragment :
         return
       }
 
+      // GNU-Fork (Signal-Taler-Integration): dieselbe Sperre wie fuer
+      // "Bearbeiten" im Long-Press-Menue (MenuState, hasTalerPayment) - eine
+      // Taler-Zahlungsnachricht darf auch per Doppeltipp nicht bearbeitet werden.
+      if (TalerMenuGate.messageHasTalerUris(conversationMessage.messageRecord)) {
+        return
+      }
+
       if (SignalStore.uiHints.hasSeenDoubleTapEditEducationSheet) {
         onDoubleTapEditEducationSheetNext(conversationMessage)
         return
