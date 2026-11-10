@@ -1,11 +1,11 @@
 package org.thoughtcrime.securesms.database
 
 import android.content.Context
-import org.signal.core.util.insertInto
+import org.signal.core.database.insertInto
+import org.signal.core.database.select
 import org.signal.core.util.readToSingleObject
 import org.signal.core.util.requireLong
 import org.signal.core.util.requireNonNullString
-import org.signal.core.util.select
 
 data class TalerConfirmationMessageRecord(
   val messageId: Long,

@@ -15,11 +15,11 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.signal.core.database.select
+import org.signal.core.database.update
 import org.signal.core.util.readToList
 import org.signal.core.util.requireLong
 import org.signal.core.util.requireString
-import org.signal.core.util.select
-import org.signal.core.util.update
 import org.thoughtcrime.securesms.taler.TalerPaymentStatus
 import org.thoughtcrime.securesms.testutil.RecipientTestRule
 import java.util.concurrent.CyclicBarrier

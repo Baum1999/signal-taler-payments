@@ -8,9 +8,11 @@ package org.thoughtcrime.securesms.database
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import org.signal.core.database.delete
+import org.signal.core.database.insertInto
+import org.signal.core.database.select
+import org.signal.core.database.update
 import org.signal.core.models.recipients.RecipientId
-import org.signal.core.util.delete
-import org.signal.core.util.insertInto
 import org.signal.core.util.readToList
 import org.signal.core.util.readToSingleObject
 import org.signal.core.util.requireInt
@@ -18,8 +20,6 @@ import org.signal.core.util.requireLong
 import org.signal.core.util.requireLongOrNull
 import org.signal.core.util.requireNonNullString
 import org.signal.core.util.requireString
-import org.signal.core.util.select
-import org.signal.core.util.update
 import org.thoughtcrime.securesms.payments.history.PaymentDirection
 import org.thoughtcrime.securesms.payments.history.PaymentHistoryItem
 import org.thoughtcrime.securesms.payments.history.PaymentParty
