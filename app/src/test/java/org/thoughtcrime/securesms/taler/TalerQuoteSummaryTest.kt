@@ -15,6 +15,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.thoughtcrime.securesms.R
 import org.thoughtcrime.securesms.database.SignalDatabase
 import org.thoughtcrime.securesms.testutil.RecipientTestRule
 
@@ -79,7 +80,9 @@ class TalerQuoteSummaryTest {
 
     val summary = TalerQuoteSummary.buildOrNull(context, uri)
 
-    assertEquals("4,20 KUDOS · Angenommen", summary)
+    // Status-Label aus den Ressourcen: Robolectric laedt die englischen Texte
+    // (vgl. "Checking status…" oben), nicht values-de.
+    assertEquals("4,20 KUDOS · ${context.getString(R.string.TalerFork_status_compact_accepted)}", summary)
     assertFalse(summary!!.contains(uri))
   }
 }

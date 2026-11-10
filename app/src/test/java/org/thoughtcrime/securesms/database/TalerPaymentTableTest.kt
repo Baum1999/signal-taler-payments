@@ -8,7 +8,6 @@ package org.thoughtcrime.securesms.database
 import android.app.Application
 import net.taler.wallet.link.TalerHttpsLink
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -354,12 +353,15 @@ class TalerPaymentTableTest {
   fun upsertDetected_treatsHttpsLinkAndTalerUriAsTheSamePayment() {
     val uri = "taler://pay-push/exchange.demo.taler.net/canonicalC"
 
-    val first = table.upsertDetected(TalerHttpsLink.wrap(uri), threadId = 1, isOwnPayment = true)
-    val second = table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
+    table.upsertDetected(TalerHttpsLink.wrap(uri), threadId = 1, isOwnPayment = true)
+    table.upsertDetected(uri, threadId = 1, isOwnPayment = false)
 
-    assertTrue(first)
-    assertFalse(second)
+    // Am Rueckgabewert laesst sich das hier nicht pruefen: die JDBC-Testdatenbank
+    // (JdbcSqliteDatabase.insert) liefert auch fuer ein ignoriertes INSERT
+    // last_insert_rowid(), Android/SQLCipher dagegen -1. Deshalb ueber die Zeile:
+    // genau eine, und das zweite INSERT hat die erste nicht ueberschrieben.
     assertEquals(1, table.getForThread(1).count { it.uri == uri })
+    assertEquals(true, table.getByUri(uri)?.isOwnPayment)
   }
 
   @Test
